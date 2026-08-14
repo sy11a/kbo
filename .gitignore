@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Personal dev-journal entries stay local — they reference project-specific
+# work and must not be published. The format template (README.md) is kept.
+docs/journal/*
+!docs/journal/README.md
