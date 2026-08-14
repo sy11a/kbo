@@ -21,7 +21,10 @@ Gold (`kbo report`, step 1.7) reads only the views.
 
 ## Implementation
 
-- `src/Kbo/Silver/SilverRebuilder.cs` — delete + derive (DuckDB.NET)
+- `src/Kbo/Silver/SilverRebuilder.cs` — delete + derive (DuckDB.NET). All rows
+  insert through a single parameterized `INSERT` command created once per
+  rebuild — DuckDB.NET caches the prepared statement while `CommandText` is
+  unchanged, so only parameter values reset per row.
 - `src/Kbo/Cli/RebuildCommand.cs` — `kbo rebuild [--silver <file>] [--events-repo <dir>]`
 - `docs/layer-silver.md` — P7 layer card (what it does / never does / how to inspect)
 

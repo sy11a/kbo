@@ -16,12 +16,13 @@ Claude Code skills are captured (ADR-0024); opencode skill/command invocations a
 
 <!-- Items below from the 2026-08-14 fresh-eye code review. Ordered by blast radius:
      data-integrity on the unrebuildable capture path first, then maintainability,
-     then genericity/polish. Do the silver INSERT item before the rest.
-     (Done so far: capture fail-safe, bronze write integrity, BronzeStore scanner collapse.) -->
+     then genericity/polish.
+     (Done so far: capture fail-safe, bronze write integrity, BronzeStore scanner
+     collapse, prepared silver INSERT.) -->
 
-## Prepare the silver INSERT once
+## Rebuild throughput: DuckDB Appender
 
-`SilverRebuilder.InsertEvent` builds a fresh `DuckDBCommand` and re-parses the `INSERT` text for every event inside the transaction (`SilverRebuilder.cs:148`). Prepare the statement once outside the loop and reset parameters per row. Correctness unchanged (`RebuildResult` identical); straight throughput win on `rebuild`.
+Measured 2026-08-14 while doing the prepared-INSERT item: a 22.8k-event rebuild takes ~16s, and an empty rebuild takes 0.08s — nearly all time is the per-row `ExecuteNonQuery` interop in the insert loop (~0.7ms/row), not statement parsing (preparing once bought only ~4%). If rebuild latency ever matters (it runs hourly via pulse and inside `kbo watch`), the designed fix is DuckDB's Appender API (`DuckDBAppender` in DuckDB.NET) for the bulk load — likely takes the loop to well under a second. Low urgency at current volume.
 
 ## Configurable task pattern (genericity)
 

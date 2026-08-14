@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `kbo rebuild` inserts all rows through a single prepared `INSERT` command (parameters reset per row) instead of building a new command per event. Output is byte-identical; modest throughput gain (~4% on a 22.8k-event store — the remaining per-row cost is DuckDB interop, noted in the backlog).
+
 ### Added
 
 - `kbo doctor` surfaces capture-error drops (ADR-0029): the running count and the last drop's date, flagged as a problem only when the most recent drop is within the 3-day dead-man threshold — so silent capture data-loss becomes visible at login instead of hiding in a log no one reads.
