@@ -198,11 +198,24 @@ public class SilverRebuilderTests : IDisposable
         using DuckDBConnection reader = new($"Data Source={silverPath};ACCESS_MODE=READ_ONLY");
         reader.Open();
 
+        new BronzeStore(eventsRepo).Append(new[]
+        {
+            Event("01A0000000000000000000000A", "knowledge.read", "2026-08-02T10:00:00Z", "sess-hook-only", "hook",
+                subject: "/kb/ninth.md", kbroot: "vault"),
+        });
         SilverRebuilder.Rebuild(eventsRepo, silverPath);
 
         Assert.Equal(8, Scalar(reader, "SELECT count(*) FROM events"));
+
+        // DuckDB.NET caches native database handles per-process by data-source
+        // path (ConnectionManager.ConnectionCache); while `reader` is open, any
+        // other connection string that resolves to the same path reuses its
+        // handle rather than reopening the swapped-in file. Dispose the held
+        // reader once its old-snapshot assertion is in so a subsequent open
+        // genuinely reopens from disk and observes the new file.
+        reader.Dispose();
         using DuckDBConnection fresh = Open();
-        Assert.Equal(8, Scalar(fresh, "SELECT count(*) FROM events"));
+        Assert.Equal(9, Scalar(fresh, "SELECT count(*) FROM events"));
     }
 
     [Fact]

@@ -52,7 +52,10 @@ structurally. Watch's loop, intervals, and pulse scheduling are untouched.
   readable. A failed swap likewise fails loudly with the old silver still in
   place — strictly better than delete-first, which left no usable silver.
 - A reader holding the old file open across a swap keeps its consistent
-  snapshot (POSIX rename semantics); the next open sees the new file.
+  snapshot (POSIX rename semantics); the next open sees the new file. (On
+  Windows, renaming over a file a reader holds open fails with a sharing
+  violation instead — the rebuild errors loudly and the old silver stays
+  intact; kbo targets Linux, where this does not arise.)
 - Read-only readers can no longer create tables or write by accident — the
   access mode now states the intent the code always had.
 - Closes the lock-contention robustness gap flagged against ADR-0022.

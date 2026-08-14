@@ -84,12 +84,18 @@ public static class SilverRebuilder
         try
         {
             RebuildResult result = BuildInto(eventsRepoRoot, tempPath);
+            // A WAL sibling next to the live file can only be a leftover from
+            // the pre-ADR-0032 in-place rebuild era (the new regime never
+            // writes the live file); stale, it would poison the next open of
+            // the file we're about to swap in.
+            TryDelete(silverPath + ".wal");
             File.Move(tempPath, silverPath, overwrite: true);
             return result;
         }
         catch
         {
             TryDelete(tempPath);
+            TryDelete(tempPath + ".wal");
             throw;
         }
     }
