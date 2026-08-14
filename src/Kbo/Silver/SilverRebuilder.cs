@@ -70,17 +70,64 @@ public static class SilverRebuilder
 
     public static RebuildResult Rebuild(string eventsRepoRoot, string silverPath)
     {
-        if (File.Exists(silverPath))
-        {
-            File.Delete(silverPath);
-        }
-        string? silverDirectory = Path.GetDirectoryName(silverPath);
-        if (!string.IsNullOrEmpty(silverDirectory))
-        {
-            Directory.CreateDirectory(silverDirectory);
-        }
+        string silverDirectory = Path.GetDirectoryName(Path.GetFullPath(silverPath))!;
+        Directory.CreateDirectory(silverDirectory);
+        string silverFileName = Path.GetFileName(silverPath);
+        SweepStaleTempFiles(silverDirectory, silverFileName);
 
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
+        // Build into a sibling temp file, then atomically rename over the live
+        // silver (ADR-0032): the live file is never write-locked by a rebuild and
+        // never observable half-built. Unique suffix so concurrent rebuilds
+        // (watch tick + hourly pulse) each build their own temp; last swap wins.
+        string tempPath = Path.Combine(
+            silverDirectory, $"{silverFileName}.tmp-{Guid.NewGuid():N}");
+        try
+        {
+            RebuildResult result = BuildInto(eventsRepoRoot, tempPath);
+            File.Move(tempPath, silverPath, overwrite: true);
+            return result;
+        }
+        catch
+        {
+            TryDelete(tempPath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// A rebuild killed mid-flight leaves its temp file behind; the next rebuild
+    /// sweeps them. The 1-hour age guard protects a concurrent rebuild's live
+    /// temp (a rebuild takes seconds, not hours).
+    /// </summary>
+    private static void SweepStaleTempFiles(string silverDirectory, string silverFileName)
+    {
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        foreach (string tempFile in Directory.EnumerateFiles(silverDirectory, silverFileName + ".tmp-*"))
+        {
+            if (File.GetLastWriteTimeUtc(tempFile) < cutoff)
+            {
+                TryDelete(tempFile);
+            }
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static RebuildResult BuildInto(string eventsRepoRoot, string databasePath)
+    {
+        using DuckDBConnection connection = new($"Data Source={databasePath}");
         connection.Open();
         Execute(connection, CreateEventsTable);
 

@@ -179,6 +179,48 @@ public class SilverRebuilderTests : IDisposable
         Assert.Equal(firstDump, secondDump);
     }
 
+    [Fact]
+    public void Rebuild_LeavesNoTempFilesBehind()
+    {
+        SeedBronze();
+        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+
+        Assert.True(File.Exists(silverPath));
+        Assert.Empty(Directory.GetFiles(workspace, "silver.duckdb.tmp-*"));
+    }
+
+    [Fact]
+    public void Rebuild_ReplacesSilver_WhileReadOnlyReaderHoldsOldFile()
+    {
+        SeedBronze();
+        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+
+        using DuckDBConnection reader = new($"Data Source={silverPath};ACCESS_MODE=READ_ONLY");
+        reader.Open();
+
+        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+
+        Assert.Equal(8, Scalar(reader, "SELECT count(*) FROM events"));
+        using DuckDBConnection fresh = Open();
+        Assert.Equal(8, Scalar(fresh, "SELECT count(*) FROM events"));
+    }
+
+    [Fact]
+    public void Rebuild_SweepsStaleTempFiles_KeepsFreshOnes()
+    {
+        SeedBronze();
+        string staleTemp = Path.Combine(workspace, "silver.duckdb.tmp-stale");
+        string freshTemp = Path.Combine(workspace, "silver.duckdb.tmp-fresh");
+        File.WriteAllText(staleTemp, "leftover from a killed rebuild");
+        File.WriteAllText(freshTemp, "a concurrent rebuild's live temp");
+        File.SetLastWriteTimeUtc(staleTemp, DateTime.UtcNow.AddHours(-2));
+
+        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+
+        Assert.False(File.Exists(staleTemp));
+        Assert.True(File.Exists(freshTemp));
+    }
+
     private List<string> DumpEvents()
     {
         using DuckDBConnection connection = Open();
