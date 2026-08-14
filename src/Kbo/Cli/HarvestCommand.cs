@@ -9,7 +9,7 @@ namespace Kbo.Cli;
 
 public static class HarvestCommand
 {
-    private const string Usage = $"usage: kbo harvest <{ClaudeCodeAdapter.AgentName} [--transcripts <dir>] [--backfill-skills] | {OpencodeRetention.AgentName} [--db <file>]>";
+    private const string Usage = $"usage: kbo harvest <{ClaudeCodeAdapter.AgentName} [--transcripts <dir>] | {OpencodeRetention.AgentName} [--db <file>]> [--backfill-skills]";
 
     public static int Run(
         string[] args,
@@ -34,7 +34,7 @@ public static class HarvestCommand
             {
                 transcriptsRoot = args[++index];
             }
-            else if (agent == ClaudeCodeAdapter.AgentName && args[index] == "--backfill-skills")
+            else if (args[index] == "--backfill-skills")
             {
                 backfillSkills = true;
             }
@@ -81,6 +81,11 @@ public static class HarvestCommand
             : store.HarvestedTranscripts();
         EventValidator validator = new();
 
+        List<JsonObject> FilterForBackfill(List<JsonObject> mined) =>
+            backfillSkills
+                ? mined.Where(minedEvent => (string?)minedEvent[EnvelopeFields.Type] == EventTypes.SkillInvoked).ToList()
+                : mined;
+
         int harvestedCount = 0;
         int skippedCount = 0;
         int eventCount = 0;
@@ -124,15 +129,7 @@ public static class HarvestCommand
                     continue;
                 }
                 List<JsonObject> mined = TranscriptMiner.Mine(File.ReadLines(transcriptPath), transcriptId, registry, Random.Shared);
-                if (backfillSkills)
-                {
-                    mined = mined.Where(minedEvent => (string?)minedEvent[EnvelopeFields.Type] == EventTypes.SkillInvoked).ToList();
-                    if (mined.Count == 0)
-                    {
-                        continue;
-                    }
-                }
-                AppendValidated(transcriptPath, mined);
+                AppendValidated(transcriptPath, FilterForBackfill(mined));
             }
         }
         else
@@ -151,7 +148,7 @@ public static class HarvestCommand
             }
             foreach (string sessionId in pendingSessions)
             {
-                AppendValidated(sessionId, OpencodeMiner.Mine(databasePath, new[] { sessionId }, registry, Random.Shared));
+                AppendValidated(sessionId, FilterForBackfill(OpencodeMiner.Mine(databasePath, new[] { sessionId }, registry, Random.Shared)));
             }
         }
 
