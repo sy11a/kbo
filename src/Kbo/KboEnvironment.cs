@@ -21,4 +21,14 @@ public static class KboEnvironment
     {
         return Path.Combine(homeDirectory, ".local", "share", "kbo", "silver.duckdb");
     }
+
+    /// <summary>
+    /// Where <c>kbo capture</c> records dropped events instead of failing the
+    /// observed session, and where <c>kbo doctor</c> reads them back (ADR-0029).
+    /// XDG state dir, matching the hook wrapper's <c>hook.log</c>.
+    /// </summary>
+    public static string CaptureErrorLog(string homeDirectory)
+    {
+        return Path.Combine(homeDirectory, ".local", "state", "kbo", "capture-errors.log");
+    }
 }

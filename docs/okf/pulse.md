@@ -32,6 +32,8 @@ One OS-scheduler entry → `kbo pulse` → every registered job; every job run e
 
 `kbo doctor [--notify]` — timer armed? every job completed within the 3-day dead-man threshold? Installed by `kbo init` as `kbo-doctor.service` (runs at every login, desktop notification: critical on problems, brief "healthy" otherwise). Same facts as the dashboard tiles, pushed instead of waited for (ADR-0016). Owner cheat sheet: `docs/operations.md`.
 
+It also reports capture-error drops from `~/.local/state/kbo/capture-errors.log` (written by `kbo capture` when it drops an event rather than fail a session, ADR-0029): the running total plus the last drop's date, flagged as a problem only when the most recent drop is within the dead-man threshold — a stale count is informational, a fresh one means the registry or hook needs a look.
+
 ## Retention manifests (adapter contract #3)
 
 - Claude Code: `~/.claude/projects/**/*.jsonl` + `history.jsonl` → `claude-code/…`.zst

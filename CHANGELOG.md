@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `kbo doctor` surfaces capture-error drops (ADR-0029): the running count and the last drop's date, flagged as a problem only when the most recent drop is within the 3-day dead-man threshold — so silent capture data-loss becomes visible at login instead of hiding in a log no one reads.
 - Dashboard "This week vs last week" deltas (ADR-0028): KB-touch, failed-search, and knowledge reads compared 7-day-over-7-day, with green/red arrows correct per metric — the "is the practice improving?" summary. Completes the four practice lenses.
 - Dashboard write→read loop lens (ADR-0027): what fraction of agent-written notes were later read — the knowledge flywheel (~62% on real data) — plus the top written-then-read notes.
 - Dashboard reuse/ROI lens (ADR-0026): "Most-reused knowledge notes" ranked by distinct-session reach (notes only) plus the single-use ratio — the load-bearing core vs the single-use tail (~61% of notes on real data), for the weekly ritual.
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `kbo capture` is now fail-safe (ADR-0029): a runtime failure — an unparseable payload, a missing or invalid registry, an event that fails validation, or an append error — is recorded to `~/.local/state/kbo/capture-errors.log` and exits 0, instead of returning non-zero and silently dropping the (unrecoverable) live event. Valid events in a `SessionStart` batch still land in bronze; only genuine CLI misuse (unknown agent/args) exits non-zero.
 - Reads-by-layer and KB-touch now classify knowledge by resolving paths through the **current** registry at report time (ADR-0021), matching the theme chart — history fills in retroactively when roots are registered instead of staying frozen to capture-time `kbroot` stamps.
 - Silver's `events_preferred` view no longer hides the live tail of long-running sessions (ADR-0020): hook events are dropped only up to the session's last harvest-event time instead of for the whole session, so activity after a daily harvest stays visible in every chart and report the same day.
 

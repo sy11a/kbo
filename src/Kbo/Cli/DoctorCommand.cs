@@ -72,6 +72,8 @@ public static class DoctorCommand
                 output.WriteLine($"{job}: ok ({daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d ago)");
             }
         }
+        ReportCaptureDrops(homeDirectory, now, output, problems);
+
         if (problems.Count == 0)
         {
             output.WriteLine("all jobs healthy");
@@ -83,6 +85,51 @@ public static class DoctorCommand
         }
 
         return problems.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// Surface capture-error drops (ADR-0029): a fresh drop within the dead-man
+    /// threshold is a problem (the registry or hook likely needs a look); a stale
+    /// count is informational. The log is never cleared, so the actionable signal
+    /// is the last drop's recency, not the running total.
+    /// </summary>
+    private static void ReportCaptureDrops(
+        string homeDirectory, DateTimeOffset now, TextWriter output, List<string> problems)
+    {
+        string captureLog = KboEnvironment.CaptureErrorLog(homeDirectory);
+        if (!File.Exists(captureLog))
+        {
+            return;
+        }
+
+        string[] drops = File.ReadAllLines(captureLog)
+            .Where(line => line.Trim().Length > 0)
+            .ToArray();
+        if (drops.Length == 0)
+        {
+            return;
+        }
+
+        DateTimeOffset? lastDrop = ParseTimestamp(drops[^1]);
+        string when = lastDrop is { } value
+            ? value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : "unknown";
+        string line = $"capture errors: {drops.Length} (last {when})";
+        output.WriteLine(line);
+
+        if (lastDrop is { } recent && (now - recent).TotalDays <= DeadManThresholdDays)
+        {
+            problems.Add(line + " — recent capture drops; check the registry/hook");
+        }
+    }
+
+    private static DateTimeOffset? ParseTimestamp(string logLine)
+    {
+        string first = logLine.Split('\t', 2)[0];
+        return DateTimeOffset.TryParse(
+            first, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTimeOffset parsed)
+            ? parsed
+            : null;
     }
 
     private static void SendNotification(IProcessRunner processRunner, List<string> problems)

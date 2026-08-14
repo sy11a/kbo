@@ -105,6 +105,40 @@ public class DoctorCommandTests : IDisposable
         Assert.Contains("timer: inactive", output.ToString());
     }
 
+    private void WriteCaptureError(DateTimeOffset when)
+    {
+        string logPath = Path.Combine(workspace, ".local", "state", "kbo", "capture-errors.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        File.AppendAllText(logPath,
+            $"{when:yyyy-MM-dd'T'HH:mm:ss'Z'}\tclaude-code\tregistry: not found\n");
+    }
+
+    [Fact]
+    public void RecentCaptureDrops_ReportedAndExit1()
+    {
+        JobCompleted("harvest", 0.2);
+        WriteCaptureError(Now.AddHours(-2));
+        FakeRunner runner = new();
+
+        int exitCode = Run(runner);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("capture errors: 1", output.ToString());
+    }
+
+    [Fact]
+    public void StaleCaptureDrops_ReportedButNotAProblem()
+    {
+        JobCompleted("harvest", 0.2);
+        WriteCaptureError(Now.AddDays(-30));
+        FakeRunner runner = new();
+
+        int exitCode = Run(runner);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("capture errors: 1", output.ToString());
+    }
+
     [Fact]
     public void Notify_SendsCriticalOnProblem_NormalWhenHealthy()
     {

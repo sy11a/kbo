@@ -36,6 +36,8 @@ public class CaptureCommandTests : IDisposable
         Directory.Delete(workspace, recursive: true);
     }
 
+    private string CaptureLog => Path.Combine(workspace, ".local", "state", "kbo", "capture-errors.log");
+
     private int Run(JsonObject payload)
     {
         string? Environment(string name) => name switch
@@ -68,6 +70,7 @@ public class CaptureCommandTests : IDisposable
         Assert.True(new EventValidator().Validate(line).IsValid);
         Assert.Contains("\"knowledge.read\"", line);
         Assert.DoesNotContain("tool_response", line);
+        Assert.False(File.Exists(CaptureLog));
     }
 
     [Fact]
@@ -104,14 +107,41 @@ public class CaptureCommandTests : IDisposable
     }
 
     [Fact]
-    public void MalformedPayload_FailsWithError()
+    public void MalformedPayload_IsLoggedAndDoesNotFailSession()
     {
         using StringReader input = new("this is not json");
         int exitCode = CaptureCommand.Run(
             new[] { "claude-code" }, input, output, error, _ => registryPath, workspace);
 
-        Assert.Equal(1, exitCode);
-        Assert.NotEqual("", error.ToString());
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
+        Assert.True(File.Exists(CaptureLog));
+        Assert.Contains("claude-code", File.ReadAllText(CaptureLog));
+    }
+
+    [Fact]
+    public void MissingRegistry_IsLoggedAndDoesNotFailSession()
+    {
+        string? Environment(string name) => name switch
+        {
+            "KBO_REGISTRY" => Path.Combine(workspace, "does-not-exist.yaml"),
+            "KBO_EVENTS_REPO" => eventsRepo,
+            _ => null,
+        };
+        JsonObject payload = new()
+        {
+            ["session_id"] = "sess-cli-registry",
+            ["cwd"] = workspace,
+            ["hook_event_name"] = "PostToolUse",
+            ["tool_name"] = "Read",
+            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(vaultRoot, "note.md") },
+        };
+        using StringReader input = new(payload.ToJsonString());
+        int exitCode = CaptureCommand.Run(new[] { "claude-code" }, input, output, error, Environment, workspace);
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
+        Assert.True(File.Exists(CaptureLog));
     }
 
     [Fact]

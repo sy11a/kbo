@@ -8,6 +8,10 @@ timestamp: 2026-08-10T19:30:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-14 — Capture made fail-safe (ADR-0029)
+
+[claude-code-adapter.md](claude-code-adapter.md) and [pulse.md](pulse.md) updated for the fail-safe capture contract: `kbo capture` never returns non-zero on a runtime failure (bad payload, missing/invalid registry, an event that fails validation, an append error) — it records the drop to `~/.local/state/kbo/capture-errors.log` and exits 0, while valid events in a batch still land in bronze; only genuine CLI misuse exits non-zero. `kbo doctor` now surfaces that log (count + last drop, flagged only when recent). Why: a fresh-eye review found capture returned exit 1 and silently dropped live (unrecoverable) events; the doc already claimed "never breaks a session, errors to a local log" but the code didn't honour it, and drops were surfaced nowhere. Closes the top backlog item.
+
 ## 2026-08-14 — Week-over-week deltas (four lenses complete)
 
 [dashboard.md](dashboard.md) gains "This week vs last week" (ADR-0028): KB-touch, failed-search, knowledge reads compared 7d-over-7d with direction-correct green/red arrows. Why: nothing answered "is the practice improving?" directly. Last of the four owner-selected lenses (content-type, reuse, write→read loop, deltas all shipped). Real data on first run: KB-touch 36% (−11pp), failed-search 21% (+2pp), reads −6 — an honest slight dip this week.
