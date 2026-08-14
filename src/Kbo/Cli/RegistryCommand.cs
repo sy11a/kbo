@@ -44,7 +44,7 @@ public static class RegistryCommand
         KnowledgeRegistry registry;
         try
         {
-            registry = KnowledgeRegistry.Load(registryPath);
+            registry = KnowledgeRegistry.Load(registryPath, environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
         {

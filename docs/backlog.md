@@ -18,15 +18,11 @@ Claude Code skills are captured (ADR-0024); opencode skill/command invocations a
      data-integrity on the unrebuildable capture path first, then maintainability,
      then genericity/polish.
      (Done so far: capture fail-safe, bronze write integrity, BronzeStore scanner
-     collapse, prepared silver INSERT.) -->
+     collapse, prepared silver INSERT, configurable task pattern.) -->
 
 ## Rebuild throughput: DuckDB Appender
 
 Measured 2026-08-14 while doing the prepared-INSERT item: a 22.8k-event rebuild takes ~16s, and an empty rebuild takes 0.08s — nearly all time is the per-row `ExecuteNonQuery` interop in the insert loop (~0.7ms/row), not statement parsing (preparing once bought only ~4%). If rebuild latency ever matters (it runs hourly via pulse and inside `kbo watch`), the designed fix is DuckDB's Appender API (`DuckDBAppender` in DuckDB.NET) for the bulk load — likely takes the loop to well under a second. Low urgency at current volume.
-
-## Configurable task pattern (genericity)
-
-`GitContext` hardcodes `AC-\d+` as *the* branch task pattern (`GitContext.cs:11`) — one org's ticket convention baked into a general tool, and a faint origin-project fingerprint in a public repo (also in `docs/adr/0001` and `docs/okf/claude-code-adapter.md`). Add an optional `taskPattern` to the registry with a `KBO_TASK_PATTERN` env override. **Decided (2026-08-14): no task extraction by default** — when `taskPattern` is unset, `task` is always `null`; a public tool shouldn't ship one org's ticket convention. `AC-\d+` becomes opt-in via config. Update the two docs (`docs/adr/0001`, `docs/okf/claude-code-adapter.md`) and note it in the new ADR.
 
 ## Review polish (low priority, batch when convenient)
 

@@ -43,7 +43,9 @@ public static class AuditCommand
         KnowledgeRegistry registry;
         try
         {
-            registry = KnowledgeRegistry.Load(RegistryLocator.Locate(null, environment, homeDirectory));
+            registry = KnowledgeRegistry.Load(
+                RegistryLocator.Locate(null, environment, homeDirectory),
+                environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
         {

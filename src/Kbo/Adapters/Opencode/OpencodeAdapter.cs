@@ -114,7 +114,7 @@ public static class OpencodeAdapter
     {
         List<JsonObject> events = new();
         string? directory = (string?)payload[Payload.Directory];
-        GitContext git = GitContext.Discover(directory);
+        GitContext git = GitContext.Discover(directory, registry.TaskPattern);
 
         JsonObject sessionData = new()
         {
@@ -186,7 +186,7 @@ public static class OpencodeAdapter
         DateTimeOffset time,
         Random random)
     {
-        GitContext git = GitContext.Discover((string?)payload[Payload.Directory]);
+        GitContext git = GitContext.Discover((string?)payload[Payload.Directory], registry.TaskPattern);
         string? session = (string?)payload[Payload.SessionId];
         data[EventDataFields.Origin] = EventDataFields.OriginHook;
         if (session is not null)

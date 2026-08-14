@@ -33,6 +33,7 @@ public class OpencodeAdapterTests : IDisposable
 
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
+            taskPattern: 'AC-\d+'
             sources:
               - id: vault
                 layer: global

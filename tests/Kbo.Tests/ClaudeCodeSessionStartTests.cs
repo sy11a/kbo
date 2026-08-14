@@ -41,6 +41,7 @@ public class ClaudeCodeSessionStartTests : IDisposable
 
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
+            taskPattern: 'AC-\d+'
             sources:
               - id: repo-kb
                 layer: local
@@ -78,6 +79,33 @@ public class ClaudeCodeSessionStartTests : IDisposable
         Assert.Equal("feature/AC-9-hook", (string?)started["data"]!["branch"]);
         Assert.Equal("AC-9", (string?)started["task"]);
         Assert.Null(started["data"]!["usage"]);
+    }
+
+    [Fact]
+    public void WithoutTaskPattern_TaskIsNull_ButBranchIsKept()
+    {
+        KnowledgeRegistry noPatternRegistry = KnowledgeRegistry.Parse($"""
+            machine: test-machine
+            sources:
+              - id: repo-kb
+                layer: local
+                root: {repoRoot}
+            """);
+        JsonObject payload = new()
+        {
+            ["session_id"] = "sess-0003",
+            ["cwd"] = repoRoot,
+            ["hook_event_name"] = "SessionStart",
+            ["source"] = "startup",
+        };
+
+        List<JsonObject> events = ClaudeCodeAdapter.MapSessionStart(payload, noPatternRegistry, Clock, new Random(42), home);
+
+        JsonObject started = events[0];
+        EventValidationResult result = new EventValidator().Validate(started.ToJsonString());
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        Assert.Null(started["task"]);
+        Assert.Equal("feature/AC-9-hook", (string?)started["data"]!["branch"]);
     }
 
     [Fact]

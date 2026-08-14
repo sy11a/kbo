@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -8,10 +9,17 @@ public sealed class KnowledgeRegistry
     public string Machine { get; }
     public IReadOnlyList<KnowledgeSource> Sources { get; }
 
-    private KnowledgeRegistry(string machine, IReadOnlyList<KnowledgeSource> sources)
+    /// <summary>
+    /// Optional branch → task-id regex (first match wins). Null means no task
+    /// extraction: a public tool ships no default ticket convention (ADR-0031).
+    /// </summary>
+    public Regex? TaskPattern { get; }
+
+    private KnowledgeRegistry(string machine, IReadOnlyList<KnowledgeSource> sources, Regex? taskPattern)
     {
         Machine = machine;
         Sources = sources;
+        TaskPattern = taskPattern;
     }
 
     public string? Resolve(string path)
@@ -32,17 +40,17 @@ public sealed class KnowledgeRegistry
         return bestMatch?.Id;
     }
 
-    public static KnowledgeRegistry Load(string path)
+    public static KnowledgeRegistry Load(string path, string? taskPatternOverride = null)
     {
         if (!File.Exists(path))
         {
             throw new RegistryFormatException($"registry file not found: {path}");
         }
 
-        return Parse(File.ReadAllText(path));
+        return Parse(File.ReadAllText(path), taskPatternOverride);
     }
 
-    public static KnowledgeRegistry Parse(string yaml)
+    public static KnowledgeRegistry Parse(string yaml, string? taskPatternOverride = null)
     {
         IDeserializer deserializer = new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -115,12 +123,32 @@ public sealed class KnowledgeRegistry
             sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot));
         }
 
+        Regex? taskPattern = CompileTaskPattern(
+            string.IsNullOrWhiteSpace(taskPatternOverride) ? document?.TaskPattern : taskPatternOverride, errors);
+
         if (errors.Count > 0)
         {
             throw new RegistryFormatException("invalid registry: " + string.Join("; ", errors));
         }
 
-        return new KnowledgeRegistry(document!.Machine!, sources);
+        return new KnowledgeRegistry(document!.Machine!, sources, taskPattern);
+    }
+
+    private static Regex? CompileTaskPattern(string? pattern, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            return null;
+        }
+        try
+        {
+            return new Regex(pattern);
+        }
+        catch (ArgumentException exception)
+        {
+            errors.Add($"taskPattern '{pattern}' is not a valid regex: {exception.Message}");
+            return null;
+        }
     }
 
     private static string? ExpandGlob(string id, KnowledgeLayer layer, string root, List<KnowledgeSource> sources, HashSet<string> seenIds)
@@ -169,6 +197,7 @@ public sealed class KnowledgeRegistry
     private sealed class RegistryDocument
     {
         public string? Machine { get; set; }
+        public string? TaskPattern { get; set; }
         public List<SourceEntry>? Sources { get; set; }
     }
 

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Task extraction from git branches is now opt-in configuration (ADR-0031): the envelope's `task` field is populated only when the registry sets a top-level `taskPattern` regex (env override `KBO_TASK_PATTERN`); without one, `task` is always `null`. The previously hardcoded `AC-\d+` convention no longer ships as default behavior — existing installs that want it add `taskPattern: 'AC-\d+'` to their registry overlay. The envelope schema's `task` constraint is relaxed accordingly (any non-empty string; all past events remain valid).
 - `kbo rebuild` inserts all rows through a single prepared `INSERT` command (parameters reset per row) instead of building a new command per event. Output is byte-identical; modest throughput gain (~4% on a 22.8k-event store — the remaining per-row cost is DuckDB interop, noted in the backlog).
 
 ### Added

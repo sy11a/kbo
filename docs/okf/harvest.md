@@ -15,7 +15,7 @@ Q4 pattern: hooks are primary, the miner is verification and recovery. `kbo harv
 
 | Transcript evidence | Event | Backfill value |
 |---|---|---|
-| first session record | `session.started` | historical `gitBranch` (→ `task`), `model` (first assistant), summed `usage` (deduped by `requestId`) |
+| first session record | `session.started` | historical `gitBranch` (→ `task` via the registry's optional `taskPattern`, ADR-0031), `model` (first assistant), summed `usage` (deduped by `requestId`) |
 | assistant `tool_use` Read | `knowledge.read` | `model` from the enclosing assistant record; `contenthash` stays null (historical bytes unknowable — ADR-0007) |
 | assistant `tool_use` Grep/Glob | `knowledge.searched` | **authoritative `hits`** from the paired `toolUseResult` (G2-6; silver prefers these over hook best-effort) |
 | assistant `tool_use` Write/Edit/NotebookEdit | `knowledge.written` | content fields stripped from `raw` and replaced by `<field>_size`; `contenthash` stays null like mined reads (ADR-0030) |

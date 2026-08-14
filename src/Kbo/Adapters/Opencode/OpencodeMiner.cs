@@ -64,7 +64,7 @@ public static class OpencodeMiner
             string? directory = sessionReader.IsDBNull(1) ? null : sessionReader.GetString(1);
             string? model = ModelId(sessionReader.IsDBNull(3) ? null : sessionReader.GetString(3));
             DateTimeOffset started = DateTimeOffset.FromUnixTimeMilliseconds(sessionReader.GetInt64(7));
-            GitContext git = GitContext.Discover(directory);
+            GitContext git = GitContext.Discover(directory, registry.TaskPattern);
             string? repo = git.RepoRoot ?? directory;
 
             JsonObject sessionData = new()

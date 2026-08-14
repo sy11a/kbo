@@ -18,6 +18,7 @@ public class TranscriptMinerTests : IDisposable
         Directory.CreateDirectory(vaultRoot);
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
+            taskPattern: 'AC-\d+'
             sources:
               - id: vault
                 layer: global

@@ -91,7 +91,7 @@ public static class ClaudeCodeAdapter
         List<JsonObject> events = new();
         string? cwd = (string?)payload[HookPayload.Cwd];
 
-        GitContext git = GitContext.Discover(cwd);
+        GitContext git = GitContext.Discover(cwd, registry.TaskPattern);
         JsonObject sessionData = new()
         {
             [EventDataFields.Branch] = git.Branch,
@@ -234,7 +234,7 @@ public static class ClaudeCodeAdapter
         TimeProvider clock,
         Random random)
     {
-        GitContext git = GitContext.Discover((string?)payload[HookPayload.Cwd]);
+        GitContext git = GitContext.Discover((string?)payload[HookPayload.Cwd], registry.TaskPattern);
         data[EventDataFields.Origin] = EventDataFields.OriginHook;
 
         return EventEnvelope.Create(

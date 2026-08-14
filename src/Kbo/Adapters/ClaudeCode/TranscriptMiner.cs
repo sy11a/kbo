@@ -97,8 +97,8 @@ public static class TranscriptMiner
         }
 
         string session = sessionId ?? transcriptId;
-        string? repo = GitContext.Discover(cwd).RepoRoot ?? cwd;
-        string? task = GitContext.TaskFromBranch(branch);
+        string? repo = GitContext.Discover(cwd, registry.TaskPattern).RepoRoot ?? cwd;
+        string? task = GitContext.TaskFromBranch(branch, registry.TaskPattern);
 
         List<JsonObject> events = new()
         {
