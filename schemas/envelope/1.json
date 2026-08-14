@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/envelope/1",
+  "title": "Event envelope v1 — CloudEvents 1.0 + owner extensions (ADR-0001)",
+  "type": "object",
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID (Crockford base32, sortable)"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^//[^/]+/[^/]+$",
+      "description": "//<machine>/<agent>"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z]+)+$"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|[+-]00:00)$",
+      "description": "UTC ISO-8601"
+    },
+    "subject": {
+      "type": ["string", "null"],
+      "description": "The thing acted on: note path, skill name, URL, job name"
+    },
+    "data": {
+      "type": "object",
+      "description": "Raw agent-native payload untouched + normalized fields; constrained per type schema"
+    },
+    "machine": { "type": "string", "minLength": 1 },
+    "agent": { "type": "string", "minLength": 1 },
+    "session": { "type": ["string", "null"] },
+    "repo": { "type": ["string", "null"] },
+    "task": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^AC-[0-9]+$" }
+      ],
+      "description": "First AC-\\d+ match from the session cwd's git branch (G2-4); raw branch preserved in data"
+    },
+    "model": { "type": ["string", "null"] },
+    "kbroot": {
+      "type": ["string", "null"],
+      "description": "Registry root id the subject falls under; null = not knowledge (G2-1)"
+    },
+    "schemaref": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z]+)+/[1-9][0-9]*$",
+      "description": "<type>/<version> into this registry"
+    }
+  },
+  "required": [
+    "specversion", "id", "source", "type", "time", "subject", "data",
+    "machine", "agent", "session", "repo", "task", "model", "kbroot", "schemaref"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,48 @@
+---
+type: Component
+title: Claude Code adapter — live capture into bronze
+description: PostToolUse/SessionStart hook mapping Claude Code tool activity to envelope events, kbroot-tagged, appended to the kb-events bronze store.
+tags: [component, adapter, capture, bronze, claude-code]
+timestamp: 2026-08-11T00:00:00Z
+status: implemented
+---
+
+# Claude Code adapter
+
+The first adapter (adapter contract: `03 - Architecture` §Adapters). Agent-specific code lives only here; everything else goes through the [registry](registry.md) and the [schema registry](schema-registry.md). Implementation decisions: ADR-0006.
+
+## Flow
+
+```
+Claude Code ──PostToolUse/SessionStart hook (bash, async)──▶ kbo capture claude-code (stdin JSON)
+    ▶ map tool payload → envelope event (kbroot via registry, task via git branch, contenthash per G2-5)
+    ▶ validate against schema registry
+    ▶ append NDJSON to ~/Repository/kb-events/bronze/<machine>/claude-code/<YYYY-MM>.ndjsonl
+```
+
+## Mapping
+
+| Hook / tool | Event | subject | Notes |
+|---|---|---|---|
+| PostToolUse Read | `knowledge.read` | file path | contenthash when kbroot != null and ≤ 5 MB, else size (G2-5) |
+| PostToolUse Grep/Glob | `knowledge.searched` | pattern | root = `tool_input.path` else cwd; hits best-effort from tool_response (G2-6) |
+| PostToolUse Write/Edit/NotebookEdit | `knowledge.written` | file path | Edit/NotebookEdit are writes (owner-confirmed 2026-08-11) |
+| Skill (harvest only) | `skill.invoked` | skill name | mined from transcripts, not the live hook (Skill isn't in the hook matcher); `data.skill` = the invoked skill (ADR-0024) |
+| SessionStart | `session.started` + `context.loaded` per implicit file | session id / path | implicit files: global CLAUDE.md, project CLAUDE.md, `.claude/rules/*.md`, auto-memory MEMORY.md |
+| other tools | none | — | capture stays file-tool scoped in v1 |
+
+- `raw` preserves the hook payload **minus `tool_response`** (owner-confirmed 2026-08-11): full fidelity lives in archived transcripts; harvest recomputes hit counts authoritatively.
+- `task`: first `AC-\d+` of the cwd's git branch, read from `.git/HEAD` directly (no subprocess); raw branch in `data.branch` on `session.started`.
+- Best-effort: the hook never blocks or breaks a session (async, errors to a local log).
+
+## Implementation
+
+- `src/Kbo/Adapters/ClaudeCode/` — payload mapping
+- `src/Kbo/Bronze/` — event store append (creates + git-inits kb-events on first use)
+- `src/Kbo/Cli/CaptureCommand.cs` — `kbo capture claude-code` (stdin → bronze)
+- `adapters/claude-code/` — hook script + registration snippet
+- Retention manifest (adapter contract #3) arrives with the archive job (step 2.x)
+
+## Links
+
+- [Registry](registry.md) · [Schema registry](schema-registry.md) · [Glossary](glossary.md)

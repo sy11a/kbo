@@ -1,0 +1,22 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Most-read knowledge themes over the report window",
+  "usermeta": {
+    "kbo": {
+      "ru": "Что показывает: какие разделы (папки верхнего уровня) базы знаний читались чаще всего за последние 60 дней; в подсказке — сколько заметок в разделе. Куда смотреть: верхние строки — рабочее ядро вашей базы; разделов, которых здесь нет, агенты не касались вовсе — их список под графиком."
+    }
+  },
+  "width": "container",
+  "height": { "step": 24 },
+  "data": { "values": [] },
+  "mark": { "type": "bar", "color": "#2a78d6", "cornerRadiusEnd": 3 },
+  "encoding": {
+    "y": { "field": "theme", "type": "nominal", "sort": "-x", "title": null },
+    "x": { "field": "reads", "type": "quantitative", "title": "reads in window" },
+    "tooltip": [
+      { "field": "theme", "type": "nominal" },
+      { "field": "reads", "type": "quantitative" },
+      { "field": "notes", "type": "quantitative", "title": "notes in theme" }
+    ]
+  }
+}

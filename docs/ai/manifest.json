@@ -1,0 +1,20 @@
+{
+  "legislatorVersion": 14,
+  "profiles": ["dotnet"],
+  "keep": [],
+  "ownedFiles": [
+    "docs/ai/rules/core/adr.md",
+    "docs/ai/rules/core/changelog.md",
+    "docs/ai/rules/core/decision-gate.md",
+    "docs/ai/rules/core/dev-journal.md",
+    "docs/ai/rules/core/okf.md",
+    "docs/ai/rules/core/pair-development.md",
+    "docs/ai/rules/core/project-rules.md",
+    "docs/ai/rules/core/skills.md",
+    "docs/ai/rules/core/verification.md",
+    "docs/ai/rules/stacks/dotnet/architecture.md",
+    "docs/ai/rules/stacks/dotnet/coding-standards.md",
+    "docs/ai/rules/stacks/dotnet/data-access.md",
+    "opencode.json"
+  ]
+}

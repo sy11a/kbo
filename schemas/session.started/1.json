@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/session.started/1",
+  "title": "session.started v1 — agent session inventory row; denominators",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "session.started" },
+    "schemaref": { "const": "session.started/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "type": ["string", "null"],
+          "description": "Raw git branch of the session cwd (G2-4) — the unbackfillable capture behind the task field"
+        },
+        "usage": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "properties": {
+                "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+                "cache_read_tokens": { "type": ["integer", "null"], "minimum": 0 },
+                "output_tokens": { "type": ["integer", "null"], "minimum": 0 }
+              },
+              "description": "Usage totals; cache_read vs fresh input tokens is the LLM-level reuse metric"
+            }
+          ]
+        },
+        "raw": {
+          "type": "object",
+          "description": "Agent-native payload, untouched (P3)"
+        }
+      },
+      "required": ["branch", "usage", "raw"]
+    }
+  }
+}

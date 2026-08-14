@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/job.failed/1",
+  "title": "job.failed v1 — a kbo pulse job failed (dead-man health panel)",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "job.failed" },
+    "schemaref": { "const": "job.failed/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "job": { "type": "string", "minLength": 1 },
+        "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "error": { "type": "string", "minLength": 1 }
+      },
+      "required": ["job", "duration_ms", "error"],
+      "description": "Self-emitted by kbo — the event IS the native payload, so no raw field"
+    }
+  }
+}

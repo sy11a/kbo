@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/knowledge.searched/1",
+  "title": "knowledge.searched v1 — a search (grep/glob) over a knowledge root",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "knowledge.searched" },
+    "schemaref": { "const": "knowledge.searched/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "pattern": { "type": "string", "minLength": 1 },
+        "root": {
+          "type": ["string", "null"],
+          "description": "The directory the search ran over, when known"
+        },
+        "hits": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Hit count: hook best-effort (may be null), harvest authoritative (G2-6)"
+        },
+        "raw": {
+          "type": "object",
+          "description": "Agent-native payload, untouched (P3)"
+        }
+      },
+      "required": ["pattern", "root", "hits", "raw"]
+    }
+  }
+}

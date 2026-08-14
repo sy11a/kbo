@@ -1,0 +1,47 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Daily knowledge reads by registry layer",
+  "usermeta": {
+    "kbo": {
+      "ru": "Что показывает: сколько заметок агенты читали в день, по слоям реестра (global — ваша база знаний, skills — навыки, local — локальные правила проектов). Куда смотреть: если линия global на нуле, а остальные активны — агенты работают, но вашу базу знаний не используют. Колесо мыши — масштаб по времени, наведите на точку — детали."
+    }
+  },
+  "width": "container",
+  "height": 240,
+  "data": { "values": [] },
+  "layer": [
+    {
+      "params": [ { "name": "zoomReads", "select": { "type": "interval", "bind": "scales", "encodings": ["x"] } } ],
+      "mark": { "type": "line", "strokeWidth": 2, "point": { "size": 30 } },
+      "encoding": {
+        "x": { "field": "date", "type": "temporal", "title": null },
+        "y": { "field": "reads", "type": "quantitative", "title": "reads/day" },
+        "color": {
+          "field": "layer", "type": "nominal", "title": "layer",
+          "scale": {
+            "domain": ["global", "framework", "local", "skills"],
+            "range": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+          }
+        },
+        "tooltip": [
+          { "field": "date", "type": "temporal" },
+          { "field": "layer", "type": "nominal" },
+          { "field": "reads", "type": "quantitative" }
+        ]
+      }
+    },
+    {
+      "transform": [
+        { "window": [{ "op": "rank", "as": "recency" }], "sort": [{ "field": "date", "order": "descending" }], "groupby": ["layer"] },
+        { "filter": "datum.recency == 1" }
+      ],
+      "mark": { "type": "text", "align": "left", "dx": 6, "fontWeight": "bold" },
+      "encoding": {
+        "x": { "field": "date", "type": "temporal" },
+        "y": { "field": "reads", "type": "quantitative" },
+        "text": { "field": "layer", "type": "nominal" },
+        "color": { "field": "layer", "type": "nominal", "scale": { "domain": ["global", "framework", "local", "skills"], "range": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"] }, "legend": null }
+      }
+    }
+  ]
+}

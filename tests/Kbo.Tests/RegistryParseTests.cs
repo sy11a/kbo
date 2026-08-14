@@ -1,0 +1,44 @@
+using Kbo.Registry;
+
+namespace Kbo.Tests;
+
+public class RegistryParseTests
+{
+    private const string SpecExample = """
+        machine: example-machine
+        sources:
+          - id: knowledge
+            layer: global
+            root: /home/admin/Knowledge
+          - id: cc-skills
+            layer: skills
+            root: /home/admin/.claude/skills
+          - id: oc-skills
+            layer: skills
+            root: /home/admin/.config/opencode/skills
+          - id: oc-agents
+            layer: skills
+            root: /home/admin/.config/opencode/agents
+          - id: oc-commands
+            layer: skills
+            root: /home/admin/.config/opencode/commands
+        """;
+
+    [Fact]
+    public void Parse_SpecExample_YieldsTypedRegistry()
+    {
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse(SpecExample);
+
+        Assert.Equal("example-machine", registry.Machine);
+        Assert.Equal(5, registry.Sources.Count);
+
+        KnowledgeSource vault = registry.Sources[0];
+        Assert.Equal("knowledge", vault.Id);
+        Assert.Equal(KnowledgeLayer.Global, vault.Layer);
+        Assert.Equal("/home/admin/Knowledge", vault.Root);
+
+        KnowledgeSource commands = registry.Sources[4];
+        Assert.Equal("oc-commands", commands.Id);
+        Assert.Equal(KnowledgeLayer.Skills, commands.Layer);
+    }
+}

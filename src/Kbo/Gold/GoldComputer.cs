@@ -1,0 +1,113 @@
+using System.Globalization;
+using DuckDB.NET.Data;
+using Kbo.Registry;
+
+namespace Kbo.Gold;
+
+public static class GoldComputer
+{
+    public const int MinInventoryAgeDays = 30;
+    public const int ReadWindowDays = 60;
+    public const int StaleMinReads = 3;
+    public const int StaleUnmodifiedDays = 90;
+    public const int HotNoteLimit = 20;
+
+    private static readonly string[] NoteActions = ["archive", "merge", "re-link"];
+    private static readonly string[] SkillActions = ["retire", "fix trigger phrases"];
+
+    private sealed record ReadStats(long ReadsInWindow, long ReadsTotal, DateTimeOffset LastRead);
+
+    public static GoldReport Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
+    {
+        DateTimeOffset now = clock.GetUtcNow();
+        Dictionary<string, ReadStats> statsByPath = QueryReadStats(silverPath, now.AddDays(-ReadWindowDays));
+        List<InventoryNote> inventory = NoteInventory.Scan(registry);
+
+        Dictionary<string, int> inventoryCounts = inventory
+            .GroupBy(note => note.SourceId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        List<DeadNote> deadNotes = new();
+        List<StaleNote> staleNotes = new();
+        foreach (InventoryNote note in inventory)
+        {
+            int daysSinceModified = (int)(now - note.Modified).TotalDays;
+            ReadStats? stats = statsByPath.GetValueOrDefault(note.Path);
+            long readsInWindow = stats?.ReadsInWindow ?? 0;
+
+            if (daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
+            {
+                string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
+                deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
+            }
+
+            if (readsInWindow >= StaleMinReads && daysSinceModified > StaleUnmodifiedDays)
+            {
+                staleNotes.Add(new StaleNote(note.Path, note.SourceId, readsInWindow, daysSinceModified));
+            }
+        }
+
+        Dictionary<string, InventoryNote> inventoryByPath = inventory.ToDictionary(note => note.Path);
+        List<HotNote> hotNotes = statsByPath
+            .Where(entry => entry.Value.ReadsInWindow > 0 && inventoryByPath.ContainsKey(entry.Key))
+            .OrderByDescending(entry => entry.Value.ReadsInWindow)
+            .ThenByDescending(entry => entry.Value.ReadsTotal)
+            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+            .Take(HotNoteLimit)
+            .Select(entry => new HotNote(
+                entry.Key,
+                inventoryByPath[entry.Key].SourceId,
+                entry.Value.ReadsInWindow,
+                entry.Value.ReadsTotal,
+                entry.Value.LastRead))
+            .ToList();
+
+        return new GoldReport(
+            now,
+            registry.Machine,
+            MinInventoryAgeDays,
+            ReadWindowDays,
+            StaleMinReads,
+            StaleUnmodifiedDays,
+            inventoryCounts,
+            deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
+            hotNotes,
+            staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+    }
+
+    private static string LayerName(KnowledgeLayer layer)
+    {
+        return layer.ToString().ToLowerInvariant();
+    }
+
+    private static Dictionary<string, ReadStats> QueryReadStats(string silverPath, DateTimeOffset windowCutoff)
+    {
+        Dictionary<string, ReadStats> statsByPath = new();
+
+        using DuckDBConnection connection = new($"Data Source={silverPath}");
+        connection.Open();
+        using DuckDBCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT subject,
+                   count(*) FILTER (WHERE time >= ?) AS reads_in_window,
+                   count(*) AS reads_total,
+                   max(time) AS last_read
+            FROM events_preferred
+            WHERE type IN ('knowledge.read', 'context.loaded')
+              AND subject IS NOT NULL
+            GROUP BY subject
+            """;
+        command.Parameters.Add(new DuckDBParameter { Value = windowCutoff.UtcDateTime });
+
+        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        while (reader.Read())
+        {
+            DateTime lastRead = DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc);
+            statsByPath[reader.GetString(0)] = new ReadStats(
+                reader.GetInt64(1),
+                reader.GetInt64(2),
+                new DateTimeOffset(lastRead));
+        }
+        return statsByPath;
+    }
+}

@@ -1,0 +1,11 @@
+## Verification Ladder
+
+A task is not done when the code compiles — it is done when the change has been exercised and observed working at the strongest level this repo supports:
+
+- **New behavior ships with tests at the boundary where it lives** — unit tests for pure logic, integration tests for persistence and API contracts, end-to-end tests for user-visible flows. A user-visible flow with only unit tests is unverified.
+- **UI flows are verified by driving the real application** through this repo's configured browser tooling (see `.claude/rules/verification.md`) before "done" is reported — observed behavior, screenshots, and console errors are the evidence; passing unit tests are not a substitute.
+- **Mock at the boundary, never what you own** — external services are mocked/faked at their interface in tests; types this codebase owns are exercised for real. Integration tests run against real infrastructure (containers) where the repo provides it.
+- **Direct database access during verification is read-only** (`SELECT`) — state mutations happen only through the application or its migrations, never by hand-written writes during a check. (Test harnesses are exempt: fixtures, seeding, and resets performed by the test framework's own setup/teardown are part of the tests, not manual verification.)
+- **Test hygiene** — no inter-test order dependence; no sleeps as synchronization; deterministic data and seeds.
+- **The gate before "done":** zero build errors, zero new warnings, all tests green. Failures are reported verbatim — never paraphrased away, retried into silence, or papered over with a skipped test.
+- **This repo's concrete verification bindings** — test commands, e2e framework, browser-MCP server, base URLs, read-only database DSN (by environment-variable name, never a literal secret) — live in `.claude/rules/verification.md`; consult it before verifying, and propose an update there when the bindings change. When that file is absent, the ladder still applies with repo defaults (build + full test suite); the UI-drive requirement applies only where bindings name a browser tool — if you find yourself needing bindings that don't exist, propose creating the file rather than skipping verification.

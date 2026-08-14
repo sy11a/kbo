@@ -1,0 +1,26 @@
+{
+  "//": "Merge into ~/.claude/settings.json (never overwrite existing hooks).",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/Repository/kb-observability/adapters/claude-code/kbo-capture.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep|Glob|Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/Repository/kb-observability/adapters/claude-code/kbo-capture.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

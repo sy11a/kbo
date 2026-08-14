@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/knowledge.written/1",
+  "title": "knowledge.written v1 — a file-tool write into a knowledge source",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "knowledge.written" },
+    "schemaref": { "const": "knowledge.written/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "raw": {
+          "type": "object",
+          "description": "Agent-native payload, untouched (P3)"
+        }
+      },
+      "required": ["path", "raw"]
+    }
+  }
+}

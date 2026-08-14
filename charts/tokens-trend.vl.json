@@ -1,0 +1,40 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Cache-read vs fresh input tokens per day — two aligned panels, one axis each",
+  "usermeta": {
+    "kbo": {
+      "ru": "Что показывает: сверху — токены, прочитанные из кэша (дёшево, повторное использование контекста); снизу — свежие входные токены (полная цена), по дням. Куда смотреть: если нижняя линия растёт, а верхняя плоская — контекст каждый раз пересобирается заново, это дорого. Наведите на точку — точные числа."
+    }
+  },
+  "data": { "values": [] },
+  "vconcat": [
+    {
+      "width": "container",
+      "height": 140,
+      "mark": { "type": "line", "strokeWidth": 2, "point": { "size": 30 } },
+      "encoding": {
+        "x": { "field": "date", "type": "temporal", "title": null, "axis": null },
+        "y": { "field": "cacheReadTokens", "type": "quantitative", "title": "cache-read tokens" },
+        "color": { "value": "#1baf7a" },
+        "tooltip": [
+          { "field": "date", "type": "temporal" },
+          { "field": "cacheReadTokens", "type": "quantitative", "format": "," }
+        ]
+      }
+    },
+    {
+      "width": "container",
+      "height": 140,
+      "mark": { "type": "line", "strokeWidth": 2, "point": { "size": 30 } },
+      "encoding": {
+        "x": { "field": "date", "type": "temporal", "title": null },
+        "y": { "field": "inputTokens", "type": "quantitative", "title": "fresh input tokens" },
+        "color": { "value": "#2a78d6" },
+        "tooltip": [
+          { "field": "date", "type": "temporal" },
+          { "field": "inputTokens", "type": "quantitative", "format": "," }
+        ]
+      }
+    }
+  ]
+}

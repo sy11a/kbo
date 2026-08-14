@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/job.completed/1",
+  "title": "job.completed v1 — a kbo pulse job finished successfully (dead-man health panel)",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "job.completed" },
+    "schemaref": { "const": "job.completed/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "job": { "type": "string", "minLength": 1 },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["job", "duration_ms"],
+      "description": "Self-emitted by kbo — the event IS the native payload, so no raw field"
+    }
+  }
+}

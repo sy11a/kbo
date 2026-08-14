@@ -1,0 +1,22 @@
+# Sanitized example registry (G2-9). The real registry is a machine-local
+# overlay at ~/.config/kbo/registry.yaml (override: KBO_REGISTRY or --registry).
+machine: example-machine
+sources:
+  - id: knowledge
+    layer: global
+    root: /home/user/Knowledge
+  - id: cc-skills
+    layer: skills
+    root: /home/user/.claude/skills
+  - id: some-repo
+    layer: local
+    root: /home/user/Repository/SomeRepo
+  - id: some-framework-kb
+    layer: framework
+    root: /home/user/Repository/SomeRepo/docs/framework
+  # A '*' segment expands to one source per matching directory at load time;
+  # ids become <id>-<matched-dir> (here e.g. repo-SomeRepo). Future directories
+  # are picked up automatically (ADR-0019).
+  - id: repo
+    layer: local
+    root: /home/user/Repository/*/docs

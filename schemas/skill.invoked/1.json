@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/skill.invoked/1",
+  "title": "skill.invoked v1 — an agent invoked a named skill",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "skill.invoked" },
+    "schemaref": { "const": "skill.invoked/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "skill": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The invoked skill/command name (e.g. 'tdd')"
+        },
+        "raw": {
+          "type": "object",
+          "description": "Agent-native payload, untouched (P3)"
+        }
+      },
+      "required": ["skill", "raw"]
+    }
+  }
+}
