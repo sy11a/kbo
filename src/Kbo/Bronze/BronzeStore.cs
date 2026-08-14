@@ -75,33 +75,14 @@ public sealed class BronzeStore
     public IReadOnlySet<string> HarvestedTranscripts()
     {
         HashSet<string> transcripts = new();
-        string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
-        if (!Directory.Exists(bronzeRoot))
+        foreach (JsonObject envelopeEvent in ReadEvents())
         {
-            return transcripts;
-        }
-
-        foreach (string monthFile in Directory.EnumerateFiles(bronzeRoot, "*" + MonthFileExtension, SearchOption.AllDirectories))
-        {
-            foreach (string line in File.ReadLines(monthFile))
+            JsonNode? data = envelopeEvent[EnvelopeFields.Data];
+            if (data is not null
+                && (string?)data[EventDataFields.Origin] == EventDataFields.OriginHarvest
+                && (string?)data[EventDataFields.Transcript] is string transcript)
             {
-                JsonObject? envelopeEvent;
-                try
-                {
-                    envelopeEvent = JsonNode.Parse(line) as JsonObject;
-                }
-                catch (System.Text.Json.JsonException)
-                {
-                    continue;
-                }
-
-                JsonNode? data = envelopeEvent?[EnvelopeFields.Data];
-                if (data is not null
-                    && (string?)data[EventDataFields.Origin] == EventDataFields.OriginHarvest
-                    && (string?)data[EventDataFields.Transcript] is string transcript)
-                {
-                    transcripts.Add(transcript);
-                }
+                transcripts.Add(transcript);
             }
         }
 
@@ -111,31 +92,12 @@ public sealed class BronzeStore
     public IReadOnlySet<string> TranscriptsWithType(string eventType)
     {
         HashSet<string> transcripts = new();
-        string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
-        if (!Directory.Exists(bronzeRoot))
+        foreach (JsonObject envelopeEvent in ReadEvents())
         {
-            return transcripts;
-        }
-
-        foreach (string monthFile in Directory.EnumerateFiles(bronzeRoot, "*" + MonthFileExtension, SearchOption.AllDirectories))
-        {
-            foreach (string line in File.ReadLines(monthFile))
+            if ((string?)envelopeEvent[EnvelopeFields.Type] == eventType
+                && (string?)envelopeEvent[EnvelopeFields.Data]?[EventDataFields.Transcript] is string transcript)
             {
-                JsonObject? envelopeEvent;
-                try
-                {
-                    envelopeEvent = JsonNode.Parse(line) as JsonObject;
-                }
-                catch (System.Text.Json.JsonException)
-                {
-                    continue;
-                }
-
-                if ((string?)envelopeEvent?[EnvelopeFields.Type] == eventType
-                    && (string?)envelopeEvent?[EnvelopeFields.Data]?[EventDataFields.Transcript] is string transcript)
-                {
-                    transcripts.Add(transcript);
-                }
+                transcripts.Add(transcript);
             }
         }
 
@@ -145,39 +107,20 @@ public sealed class BronzeStore
     public IReadOnlySet<string> SeenTranscripts()
     {
         HashSet<string> transcripts = new();
-        string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
-        if (!Directory.Exists(bronzeRoot))
+        foreach (JsonObject envelopeEvent in ReadEvents())
         {
-            return transcripts;
-        }
-
-        foreach (string monthFile in Directory.EnumerateFiles(bronzeRoot, "*" + MonthFileExtension, SearchOption.AllDirectories))
-        {
-            foreach (string line in File.ReadLines(monthFile))
+            JsonNode? data = envelopeEvent[EnvelopeFields.Data];
+            if (data is null)
             {
-                JsonObject? envelopeEvent;
-                try
-                {
-                    envelopeEvent = JsonNode.Parse(line) as JsonObject;
-                }
-                catch (System.Text.Json.JsonException)
-                {
-                    continue;
-                }
-
-                JsonNode? data = envelopeEvent?[EnvelopeFields.Data];
-                if (data is null)
-                {
-                    continue;
-                }
-                if ((string?)data[EventDataFields.Transcript] is string stamped)
-                {
-                    transcripts.Add(stamped);
-                }
-                else if ((string?)data[EventDataFields.Raw]?["transcript_path"] is string transcriptPath)
-                {
-                    transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
-                }
+                continue;
+            }
+            if ((string?)data[EventDataFields.Transcript] is string stamped)
+            {
+                transcripts.Add(stamped);
+            }
+            else if ((string?)data[EventDataFields.Raw]?["transcript_path"] is string transcriptPath)
+            {
+                transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
             }
         }
 
@@ -187,10 +130,37 @@ public sealed class BronzeStore
     public Dictionary<string, DateTimeOffset> LastCompletedJobs()
     {
         Dictionary<string, DateTimeOffset> lastCompleted = new();
+        foreach (JsonObject envelopeEvent in ReadEvents())
+        {
+            if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.JobCompleted
+                || (string?)envelopeEvent[EnvelopeFields.Subject] is not string job
+                || !DateTimeOffset.TryParse(
+                    (string?)envelopeEvent[EnvelopeFields.Time],
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out DateTimeOffset time))
+            {
+                continue;
+            }
+
+            if (!lastCompleted.TryGetValue(job, out DateTimeOffset existing) || time > existing)
+            {
+                lastCompleted[job] = time;
+            }
+        }
+
+        return lastCompleted;
+    }
+
+    // Every bronze scan is this loop: enumerate month files, parse each line,
+    // skip lines that aren't a JSON object — a crashed writer can leave a
+    // truncated tail line, and one bad line must not poison a whole scan.
+    private IEnumerable<JsonObject> ReadEvents()
+    {
         string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
         if (!Directory.Exists(bronzeRoot))
         {
-            return lastCompleted;
+            yield break;
         }
 
         foreach (string monthFile in Directory.EnumerateFiles(bronzeRoot, "*" + MonthFileExtension, SearchOption.AllDirectories))
@@ -207,26 +177,12 @@ public sealed class BronzeStore
                     continue;
                 }
 
-                if (envelopeEvent is null
-                    || (string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.JobCompleted
-                    || (string?)envelopeEvent[EnvelopeFields.Subject] is not string job
-                    || !DateTimeOffset.TryParse(
-                        (string?)envelopeEvent[EnvelopeFields.Time],
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.AdjustToUniversal,
-                        out DateTimeOffset time))
+                if (envelopeEvent is not null)
                 {
-                    continue;
-                }
-
-                if (!lastCompleted.TryGetValue(job, out DateTimeOffset existing) || time > existing)
-                {
-                    lastCompleted[job] = time;
+                    yield return envelopeEvent;
                 }
             }
         }
-
-        return lastCompleted;
     }
 
     private static string RequiredField(JsonObject envelopeEvent, string field)

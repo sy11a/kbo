@@ -16,11 +16,8 @@ Claude Code skills are captured (ADR-0024); opencode skill/command invocations a
 
 <!-- Items below from the 2026-08-14 fresh-eye code review. Ordered by blast radius:
      data-integrity on the unrebuildable capture path first, then maintainability,
-     then genericity/polish. Do the first two before the rest. -->
-
-## Collapse the four BronzeStore scanners
-
-`HarvestedTranscripts`, `TranscriptsWithType`, `SeenTranscripts`, and `LastCompletedJobs` (`BronzeStore.cs:40`–`195`) each re-implement the same "enumerate month files → parse every line → filter" loop, and each is a full-bronze scan. Extract one `private IEnumerable<JsonObject> ReadEvents()` iterator and rewrite the four as projections. Behavior-preserving refactor under existing `BronzeStoreTests` (add coverage for any untested method first).
+     then genericity/polish. Do the silver INSERT item before the rest.
+     (Done so far: capture fail-safe, bronze write integrity, BronzeStore scanner collapse.) -->
 
 ## Prepare the silver INSERT once
 
