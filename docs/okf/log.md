@@ -8,6 +8,10 @@ timestamp: 2026-08-10T19:30:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-14 — Bronze scanners collapsed (fresh-eye review backlog)
+
+`BronzeStore`'s four scanners (`HarvestedTranscripts`, `TranscriptsWithType`, `SeenTranscripts`, `LastCompletedJobs`) each re-implemented the same "enumerate month files → parse every line → filter" full-bronze loop; they are now projections over one private `ReadEvents()` iterator that owns the enumerate/parse/skip-malformed-lines behavior. No public surface or behavior change, so no concept doc content changed — file paths and method names referenced by [harvest.md](harvest.md) and [audit.md](audit.md) are untouched. Coverage was added first for the two previously untested scanners (`TranscriptsWithType`, `LastCompletedJobs`) and for malformed-line tolerance across all four. Why: four hand-copied scan loops meant any bronze-format change needed four synchronized edits.
+
 ## 2026-08-14 — Bronze write integrity (ADR-0030)
 
 [claude-code-adapter.md](claude-code-adapter.md) and [harvest.md](harvest.md) updated: `knowledge.written` events no longer embed written content — `tool_input`'s `content`/`old_string`/`new_string`/`new_source` are stripped from `raw` and replaced by `<field>_size`; the live hook adds `contenthash`/`size` from the on-disk file per G2-5 (mined writes keep `contenthash` null). `BronzeStore.Append` now serializes concurrent appenders on a git-ignored sidecar lock file (`.locks/<machine>-<agent>-<month>.lock`, exclusive open + jittered bounded retry) while the month file opens share-friendly, so parallel `kbo capture` processes can't overwrite each other and scanners are never blocked. Why: a fresh-eye review flagged the two coupled defects, and a stress test written during the fix showed the prescribed share-mode change was insufficient — .NET appends are positional writes, not `O_APPEND`, so unserialized concurrent appends silently lose data. Bronze stays "sufficient" with path+hash+size. See ADR-0030.
