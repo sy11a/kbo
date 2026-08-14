@@ -246,9 +246,14 @@ public static class TranscriptMiner
                 {
                     return null;
                 }
+                if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
+                {
+                    ClaudeCodeAdapter.StripWrittenContent(rawToolInput);
+                }
                 JsonObject data = new()
                 {
                     [EventDataFields.Path] = filePath,
+                    [EventDataFields.ContentHash] = null,
                     [EventDataFields.Raw] = raw,
                     [EventDataFields.Origin] = EventDataFields.OriginHarvest,
                 };

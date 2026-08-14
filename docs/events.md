@@ -6,7 +6,7 @@ Rule (`04 - Event Schema`): a type or field exists only if a report question dem
 |---|---|---|---|---|
 | `knowledge.read` | Discoverability | dead/hot notes, session profiles | path, `contenthash` | v1 |
 | `knowledge.searched` | Discoverability | failed-KB-search rate (searched-but-not-found = discoverability failure) | pattern, root searched, hit count (hook best-effort, harvest authoritative — G2-6) | v1 |
-| `knowledge.written` | Corpus | capture ROI ("notes written during captures ever read again?") | path | v1 |
+| `knowledge.written` | Corpus | capture ROI ("notes written during captures ever read again?") | path, `contenthash`/`size` of the on-disk file (write→read correlation; written content itself is never embedded — ADR-0030) | v1 |
 | `context.loaded` | Capture | which implicit context (CLAUDE.md/AGENTS.md/memory) was in play, at which version | path, `contenthash` | v1 |
 | `session.started` | Capture | session inventory; denominators | agent, model, repo, raw git branch; usage totals incl. `cache_read` vs fresh input tokens | v1 |
 | `job.completed` / `job.failed` | Capture (self) | dead-man health panel | job name, duration, error | v1 |

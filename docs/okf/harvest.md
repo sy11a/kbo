@@ -3,7 +3,7 @@ type: Component
 title: Harvest — Claude Code transcript miner
 description: kbo harvest claude-code — mines transcripts into the same envelope events as live capture; backfill, gap recovery, and authoritative values (Q4, G2-6).
 tags: [component, harvest, backfill, bronze, claude-code]
-timestamp: 2026-08-12T00:00:00Z
+timestamp: 2026-08-14T00:00:00Z
 status: implemented
 ---
 
@@ -18,7 +18,7 @@ Q4 pattern: hooks are primary, the miner is verification and recovery. `kbo harv
 | first session record | `session.started` | historical `gitBranch` (→ `task`), `model` (first assistant), summed `usage` (deduped by `requestId`) |
 | assistant `tool_use` Read | `knowledge.read` | `model` from the enclosing assistant record; `contenthash` stays null (historical bytes unknowable — ADR-0007) |
 | assistant `tool_use` Grep/Glob | `knowledge.searched` | **authoritative `hits`** from the paired `toolUseResult` (G2-6; silver prefers these over hook best-effort) |
-| assistant `tool_use` Write/Edit/NotebookEdit | `knowledge.written` | — |
+| assistant `tool_use` Write/Edit/NotebookEdit | `knowledge.written` | content fields stripped from `raw` and replaced by `<field>_size`; `contenthash` stays null like mined reads (ADR-0030) |
 | assistant `tool_use` Skill | `skill.invoked` | `data.skill` = invoked skill; harvest-only, not in the live hook matcher (ADR-0024) |
 
 - `context.loaded` is **hook-only** (owner-confirmed 2026-08-12): implicit loads are not tool activity in transcripts; reconstruction would hash today's disk state against yesterday's sessions.

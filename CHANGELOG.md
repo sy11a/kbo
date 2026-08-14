@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Concurrent bronze appends can no longer lose or corrupt events (ADR-0030): appenders serialize on a git-ignored sidecar lock file (`.locks/` in the events repo, exclusive open + jittered bounded retry) while month files open share-friendly, so parallel tool calls — parallel `kbo capture` processes — can't overwrite each other's appends (.NET appends are positional writes, not `O_APPEND`) and bronze scanners are never blocked by writers.
 - `kbo capture` is now fail-safe (ADR-0029): a runtime failure — an unparseable payload, a missing or invalid registry, an event that fails validation, or an append error — is recorded to `~/.local/state/kbo/capture-errors.log` and exits 0, instead of returning non-zero and silently dropping the (unrecoverable) live event. Valid events in a `SessionStart` batch still land in bronze; only genuine CLI misuse (unknown agent/args) exits non-zero.
 - Reads-by-layer and KB-touch now classify knowledge by resolving paths through the **current** registry at report time (ADR-0021), matching the theme chart — history fills in retroactively when roots are registered instead of staying frozen to capture-time `kbroot` stamps.
 - Silver's `events_preferred` view no longer hides the live tail of long-running sessions (ADR-0020): hook events are dropped only up to the session's last harvest-event time instead of for the whole session, so activity after a daily harvest stays visible in every chart and report the same day.
@@ -52,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Typed knowledge registry (plan step 1.3): per-machine YAML overlay at `~/.config/kbo/registry.yaml` (`KBO_REGISTRY`/`--registry` override) mapping source roots to `kbroot` ids with strict validation and longest-root resolution; `kbo registry show` / `kbo registry resolve <path>` CLI; sanitized example at `registry/example.yaml` (ADR-0005).
 
 ### Changed
+
+- `knowledge.written` events no longer embed the written content (ADR-0030): `tool_input`'s `content`/`old_string`/`new_string`/`new_source` are stripped from `data.raw` and replaced by `<field>_size` byte counts, and live-captured writes now carry `contenthash`/`size` of the on-disk file just written (same G2-5 semantics as reads; harvest-mined writes keep `contenthash` null). Bronze growth is bounded by activity instead of the size of files being edited, and small append lines are what keep concurrent appends intact. Past bronze lines are untouched.
 
 ### Fixed
 

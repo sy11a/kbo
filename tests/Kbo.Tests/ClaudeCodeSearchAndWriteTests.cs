@@ -102,6 +102,83 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
         Assert.Equal(12, (int?)mapped["data"]!["hits"]);
     }
 
+    [Fact]
+    public void Write_StripsContentFromRaw_AndHashesTheWrittenFile()
+    {
+        string notePath = Path.Combine(vaultRoot, "stripped-note.md");
+        File.WriteAllText(notePath, "note body\n");
+
+        JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = notePath, ["content"] = "note body\n" });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        JsonObject rawInput = (JsonObject)mapped["data"]!["raw"]!["tool_input"]!;
+        Assert.False(rawInput.ContainsKey("content"));
+        Assert.Equal(10, (int?)rawInput["content_size"]);
+        string expectedHash = Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(notePath)))[..16];
+        Assert.Equal(expectedHash, (string?)mapped["data"]!["contenthash"]);
+    }
+
+    [Fact]
+    public void Edit_StripsOldAndNewStringsFromRaw()
+    {
+        string notePath = Path.Combine(vaultRoot, "edited-note.md");
+        File.WriteAllText(notePath, "after\n");
+
+        JsonObject? mapped = Map("Edit", new JsonObject
+        {
+            ["file_path"] = notePath,
+            ["old_string"] = "before",
+            ["new_string"] = "after!",
+        });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        JsonObject rawInput = (JsonObject)mapped["data"]!["raw"]!["tool_input"]!;
+        Assert.False(rawInput.ContainsKey("old_string"));
+        Assert.False(rawInput.ContainsKey("new_string"));
+        Assert.Equal(6, (int?)rawInput["old_string_size"]);
+        Assert.Equal(6, (int?)rawInput["new_string_size"]);
+        Assert.Equal(notePath, (string?)rawInput["file_path"]);
+    }
+
+    [Fact]
+    public void NotebookEdit_StripsNewSourceFromRaw()
+    {
+        string notebookPath = Path.Combine(vaultRoot, "analysis.ipynb");
+        File.WriteAllText(notebookPath, "{}");
+
+        JsonObject? mapped = Map("NotebookEdit", new JsonObject
+        {
+            ["notebook_path"] = notebookPath,
+            ["new_source"] = "print('hi')",
+        });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        JsonObject rawInput = (JsonObject)mapped["data"]!["raw"]!["tool_input"]!;
+        Assert.False(rawInput.ContainsKey("new_source"));
+        Assert.Equal(11, (int?)rawInput["new_source_size"]);
+    }
+
+    [Fact]
+    public void Write_OutsideAnyKbroot_StillStripsContent_WithoutHash()
+    {
+        string codePath = Path.Combine(workspace, "program.cs");
+        File.WriteAllText(codePath, "code");
+
+        JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = codePath, ["content"] = "code" });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        Assert.Null(mapped["kbroot"]);
+        Assert.Null(mapped["data"]!["contenthash"]);
+        JsonObject rawInput = (JsonObject)mapped["data"]!["raw"]!["tool_input"]!;
+        Assert.False(rawInput.ContainsKey("content"));
+        Assert.Equal(4, (int?)rawInput["content_size"]);
+    }
+
     [Theory]
     [InlineData("Write")]
     [InlineData("Edit")]

@@ -8,6 +8,10 @@ timestamp: 2026-08-10T19:30:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-14 — Bronze write integrity (ADR-0030)
+
+[claude-code-adapter.md](claude-code-adapter.md) and [harvest.md](harvest.md) updated: `knowledge.written` events no longer embed written content — `tool_input`'s `content`/`old_string`/`new_string`/`new_source` are stripped from `raw` and replaced by `<field>_size`; the live hook adds `contenthash`/`size` from the on-disk file per G2-5 (mined writes keep `contenthash` null). `BronzeStore.Append` now serializes concurrent appenders on a git-ignored sidecar lock file (`.locks/<machine>-<agent>-<month>.lock`, exclusive open + jittered bounded retry) while the month file opens share-friendly, so parallel `kbo capture` processes can't overwrite each other and scanners are never blocked. Why: a fresh-eye review flagged the two coupled defects, and a stress test written during the fix showed the prescribed share-mode change was insufficient — .NET appends are positional writes, not `O_APPEND`, so unserialized concurrent appends silently lose data. Bronze stays "sufficient" with path+hash+size. See ADR-0030.
+
 ## 2026-08-14 — Capture made fail-safe (ADR-0029)
 
 [claude-code-adapter.md](claude-code-adapter.md) and [pulse.md](pulse.md) updated for the fail-safe capture contract: `kbo capture` never returns non-zero on a runtime failure (bad payload, missing/invalid registry, an event that fails validation, an append error) — it records the drop to `~/.local/state/kbo/capture-errors.log` and exits 0, while valid events in a batch still land in bronze; only genuine CLI misuse exits non-zero. `kbo doctor` now surfaces that log (count + last drop, flagged only when recent). Why: a fresh-eye review found capture returned exit 1 and silently dropped live (unrecoverable) events; the doc already claimed "never breaks a session, errors to a local log" but the code didn't honour it, and drops were surfaced nowhere. Closes the top backlog item.
