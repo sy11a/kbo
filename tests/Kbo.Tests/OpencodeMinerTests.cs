@@ -88,6 +88,34 @@ public class OpencodeMinerTests : IDisposable
         Insert(connection, "INSERT INTO part VALUES ('prt_1','msg_1','ses_a',@t,@t,@data)", ("@t", BaseMs + 60_000), ("@data", readPart.ToJsonString()));
         Insert(connection, "INSERT INTO part VALUES ('prt_2','msg_1','ses_a',@t,@t,@data)", ("@t", BaseMs + 120_000), ("@data", grepPart.ToJsonString()));
         Insert(connection, "INSERT INTO part VALUES ('prt_3','msg_1','ses_a',@t,@t,@data)", ("@t", BaseMs + 130_000), ("@data", textPart.ToJsonString()));
+
+        JsonObject skillPart = new()
+        {
+            ["type"] = "tool",
+            ["tool"] = "skill",
+            ["callID"] = "call-3",
+            ["state"] = new JsonObject
+            {
+                ["status"] = "completed",
+                ["input"] = new JsonObject { ["name"] = "grilling" },
+                ["metadata"] = new JsonObject { ["name"] = "grilling", ["dir"] = "/skills/grilling", ["truncated"] = false },
+                ["time"] = new JsonObject { ["start"] = BaseMs + 140_000, ["end"] = BaseMs + 140_050 },
+            },
+        };
+        JsonObject namelessSkillPart = new()
+        {
+            ["type"] = "tool",
+            ["tool"] = "skill",
+            ["callID"] = "call-4",
+            ["state"] = new JsonObject
+            {
+                ["status"] = "completed",
+                ["input"] = new JsonObject(),
+                ["time"] = new JsonObject { ["start"] = BaseMs + 150_000 },
+            },
+        };
+        Insert(connection, "INSERT INTO part VALUES ('prt_4','msg_1','ses_a',@t,@t,@data)", ("@t", BaseMs + 140_000), ("@data", skillPart.ToJsonString()));
+        Insert(connection, "INSERT INTO part VALUES ('prt_5','msg_1','ses_a',@t,@t,@data)", ("@t", BaseMs + 150_000), ("@data", namelessSkillPart.ToJsonString()));
     }
 
     private static void Insert(SqliteConnection connection, string sql, params (string Name, object Value)[] parameters)
@@ -128,7 +156,7 @@ public class OpencodeMinerTests : IDisposable
     {
         List<JsonObject> events = OpencodeMiner.Mine(databasePath, new[] { "ses_a" }, registry, new Random(42));
 
-        Assert.Equal(new[] { "session.started", "knowledge.read", "knowledge.searched" },
+        Assert.Equal(new[] { "session.started", "knowledge.read", "knowledge.searched", "skill.invoked" },
             events.Select(e => (string?)e["type"]).ToArray());
 
         JsonObject read = events[1];
@@ -139,6 +167,21 @@ public class OpencodeMinerTests : IDisposable
         JsonObject searched = events[2];
         Assert.Equal(8, (int?)searched["data"]!["hits"]);
         Assert.Equal("vault", (string?)searched["kbroot"]);
+    }
+
+    [Fact]
+    public void Mine_EmitsSkillInvoked_FromSkillTool_SkippingNamelessOnes()
+    {
+        List<JsonObject> events = OpencodeMiner.Mine(databasePath, new[] { "ses_a" }, registry, new Random(42));
+
+        JsonObject skill = events.Single(e => (string?)e["type"] == "skill.invoked");
+        Assert.Equal("grilling", (string?)skill["subject"]);
+        Assert.Equal("grilling", (string?)skill["data"]!["skill"]);
+        Assert.Null(skill["kbroot"]);
+        Assert.Equal("2026-07-15T10:02:20Z", (string?)skill["time"]);
+        Assert.Equal("harvest", (string?)skill["data"]!["origin"]);
+        Assert.Equal("ses_a", (string?)skill["data"]!["transcript"]);
+        Assert.Equal("skill", (string?)skill["data"]!["raw"]!["tool"]);
     }
 
     [Fact]

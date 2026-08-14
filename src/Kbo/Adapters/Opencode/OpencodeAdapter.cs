@@ -26,6 +26,7 @@ public static class OpencodeAdapter
         public const string FilePath = "filePath";
         public const string Pattern = "pattern";
         public const string Path = "path";
+        public const string Name = "name";
 
         public const string ToolExecuteAfter = "tool.execute.after";
         public const string SessionStart = "session.start";
@@ -38,6 +39,7 @@ public static class OpencodeAdapter
         public const string Glob = "glob";
         public const string Write = "write";
         public const string Edit = "edit";
+        public const string Skill = "skill";
     }
 
     public static JsonObject? MapToolExecute(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, Random random)

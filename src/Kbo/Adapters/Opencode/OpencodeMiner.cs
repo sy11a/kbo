@@ -145,6 +145,7 @@ public static class OpencodeMiner
                 OpencodeAdapter.Tools.Read => MapRead(input, directory, raw, registry),
                 OpencodeAdapter.Tools.Grep or OpencodeAdapter.Tools.Glob => MapSearch(input, state, directory, raw, registry),
                 OpencodeAdapter.Tools.Write or OpencodeAdapter.Tools.Edit => MapWrite(input, directory, raw, registry),
+                OpencodeAdapter.Tools.Skill => MapSkill(input, raw),
                 _ => null,
             };
             if (mapped is null)
@@ -218,6 +219,20 @@ public static class OpencodeMiner
         return new MappedTool(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), new JsonObject
         {
             [EventDataFields.Path] = filePath,
+            [EventDataFields.Raw] = raw,
+        });
+    }
+
+    private static MappedTool? MapSkill(JsonObject input, JsonObject raw)
+    {
+        string? skill = (string?)input[OpencodeAdapter.Payload.Name];
+        if (skill is null)
+        {
+            return null;
+        }
+        return new MappedTool(EventTypes.SkillInvoked, skill, null, new JsonObject
+        {
+            [EventDataFields.Skill] = skill,
             [EventDataFields.Raw] = raw,
         });
     }
