@@ -21,6 +21,7 @@ public static class ClaudeCodeAdapter
         }
 
         string? cwd = (string?)payload[HookPayload.Cwd];
+        GitContext git = GitContext.Discover(cwd, registry.TaskPattern);
         switch (toolName)
         {
             case HookPayload.Tools.Read:
@@ -34,7 +35,7 @@ public static class ClaudeCodeAdapter
                 JsonObject data = new() { [EventDataFields.Path] = filePath };
                 AddContentHash(data, filePath, kbroot);
                 data[EventDataFields.Raw] = RawPayload(payload);
-                return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock, random);
+                return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
             }
             case HookPayload.Tools.Grep:
             case HookPayload.Tools.Glob:
@@ -53,7 +54,7 @@ public static class ClaudeCodeAdapter
                     [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
                     [EventDataFields.Raw] = RawPayload(payload),
                 };
-                return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock, random);
+                return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
             }
             case HookPayload.Tools.Write:
             case HookPayload.Tools.Edit:
@@ -74,7 +75,7 @@ public static class ClaudeCodeAdapter
                     StripWrittenContent(rawToolInput);
                 }
                 data[EventDataFields.Raw] = raw;
-                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock, random);
+                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random);
             }
             default:
                 return null;
@@ -99,7 +100,7 @@ public static class ClaudeCodeAdapter
             [EventDataFields.Raw] = RawPayload(payload),
         };
         events.Add(Envelope(
-            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], null, sessionData, payload, registry, clock, random));
+            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], null, sessionData, payload, git, registry, clock, random));
 
         foreach ((string path, string kind) in ImplicitContextFiles(cwd, homeDirectory))
         {
@@ -109,7 +110,7 @@ public static class ClaudeCodeAdapter
             JsonObject raw = RawPayload(payload);
             raw[EventDataFields.Kind] = kind;
             data[EventDataFields.Raw] = raw;
-            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, registry, clock, random));
+            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, git, registry, clock, random));
         }
 
         return events;
@@ -230,11 +231,11 @@ public static class ClaudeCodeAdapter
         string? kbroot,
         JsonObject data,
         JsonObject payload,
+        GitContext git,
         KnowledgeRegistry registry,
         TimeProvider clock,
         Random random)
     {
-        GitContext git = GitContext.Discover((string?)payload[HookPayload.Cwd], registry.TaskPattern);
         data[EventDataFields.Origin] = EventDataFields.OriginHook;
 
         return EventEnvelope.Create(
