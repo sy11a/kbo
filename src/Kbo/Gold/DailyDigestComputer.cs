@@ -3,6 +3,7 @@ using System.Numerics;
 using DuckDB.NET.Data;
 using Kbo.Registry;
 using Kbo.Schemas;
+using Kbo.Silver;
 
 namespace Kbo.Gold;
 
@@ -19,8 +20,7 @@ public static class DailyDigestComputer
     public static IReadOnlyList<DayDigest> Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
     {
         DateTime cutoff = clock.GetUtcNow().AddDays(-WindowDays).UtcDateTime;
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
-        connection.Open();
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
 
         Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
         HashSet<string> registeredIds = sourcesById.Keys.ToHashSet();
