@@ -8,19 +8,17 @@ public sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
     private const string GitDirPointerPrefix = "gitdir:";
     private const string BranchRefPrefix = "ref: refs/heads/";
 
-    private static readonly Regex TaskPattern = new(@"AC-\d+");
-
-    public static string? TaskFromBranch(string? branch)
+    public static string? TaskFromBranch(string? branch, Regex? taskPattern)
     {
-        if (branch is null)
+        if (branch is null || taskPattern is null)
         {
             return null;
         }
-        Match match = TaskPattern.Match(branch);
+        Match match = taskPattern.Match(branch);
         return match.Success ? match.Value : null;
     }
 
-    public static GitContext Discover(string? cwd)
+    public static GitContext Discover(string? cwd, Regex? taskPattern)
     {
         if (string.IsNullOrEmpty(cwd))
         {
@@ -53,8 +51,7 @@ public sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
             if (headPath is not null)
             {
                 string? branch = ReadBranch(headPath);
-                string? task = branch is null ? null : TaskPattern.Match(branch) is { Success: true } match ? match.Value : null;
-                return new GitContext(directory, branch, task);
+                return new GitContext(directory, branch, TaskFromBranch(branch, taskPattern));
             }
 
             directory = Path.GetDirectoryName(directory);

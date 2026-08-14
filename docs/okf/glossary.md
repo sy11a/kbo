@@ -3,7 +3,7 @@ type: System
 title: kb-observability — Domain Glossary
 description: Domain terms mapped to their meaning in this codebase.
 tags: [system, glossary, domain]
-timestamp: 2026-08-13T00:00:00Z
+timestamp: 2026-08-14T00:00:00Z
 status: implemented
 ---
 
@@ -18,6 +18,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | gold | Report-ready facts computed exactly once per `kbo report` run; emitted as JSON + rendered views; renderers contain zero computation |
 | event envelope | CloudEvents 1.0 standard fields plus owner extensions (`machine`, `agent`, `session`, `repo`, `task`, `model`, `kbroot`, `schemaref`) |
 | kbroot | Registry root id the event subject falls under; `null` = not knowledge. Registered-root events are the first-class report population (G2-1) |
+| taskPattern | Optional registry regex (env override `KBO_TASK_PATTERN`) whose first match in a git branch becomes the envelope's `task`; unset = no task extraction, `task` always `null` (ADR-0031) |
 | registry | Per-machine typed map of knowledge sources (`global`/`framework`/`local`/`skills` layers); doubles as the dead-notes denominator. Machine-local overlay at `~/.config/kbo/registry.yaml`, sanitized example in `registry/`; `kbo registry show/resolve` (ADR-0005) |
 | layer | A source's position in the knowledge hierarchy: `global` (the vault), `framework` (reusable KBs), `local` (per-repo), `skills` (agent skill dirs); closed enum, a new layer is a spec change |
 | retention manifest | Adapter contract #3: where an agent's transcripts/sessions live on disk (`RetentionManifest` in `src/Kbo/Jobs/`); the archive job and completeness audit iterate manifests, never hardcoded paths |

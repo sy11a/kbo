@@ -1,6 +1,10 @@
 # Sanitized example registry (G2-9). The real registry is a machine-local
 # overlay at ~/.config/kbo/registry.yaml (override: KBO_REGISTRY or --registry).
 machine: example-machine
+# Optional: regex extracting a task id from the session's git branch; first
+# match becomes the event's `task`. Unset = no task extraction (task stays
+# null). Env override: KBO_TASK_PATTERN (ADR-0031).
+# taskPattern: 'JIRA-\d+'
 sources:
   - id: knowledge
     layer: global

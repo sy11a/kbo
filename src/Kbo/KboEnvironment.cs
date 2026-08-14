@@ -7,6 +7,7 @@ namespace Kbo;
 public static class KboEnvironment
 {
     public const string RegistryVariable = "KBO_REGISTRY";
+    public const string TaskPatternVariable = "KBO_TASK_PATTERN";
     public const string EventsRepoVariable = "KBO_EVENTS_REPO";
     public const string SilverVariable = "KBO_SILVER";
     public const string ArchiveRootVariable = "KB_ARCHIVE_ROOT";

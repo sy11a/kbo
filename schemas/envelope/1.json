@@ -40,9 +40,9 @@
     "task": {
       "anyOf": [
         { "type": "null" },
-        { "type": "string", "pattern": "^AC-[0-9]+$" }
+        { "type": "string", "minLength": 1 }
       ],
-      "description": "First AC-\\d+ match from the session cwd's git branch (G2-4); raw branch preserved in data"
+      "description": "First match of the registry's optional taskPattern in the session cwd's git branch (G2-4, ADR-0031); null when no pattern is configured or nothing matches; raw branch preserved in data"
     },
     "model": { "type": ["string", "null"] },
     "kbroot": {

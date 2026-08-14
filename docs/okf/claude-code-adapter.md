@@ -32,7 +32,7 @@ Claude Code ──PostToolUse/SessionStart hook (bash, async)──▶ kbo captu
 | other tools | none | — | capture stays file-tool scoped in v1 |
 
 - `raw` preserves the hook payload **minus `tool_response`** (owner-confirmed 2026-08-11): full fidelity lives in archived transcripts; harvest recomputes hit counts authoritatively. On write events, `tool_input`'s free-text fields (`content`, `old_string`, `new_string`, `new_source`) are additionally stripped and replaced by `<field>_size` byte counts — bronze stays "sufficient" with path+hash+size and its growth is bounded by activity, not file sizes (ADR-0030).
-- `task`: first `AC-\d+` of the cwd's git branch, read from `.git/HEAD` directly (no subprocess); raw branch in `data.branch` on `session.started`.
+- `task`: first match of the [registry](registry.md)'s optional `taskPattern` (env override `KBO_TASK_PATTERN`) in the cwd's git branch, read from `.git/HEAD` directly (no subprocess); `null` when no pattern is configured (ADR-0031). Raw branch in `data.branch` on `session.started`.
 - Best-effort by design: the hook never blocks or breaks a session. Two layers guarantee it — the wrapper script backgrounds `kbo` and exits 0 immediately, and `kbo capture` itself never returns non-zero on a *runtime* failure (unparseable payload, missing/invalid registry, an event that fails validation, or an append error). It records the drop to `~/.local/state/kbo/capture-errors.log` and exits 0; any events that *do* validate still land in bronze. Only a genuine CLI misuse (wrong agent/args) exits non-zero. `kbo doctor` surfaces that log so silent drops stay visible (ADR-0029).
 
 ## Implementation

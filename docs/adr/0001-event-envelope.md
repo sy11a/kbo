@@ -15,7 +15,7 @@ One NDJSON line per event: CloudEvents 1.0 standard fields (`specversion`, `id`,
 - `id`: ULID (sortable). `source`: `//<machine>/<agent>`. `time`: UTC ISO-8601.
 - `data` always preserves the raw agent-native payload untouched, alongside normalized fields (P3).
 - Capture is total (G2-1): every file-tool event is emitted; `kbroot` is set by registry lookup, `null` outside registered roots. Reports treat `kbroot != null` as the first-class population.
-- `task`: first `AC-\d+` match from the session cwd's git branch (captured raw in `data`), else `null` (G2-4). Unbackfillable, so captured from day one (P6).
+- `task`: first task-pattern match from the session cwd's git branch (captured raw in `data`), else `null` (G2-4). Unbackfillable, so captured from day one (P6). *(Amended by ADR-0031: originally hardcoded `AC-\d+`; the pattern is now the registry's optional `taskPattern` / `KBO_TASK_PATTERN`, and without one `task` is always `null`.)*
 - `contenthash`: SHA-256 of file bytes truncated to 16 hex chars, computed only on `knowledge.read`/`context.loaded` events with `kbroot != null`; files over 5 MB are not hashed (size recorded instead) (G2-5).
 - `schemaref`: `<type>/<version>` into the schema registry (`schemas/<type>/<version>.json` in this repo).
 

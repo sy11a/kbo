@@ -3,10 +3,14 @@ type: Changelog
 title: OKF Bundle Changelog
 description: Chronological record of significant changes to the OKF knowledge bundle.
 tags: [changelog, okf]
-timestamp: 2026-08-10T19:30:00Z
+timestamp: 2026-08-14T00:00:00Z
 ---
 
 # OKF Bundle Changelog
+
+## 2026-08-14 — Configurable task pattern; no extraction by default (ADR-0031)
+
+[registry.md](registry.md), [claude-code-adapter.md](claude-code-adapter.md), [harvest.md](harvest.md), and the [glossary](glossary.md) updated: the branch → `task` regex is no longer the hardcoded `AC-\d+` but the registry's optional top-level `taskPattern` (env override `KBO_TASK_PATTERN`); when unset, `task` is always `null`. The envelope schema's `task` constraint is relaxed in place to any non-empty string (a pure relaxation — all past bronze still validates). Why: a public tool shouldn't ship one org's ticket convention as default behavior, and `AC-\d+` was an origin-project fingerprint. See ADR-0031; ADR-0001's `task` bullet is amended.
 
 ## 2026-08-14 — Bronze scanners collapsed (fresh-eye review backlog)
 
