@@ -15,7 +15,7 @@ The folder `schemas/` at the repo root IS the registry ([ADR-0002](../adr/0002-s
 
 | Schema | Constrains |
 |---|---|
-| `envelope/1` | CloudEvents 1.0 fields + owner extensions (`machine`, `agent`, `session`, `repo`, `task`, `model`, `kbroot`, `schemaref`); ULID `id`; UTC ISO-8601 `time` |
+| `envelope/1` | CloudEvents 1.0 fields + owner extensions (`machine`, `agent`, `session`, `repo`, `task`, `model`, `kbroot`, `schemaref`); ULID `id` (timestamp + randomness only — no monotonic same-millisecond suffix, since bronze ordering is file+line append order, never an id sort); UTC ISO-8601 `time` |
 | `knowledge.read/1` | `data`: `path`, nullable `contenthash` (16-hex SHA-256 prefix, G2-5), nullable `size`, `raw` |
 | `knowledge.searched/1` | `data`: `pattern`, nullable `root`, nullable `hits` (hook best-effort, harvest authoritative — G2-6), `raw` |
 | `knowledge.written/1` | `data`: `path`, `raw` |
