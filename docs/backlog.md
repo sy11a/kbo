@@ -4,12 +4,6 @@ Tasks pending implementation. **Rule: update the relevant `docs/okf/` document f
 
 ---
 
-## opencode skill capture
-
-Claude Code skills are captured (ADR-0024); opencode skill/command invocations are not (its session store doesn't expose them the same way). If it becomes worthwhile, extend `OpencodeMiner` to emit `skill.invoked` and backfill. Low priority — Claude Code is where skills predominantly run.
-
----
-
 <!-- Items below from the 2026-08-14 fresh-eye code review. Ordered by blast radius:
      data-integrity on the unrebuildable capture path first, then maintainability,
      then genericity/polish.

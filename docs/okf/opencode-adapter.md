@@ -26,7 +26,7 @@ The second adapter (contract: `03 - Architecture` §Adapters). Session-store for
 
 ## Harvest (`kbo harvest opencode`)
 
-`OpencodeMiner` reads the DB read-only: `session` rows → `session.started` (usage from the pre-aggregated `tokens_*` columns, model from the model JSON's `id`, repo from directory; `branch`/`task` null — the store keeps no branch history, unlike Claude Code transcripts); `part` tool rows → `knowledge.*` with authoritative hits (`metadata.matches`/`count`) and `state.time.start` timestamps. Skips sessions bronze has seen (transcript stamps).
+`OpencodeMiner` reads the DB read-only: `session` rows → `session.started` (usage from the pre-aggregated `tokens_*` columns, model from the model JSON's `id`, repo from directory; `branch`/`task` null — the store keeps no branch history, unlike Claude Code transcripts); `part` tool rows → `knowledge.*` with authoritative hits (`metadata.matches`/`count`) and `state.time.start` timestamps; `skill` parts → `skill.invoked` (`state.input.name` = skill name, ADR-0033) — deliberately **not** in the live plugin's `CAPTURED_TOOLS` (harvest-only, mirroring ADR-0024). Skips sessions bronze has seen (transcript stamps); `--backfill-skills` re-mines already-harvested sessions for `skill.invoked` only (see [Harvest](harvest.md) §Additive backfill).
 
 ## Audit
 
