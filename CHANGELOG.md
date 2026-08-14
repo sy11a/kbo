@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- opencode skill capture (ADR-0033): `skill.invoked` is now mined from the opencode session store too (`skill` tool parts) — opencode's store gained skill invocations since ADR-0024 scoped it out. `kbo harvest opencode --backfill-skills` recovers historical invocations from already-harvested sessions (additive, idempotent), so opencode skills appear on past day pages and the dashboard's "Top skills used".
 - `kbo doctor` surfaces capture-error drops (ADR-0029): the running count and the last drop's date, flagged as a problem only when the most recent drop is within the 3-day dead-man threshold — so silent capture data-loss becomes visible at login instead of hiding in a log no one reads.
 - Dashboard "This week vs last week" deltas (ADR-0028): KB-touch, failed-search, and knowledge reads compared 7-day-over-7-day, with green/red arrows correct per metric — the "is the practice improving?" summary. Completes the four practice lenses.
 - Dashboard write→read loop lens (ADR-0027): what fraction of agent-written notes were later read — the knowledge flywheel (~62% on real data) — plus the top written-then-read notes.

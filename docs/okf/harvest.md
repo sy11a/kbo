@@ -30,7 +30,7 @@ File-granular, stateless (ADR-0007): every harvest event carries `data.transcrip
 
 ### Additive backfill (`--backfill-skills`)
 
-When a new event type is added after transcripts were already harvested (e.g. `skill.invoked`, ADR-0024), the normal skip would leave history untouched. `kbo harvest claude-code --backfill-skills` re-mines **all** transcripts, keeps **only** `skill.invoked` events, and skips transcripts that already carry one (`BronzeStore.TranscriptsWithType`) — purely additive, idempotent, and never duplicates existing event types. A one-time step per new mined type.
+When a new event type is added after transcripts were already harvested (e.g. `skill.invoked`, ADR-0024), the normal skip would leave history untouched. `kbo harvest <agent> --backfill-skills` (valid for both `claude-code` and `opencode`, ADR-0033) re-mines **all** transcripts/sessions, keeps **only** `skill.invoked` events, and skips transcripts that already carry one (`BronzeStore.TranscriptsWithType`) — purely additive, idempotent, and never duplicates existing event types. A one-time step per new mined type, per agent.
 
 ## Implementation
 
