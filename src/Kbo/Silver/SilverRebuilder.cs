@@ -90,13 +90,14 @@ public static class SilverRebuilder
         if (Directory.Exists(bronzeRoot))
         {
             using DuckDBTransaction transaction = connection.BeginTransaction();
+            using DuckDBCommand insert = CreateInsertCommand(connection);
             foreach (string monthFile in Directory
                 .EnumerateFiles(bronzeRoot, "*.ndjsonl", SearchOption.AllDirectories)
                 .Order())
             {
                 foreach (string line in File.ReadLines(monthFile))
                 {
-                    if (InsertEvent(connection, line))
+                    if (InsertEvent(insert, line))
                     {
                         eventCount++;
                     }
@@ -119,7 +120,20 @@ public static class SilverRebuilder
         return new RebuildResult(eventCount, sessionCount, skippedLines);
     }
 
-    private static bool InsertEvent(DuckDBConnection connection, string bronzeLine)
+    private const int InsertColumnCount = 17;
+
+    private static DuckDBCommand CreateInsertCommand(DuckDBConnection connection)
+    {
+        DuckDBCommand insert = connection.CreateCommand();
+        insert.CommandText = "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        for (int position = 0; position < InsertColumnCount; position++)
+        {
+            insert.Parameters.Add(new DuckDBParameter());
+        }
+        return insert;
+    }
+
+    private static bool InsertEvent(DuckDBCommand insert, string bronzeLine)
     {
         JsonObject? envelopeEvent;
         try
@@ -145,32 +159,32 @@ public static class SilverRebuilder
 
         JsonNode? data = envelopeEvent[EnvelopeFields.Data];
 
-        using DuckDBCommand insert = connection.CreateCommand();
-        insert.CommandText = "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.SpecVersion]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Id]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Source]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Type]);
-        AddParameter(insert, parsedTime.UtcDateTime);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Subject]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Machine]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Agent]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Session]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Repo]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Task]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Model]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.Kbroot]);
-        AddParameter(insert, (string?)envelopeEvent[EnvelopeFields.SchemaRef]);
-        AddParameter(insert, (string?)data?[EventDataFields.Origin]);
-        AddParameter(insert, (string?)data?[EventDataFields.Transcript]);
-        AddParameter(insert, data?.ToJsonString() ?? "{}");
+        int position = 0;
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.SpecVersion]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Id]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Source]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Type]);
+        SetParameter(insert, ref position, parsedTime.UtcDateTime);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Subject]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Machine]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Agent]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Session]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Repo]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Task]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Model]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Kbroot]);
+        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.SchemaRef]);
+        SetParameter(insert, ref position, (string?)data?[EventDataFields.Origin]);
+        SetParameter(insert, ref position, (string?)data?[EventDataFields.Transcript]);
+        SetParameter(insert, ref position, data?.ToJsonString() ?? "{}");
         insert.ExecuteNonQuery();
         return true;
     }
 
-    private static void AddParameter(DuckDBCommand command, object? value)
+    private static void SetParameter(DuckDBCommand command, ref int position, object? value)
     {
-        command.Parameters.Add(new DuckDBParameter { Value = value ?? DBNull.Value });
+        command.Parameters[position].Value = value ?? DBNull.Value;
+        position++;
     }
 
     private static void Execute(DuckDBConnection connection, string sql)
