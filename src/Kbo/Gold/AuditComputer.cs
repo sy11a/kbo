@@ -2,6 +2,7 @@ using DuckDB.NET.Data;
 using Kbo.Bronze;
 using Kbo.Jobs;
 using Kbo.Registry;
+using Kbo.Silver;
 
 namespace Kbo.Gold;
 
@@ -102,8 +103,7 @@ public static class AuditComputer
             return findings;
         }
 
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
-        connection.Open();
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = $"""
             SELECT regexp_replace(subject, '/[^/]+$', '') AS directory, count(*) AS reads

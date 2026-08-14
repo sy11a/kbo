@@ -3,6 +3,7 @@ using System.Numerics;
 using DuckDB.NET.Data;
 using Kbo.Registry;
 using Kbo.Schemas;
+using Kbo.Silver;
 
 namespace Kbo.Gold;
 
@@ -18,8 +19,7 @@ public static class DashboardComputer
     public static DashboardGold Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
     {
         DateTimeOffset now = clock.GetUtcNow();
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
-        connection.Open();
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
 
         HashSet<string> touchedSessions = TouchedSessions(connection, registry);
         (List<ThemeReadsRow> themeReads, List<ThemeReadsRow> unusedThemes) = ReadsByTheme(connection, registry, now);

@@ -1,6 +1,7 @@
 using System.Globalization;
 using DuckDB.NET.Data;
 using Kbo.Registry;
+using Kbo.Silver;
 
 namespace Kbo.Gold;
 
@@ -84,8 +85,7 @@ public static class GoldComputer
     {
         Dictionary<string, ReadStats> statsByPath = new();
 
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
-        connection.Open();
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT subject,
