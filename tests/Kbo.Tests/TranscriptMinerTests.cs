@@ -190,6 +190,32 @@ public class TranscriptMinerTests : IDisposable
     }
 
     [Fact]
+    public void Mine_WrittenEvent_StripsContentFromRaw_KeepsContenthashNull()
+    {
+        string vaultNote = Path.Combine(vaultRoot, "mined-note.md");
+        List<string> lines = new()
+        {
+            MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
+            AssistantToolUse("Write", new JsonObject
+            {
+                ["file_path"] = vaultNote,
+                ["content"] = "historical body",
+            }, "tu-w", "req-1"),
+        };
+
+        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
+
+        JsonObject written = Assert.Single(events, e => (string?)e["type"] == "knowledge.written");
+        EventValidationResult result = new EventValidator().Validate(written.ToJsonString());
+        Assert.True(result.IsValid, string.Join("; ", result.Errors));
+        JsonObject rawInput = (JsonObject)written["data"]!["raw"]!["tool_input"]!;
+        Assert.False(rawInput.ContainsKey("content"));
+        Assert.Equal(15, (int?)rawInput["content_size"]);
+        Assert.True(written["data"]!.AsObject().ContainsKey("contenthash"));
+        Assert.Null(written["data"]!["contenthash"]);
+    }
+
+    [Fact]
     public void Mine_EmptyTranscript_YieldsNoEvents()
     {
         Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", registry, new Random(42)));

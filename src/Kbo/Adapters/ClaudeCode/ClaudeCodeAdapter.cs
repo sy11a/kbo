@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 using Kbo.Registry;
 using Kbo.Schemas;
@@ -65,11 +66,14 @@ public static class ClaudeCodeAdapter
                     return null;
                 }
                 string? kbroot = registry.Resolve(filePath);
-                JsonObject data = new()
+                JsonObject data = new() { [EventDataFields.Path] = filePath };
+                AddContentHash(data, filePath, kbroot);
+                JsonObject raw = RawPayload(payload);
+                if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
                 {
-                    [EventDataFields.Path] = filePath,
-                    [EventDataFields.Raw] = RawPayload(payload),
-                };
+                    StripWrittenContent(rawToolInput);
+                }
+                data[EventDataFields.Raw] = raw;
                 return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock, random);
             }
             default:
@@ -184,6 +188,20 @@ public static class ClaudeCodeAdapter
         using FileStream stream = File.OpenRead(filePath);
         byte[] hash = SHA256.HashData(stream);
         data[EventDataFields.ContentHash] = Convert.ToHexStringLower(hash)[..16];
+    }
+
+    // Bronze never embeds written content — path+hash+size is sufficient, and small
+    // lines keep concurrent appends intact (ADR-0030).
+    internal static void StripWrittenContent(JsonObject toolInput)
+    {
+        foreach (string field in new[] { HookPayload.Content, HookPayload.OldString, HookPayload.NewString, HookPayload.NewSource })
+        {
+            if ((string?)toolInput[field] is string text)
+            {
+                toolInput.Remove(field);
+                toolInput[field + HookPayload.SizeSuffix] = Encoding.UTF8.GetByteCount(text);
+            }
+        }
     }
 
     private static JsonObject RawPayload(JsonObject payload)

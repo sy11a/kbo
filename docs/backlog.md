@@ -18,10 +18,6 @@ Claude Code skills are captured (ADR-0024); opencode skill/command invocations a
      data-integrity on the unrebuildable capture path first, then maintainability,
      then genericity/polish. Do the first two before the rest. -->
 
-## Bronze write integrity — share mode + oversized content [priority]
-
-Two coupled defects on the append-only path (fix together — stripping content is what restores append atomicity). (1) `BronzeStore.Append` opens with `FileShare.Read` (`BronzeStore.cs:35`); Claude Code issues parallel tool calls → parallel `kbo capture` processes → the second writer hits a sharing violation (crash + lost event), and `O_APPEND` only guarantees atomicity below ~4 KB so large lines can interleave and corrupt the "immutable and sufficient" log. Move to `FileShare.ReadWrite` with a small retry on `IOException`. (2) Write/Edit events embed the full file body — `data.raw` keeps `tool_input.content` verbatim (`ClaudeCodeAdapter.RawPayload:189`, `TranscriptMiner:177`), unlike reads which hash+cap. This is the source of the >4 KB lines and grows bronze without bound. Strip content above the existing 5 MB cap, replacing it with `size` (+ optional hash), mirroring reads. Confirm `schemas/knowledge.written/1.json` still validates (content lives inside free-form `raw`, so it should be additive). Past lines are never rewritten — immutability holds. Needs an ADR affirming bronze stays "sufficient" with path+hash+size (full-content reconstruction was never a requirement).
-
 ## Collapse the four BronzeStore scanners
 
 `HarvestedTranscripts`, `TranscriptsWithType`, `SeenTranscripts`, and `LastCompletedJobs` (`BronzeStore.cs:40`–`195`) each re-implement the same "enumerate month files → parse every line → filter" loop, and each is a full-bronze scan. Extract one `private IEnumerable<JsonObject> ReadEvents()` iterator and rewrite the four as projections. Behavior-preserving refactor under existing `BronzeStoreTests` (add coverage for any untested method first).

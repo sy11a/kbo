@@ -11,9 +11,21 @@
       "type": "object",
       "properties": {
         "path": { "type": "string", "minLength": 1 },
+        "contenthash": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+          ],
+          "description": "SHA-256 of the on-disk file after the write, truncated to 16 hex chars; only when kbroot != null and file <= 5 MB, null on harvest-mined writes (G2-5, ADR-0030)"
+        },
+        "size": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "File size in bytes, recorded when the file exceeds the 5 MB hash cap (ADR-0030)"
+        },
         "raw": {
           "type": "object",
-          "description": "Agent-native payload, untouched (P3)"
+          "description": "Agent-native payload minus written content: tool_input's content/old_string/new_string/new_source are stripped and replaced by <field>_size byte counts (ADR-0030)"
         }
       },
       "required": ["path", "raw"]

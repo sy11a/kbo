@@ -9,6 +9,7 @@ public sealed class BronzeStore
 {
     private const string BronzeDirectory = "bronze";
     private const string MonthFileExtension = ".ndjsonl";
+    private const string LockDirectory = ".locks";
 
     private readonly string repositoryRoot;
 
@@ -31,9 +32,43 @@ public sealed class BronzeStore
             Directory.CreateDirectory(directory);
             string monthFile = Path.Combine(directory, month + MonthFileExtension);
 
+            string lockDirectory = Path.Combine(repositoryRoot, LockDirectory);
+            Directory.CreateDirectory(lockDirectory);
+            string lockFile = Path.Combine(lockDirectory, $"{machine}-{agent}-{month}.lock");
+
             byte[] line = Encoding.UTF8.GetBytes(envelopeEvent.ToJsonString() + "\n");
-            using FileStream stream = new(monthFile, FileMode.Append, FileAccess.Write, FileShare.Read);
-            stream.Write(line);
+            // Concurrent appenders serialize on a sidecar lock file: FileStream "append"
+            // is a positional write, not O_APPEND, so unserialized concurrent appends
+            // overwrite each other. The lock lives outside the bronze tree so scanners
+            // and jobs never see or block on it (ADR-0030).
+            RetryTransientIO(() =>
+            {
+                using FileStream appendLock = new(lockFile, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+                using FileStream stream = new(monthFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                stream.Write(line);
+            });
+        }
+    }
+
+    // No cross-process signal exists to wait on for the lock file, hence bounded
+    // sleep-backoff; exhaustion surfaces as IOException and the capture fail-safe
+    // records the drop (ADR-0029, ADR-0030).
+    internal static void RetryTransientIO(Action appendAction)
+    {
+        const int maxAttempts = 10;
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                appendAction();
+                return;
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                // Jittered backoff: contending appenders sleeping a fixed interval
+                // would wake and collide in lockstep until the budget is exhausted.
+                Thread.Sleep(Random.Shared.Next(5, 20 * attempt));
+            }
         }
     }
 
@@ -202,6 +237,7 @@ public sealed class BronzeStore
 
     private void EnsureRepository()
     {
+        EnsureLockFilesIgnored();
         if (Directory.Exists(Path.Combine(repositoryRoot, ".git")))
         {
             return;
@@ -221,5 +257,17 @@ public sealed class BronzeStore
         {
             throw new InvalidOperationException($"'git init' failed in {repositoryRoot}: {process.StandardError.ReadToEnd()}");
         }
+    }
+
+    private void EnsureLockFilesIgnored()
+    {
+        string gitignore = Path.Combine(repositoryRoot, ".gitignore");
+        if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock"))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(repositoryRoot);
+        File.AppendAllText(gitignore, "*.lock\n");
     }
 }

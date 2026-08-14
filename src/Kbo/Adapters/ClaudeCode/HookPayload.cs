@@ -17,6 +17,11 @@ public static class HookPayload
     public const string Pattern = "pattern";
     public const string Path = "path";
     public const string Skill = "skill";
+    public const string Content = "content";
+    public const string OldString = "old_string";
+    public const string NewString = "new_string";
+    public const string NewSource = "new_source";
+    public const string SizeSuffix = "_size";
 
     public static class Events
     {
