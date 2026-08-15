@@ -153,6 +153,19 @@ public class GoldComputerTests : IDisposable
     }
 
     [Fact]
+    public void LifecycleNotes_AreCountedButNeverDead()
+    {
+        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        Note("docs/superpowers/plans/2026-06-01-old-plan.md", modifiedDaysAgo: 40);
+
+        GoldReport report = Compute();
+
+        Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        Assert.Equal(1, report.LifecycleCounts["vault"]);
+    }
+
+    [Fact]
     public void Report_CarriesInventoryTotalsAndGeneratedAt()
     {
         Note("a.md", 200);

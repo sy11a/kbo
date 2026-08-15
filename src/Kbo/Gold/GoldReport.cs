@@ -29,6 +29,7 @@ public sealed record GoldReport(
     int StaleMinReads,
     int StaleUnmodifiedDays,
     IReadOnlyDictionary<string, int> InventoryCounts,
+    IReadOnlyDictionary<string, int> LifecycleCounts,
     IReadOnlyList<DeadNote> DeadNotes,
     IReadOnlyList<HotNote> HotNotes,
     IReadOnlyList<StaleNote> StaleNotes);

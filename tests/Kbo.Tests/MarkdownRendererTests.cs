@@ -8,7 +8,8 @@ public class MarkdownRendererTests
     private static GoldReport Report(
         IReadOnlyList<DeadNote>? dead = null,
         IReadOnlyList<HotNote>? hot = null,
-        IReadOnlyList<StaleNote>? stale = null)
+        IReadOnlyList<StaleNote>? stale = null,
+        IReadOnlyDictionary<string, int>? lifecycle = null)
     {
         return new GoldReport(
             DateTimeOffset.Parse("2026-08-12T12:00:00Z", CultureInfo.InvariantCulture),
@@ -18,6 +19,7 @@ public class MarkdownRendererTests
             StaleMinReads: 3,
             StaleUnmodifiedDays: 90,
             new Dictionary<string, int> { ["vault"] = 10, ["skills"] = 4 },
+            lifecycle ?? new Dictionary<string, int>(),
             dead ?? [],
             hot ?? [],
             stale ?? []);
@@ -54,6 +56,17 @@ public class MarkdownRendererTests
         string markdown = MarkdownRenderer.Render(Report(), "/home/u/Knowledge");
 
         Assert.Contains("none", markdown, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Render_LifecycleCountsSection_ListsPerSourceCounts()
+    {
+        string markdown = MarkdownRenderer.Render(
+            Report(lifecycle: new Dictionary<string, int> { ["repo-CareerPlatform"] = 46 }),
+            "/home/u/Knowledge");
+
+        Assert.Contains("## Lifecycle artifacts", markdown);
+        Assert.Contains("`repo-CareerPlatform`: 46 note(s)", markdown);
     }
 
     [Fact]

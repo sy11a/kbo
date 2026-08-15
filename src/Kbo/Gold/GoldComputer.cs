@@ -1,4 +1,3 @@
-using System.Globalization;
 using DuckDB.NET.Data;
 using Kbo.Registry;
 using Kbo.Silver;
@@ -30,13 +29,20 @@ public static class GoldComputer
 
         List<DeadNote> deadNotes = new();
         List<StaleNote> staleNotes = new();
+        Dictionary<string, int> lifecycleCounts = new();
         foreach (InventoryNote note in inventory)
         {
+            bool isLifecycle = NoteRole.Of(note.Path) == NoteRole.Lifecycle;
+            if (isLifecycle)
+            {
+                lifecycleCounts[note.SourceId] = lifecycleCounts.GetValueOrDefault(note.SourceId) + 1;
+            }
+
             int daysSinceModified = (int)(now - note.Modified).TotalDays;
             ReadStats? stats = statsByPath.GetValueOrDefault(note.Path);
             long readsInWindow = stats?.ReadsInWindow ?? 0;
 
-            if (daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
+            if (!isLifecycle && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
             {
                 string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
                 deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
@@ -71,6 +77,7 @@ public static class GoldComputer
             StaleMinReads,
             StaleUnmodifiedDays,
             inventoryCounts,
+            lifecycleCounts,
             deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
             hotNotes,
             staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
