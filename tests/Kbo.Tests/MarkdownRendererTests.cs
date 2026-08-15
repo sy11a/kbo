@@ -9,7 +9,8 @@ public class MarkdownRendererTests
         IReadOnlyList<DeadNote>? dead = null,
         IReadOnlyList<HotNote>? hot = null,
         IReadOnlyList<StaleNote>? stale = null,
-        IReadOnlyDictionary<string, int>? lifecycle = null)
+        IReadOnlyDictionary<string, int>? lifecycle = null,
+        IReadOnlyList<DormantSource>? dormant = null)
     {
         return new GoldReport(
             DateTimeOffset.Parse("2026-08-12T12:00:00Z", CultureInfo.InvariantCulture),
@@ -18,8 +19,10 @@ public class MarkdownRendererTests
             ReadWindowDays: 60,
             StaleMinReads: 3,
             StaleUnmodifiedDays: 90,
+            DormantAfterDays: 21,
             new Dictionary<string, int> { ["vault"] = 10, ["skills"] = 4 },
             lifecycle ?? new Dictionary<string, int>(),
+            dormant ?? [],
             dead ?? [],
             hot ?? [],
             stale ?? []);
@@ -67,6 +70,21 @@ public class MarkdownRendererTests
 
         Assert.Contains("## Lifecycle artifacts", markdown);
         Assert.Contains("`repo-CareerPlatform`: 46 note(s)", markdown);
+    }
+
+    [Fact]
+    public void Render_DormantSourcesSection_ListsSourceWithWithheldCount()
+    {
+        DormantSource dormant = new(
+            "repo-CareerPlatform",
+            DateTimeOffset.Parse("2026-07-15T10:00:00Z", CultureInfo.InvariantCulture),
+            70);
+
+        string markdown = MarkdownRenderer.Render(Report(dormant: [dormant]), "/home/u/Knowledge");
+
+        Assert.Contains("## Dormant sources", markdown);
+        Assert.Contains("`repo-CareerPlatform`", markdown);
+        Assert.Contains("| 70 |", markdown);
     }
 
     [Fact]
