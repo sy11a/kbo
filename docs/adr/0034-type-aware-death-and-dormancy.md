@@ -22,7 +22,9 @@ the ritual it exists to serve.
 3. Sources with no activity for 21 days (`GoldComputer.DormantAfterDays`)
    are dormant; their dead notes are withheld and reported as a count with
    last-activity date (no-silent-caps). Activity is the newest silver
-   event resolving to the source by subject or by repo containment.
+   event resolving to the source by subject or by repo containment
+   (refined by ADR-0035: only usage events — reads and context loads —
+   count as activity).
 
 ## Consequences
 
