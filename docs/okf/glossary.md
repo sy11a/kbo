@@ -3,7 +3,7 @@ type: System
 title: kb-observability — Domain Glossary
 description: Domain terms mapped to their meaning in this codebase.
 tags: [system, glossary, domain]
-timestamp: 2026-08-14T00:00:00Z
+timestamp: 2026-08-15T00:00:00Z
 status: implemented
 ---
 
@@ -41,3 +41,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | single-use note | A note read in exactly one session over the window — a review/prune candidate (ADR-0026) |
 | content kind | Extension-based classification of a read subject into knowledge (`.md`…), code, config, or other (`ContentKind`), so metrics can separate actual notes from source code that whole-repo registration also captures (ADR-0025) |
 | skill.invoked | Event type recording a skill invocation (`data.skill` = name), mined from transcripts (Skill `tool_use`); harvest-only, backfillable retroactively via `harvest --backfill-skills` (ADR-0024) |
+| note role | Path-segment classification of a note's death condition (`NoteRole`): `reference` notes die by non-use; `lifecycle` artifacts die on completion (ADR-0034) |
+| lifecycle artifact | Note under `/superpowers/plans/`, `/superpowers/specs/`, or `/journal/` — done when its work is done; never on the dead worklist, reported as per-source counts (ADR-0034) |
+| dormant source | Registry source with no silver activity for 21 days; its dead notes are withheld from the worklist and reported as a count with last-activity date (ADR-0034) |
+| glob exclude | `exclude: [dirname, ...]` on a glob registry source; listed `*`-matched directories are skipped at expansion so archives never enter the inventory (ADR-0034) |
