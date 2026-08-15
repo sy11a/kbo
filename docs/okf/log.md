@@ -8,6 +8,10 @@ timestamp: 2026-08-14T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-14 — Fresh-eye review polish batch closed
+
+[claude-code-adapter.md](claude-code-adapter.md): git context is discovered once per hook invocation and threaded to every envelope (was re-discovered per event). [schema-registry.md](schema-registry.md): envelope ULID documented as timestamp+randomness only — no monotonic same-millisecond suffix, bronze ordering is file+line append order. Why: the last batch of the 2026-08-14 fresh-eye code review; the two measure-first items (EventValidator construction ~1.5 ms warm / JIT-dominated cold, registry.Resolve ~314 ns/call at real registry size) measured immaterial and were closed without code change.
+
 ## 2026-08-14 — Configurable task pattern; no extraction by default (ADR-0031)
 
 [registry.md](registry.md), [claude-code-adapter.md](claude-code-adapter.md), [harvest.md](harvest.md), and the [glossary](glossary.md) updated: the branch → `task` regex is no longer the hardcoded `AC-\d+` but the registry's optional top-level `taskPattern` (env override `KBO_TASK_PATTERN`); when unset, `task` is always `null`. The envelope schema's `task` constraint is relaxed in place to any non-empty string (a pure relaxation — all past bronze still validates). Why: a public tool shouldn't ship one org's ticket convention as default behavior, and `AC-\d+` was an origin-project fingerprint. See ADR-0031; ADR-0001's `task` bullet is amended.

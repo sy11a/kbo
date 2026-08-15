@@ -1,5 +1,11 @@
 namespace Kbo.Bronze;
 
+/// <summary>
+/// Timestamp + randomness only — the ULID spec's optional monotonic
+/// same-millisecond suffix is deliberately not implemented. Event ordering in
+/// bronze is month-file + line append order, never a sort on <c>id</c>, so ids
+/// only need uniqueness.
+/// </summary>
 public static class Ulid
 {
     private const string CrockfordAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
