@@ -82,6 +82,44 @@ public class RegistryGlobTests : IDisposable
     }
 
     [Fact]
+    public void Glob_ExcludedDirectoryNames_AreSkipped()
+    {
+        Directory.CreateDirectory(Path.Combine(workspace, "Alpha", "docs"));
+        Directory.CreateDirectory(Path.Combine(workspace, "Beta", "docs"));
+        Directory.CreateDirectory(Path.Combine(workspace, "kb-observability-private-archive", "docs"));
+
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
+            machine: test-machine
+            sources:
+              - id: repo
+                layer: local
+                root: {workspace}/*/docs
+                exclude: [kb-observability-private-archive]
+            """);
+
+        string[] ids = registry.Sources.Select(source => source.Id).ToArray();
+        Assert.Contains("repo-Alpha", ids);
+        Assert.Contains("repo-Beta", ids);
+        Assert.DoesNotContain("repo-kb-observability-private-archive", ids);
+    }
+
+    [Fact]
+    public void Exclude_OnNonGlobSource_IsRejected()
+    {
+        RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() =>
+            KnowledgeRegistry.Parse("""
+                machine: test-machine
+                sources:
+                  - id: vault
+                    layer: global
+                    root: /tmp/vault
+                    exclude: [something]
+                """));
+
+        Assert.Contains("'exclude' requires a glob root", exception.Message);
+    }
+
+    [Fact]
     public void PartialStarSegment_IsRejected()
     {
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse($"""
