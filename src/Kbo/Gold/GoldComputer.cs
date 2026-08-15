@@ -151,7 +151,7 @@ public static class GoldComputer
                 DateTimeOffset time = new(DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc));
                 foreach (KnowledgeSource source in registry.Sources)
                 {
-                    if (source.Root == repo || source.Root.StartsWith(repo + "/", StringComparison.Ordinal))
+                    if (source.Root == repo || Path.GetDirectoryName(source.Root) == repo)
                     {
                         Bump(source.Id, time);
                     }

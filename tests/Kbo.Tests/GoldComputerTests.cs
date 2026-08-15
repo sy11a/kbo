@@ -217,6 +217,33 @@ public class GoldComputerTests : IDisposable
     }
 
     [Fact]
+    public void DormantSources_ProjectRepoEventsWakeItsDirectDocsSource()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        JsonObject codeRead = ReadEvent("01B00000000000000000000013", Path.Combine(workspace, "src", "Program.cs"), daysAgo: 2);
+        codeRead["repo"] = workspace;
+
+        GoldReport report = Compute(codeRead);
+
+        Assert.DoesNotContain(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Contains(report.DeadNotes, note => note.Path == deadPath);
+    }
+
+    [Fact]
+    public void DormantSources_AncestorRepoEventsDoNotWakeNestedSources()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        JsonObject codeRead = ReadEvent("01B00000000000000000000014", Path.Combine(workspace, "src", "Program.cs"), daysAgo: 2);
+        codeRead["repo"] = Path.GetDirectoryName(workspace);
+
+        GoldReport report = Compute(codeRead);
+
+        DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Equal(1, dormant.WithheldDeadNotes);
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
+    }
+
+    [Fact]
     public void Report_CarriesInventoryTotalsAndGeneratedAt()
     {
         Note("a.md", 200);

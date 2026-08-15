@@ -15,14 +15,24 @@ worklist. Candidate fixes considered: exclude machine-managed paths
 the no-hardcoded-paths principle), make the exclusion registry-config
 (most machinery for one case), or redefine activity as usage.
 
+A second hole surfaced in the same verification: the by-repo containment
+rule (`root.StartsWith(repo + "/")`) matched *ancestor* repos — silver
+holds events with `repo = /home/admin` and `/home/admin/Repository`, and
+those woke every nested source, so no source could ever go dormant.
+
 ## Decision
 
 Activity, for dormancy, counts only *usage* events: `knowledge.read` and
 `context.loaded`. Writes never prove a source is alive on their own. Real
 resumed work always emits context/read events through the capture hooks,
 so a live project cannot be misclassified dormant; a maintenance stamp
-that writes without reading no longer wakes a source. Refines the
-activity definition in ADR-0034 (which otherwise stands).
+that writes without reading no longer wakes a source.
+
+By-repo containment is *direct* only: an event's `repo` wakes a source
+when it equals the source root or its immediate parent (the project
+directory that owns a `docs/` root). Ancestor repos wake nothing.
+
+Both refine the activity definition in ADR-0034 (which otherwise stands).
 
 ## Consequences
 
