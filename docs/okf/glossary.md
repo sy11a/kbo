@@ -3,7 +3,7 @@ type: System
 title: kb-observability — Domain Glossary
 description: Domain terms mapped to their meaning in this codebase.
 tags: [system, glossary, domain]
-timestamp: 2026-08-15T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 status: implemented
 ---
 
@@ -45,3 +45,5 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | lifecycle artifact | Note under `/superpowers/plans/`, `/superpowers/specs/`, or `/journal/` — done when its work is done; never on the dead worklist, reported as per-source counts (ADR-0034) |
 | dormant source | Registry source with no silver *usage* (`knowledge.read`/`context.loaded`; writes alone don't count, ADR-0035) for 21 days; its dead notes are withheld from the worklist and reported as a count with last-activity date (ADR-0034) |
 | glob exclude | `exclude: [dirname, ...]` on a glob registry source; listed `*`-matched directories are skipped at expansion so archives never enter the inventory (ADR-0034) |
+| machine-managed | `NoteRole` for tool-owned files (`/docs/ai/`, `/adr/template.md`): overwritten by tooling, never on the dead worklist, reported as per-source counts (ADR-0036) |
+| excludePaths | Per-source registry list of relative subtrees the note inventory skips (tool fixtures, benchmarks); resolution/kbroot unaffected (ADR-0036) |

@@ -15,6 +15,9 @@ sources:
   - id: some-repo
     layer: local
     root: /home/user/Repository/SomeRepo
+    # Optional: relative subtrees the note inventory skips — tool fixtures,
+    # benchmark data (ADR-0036). Path resolution/kbroot tagging unaffected.
+    # excludePaths: [evals, .superpowers]
   - id: some-framework-kb
     layer: framework
     root: /home/user/Repository/SomeRepo/docs/framework
@@ -24,3 +27,6 @@ sources:
   - id: repo
     layer: local
     root: /home/user/Repository/*/docs
+    # Optional: '*'-matched directory names to skip during expansion, e.g.
+    # archived repos that are not live knowledge (ADR-0034).
+    # exclude: [some-archived-repo]

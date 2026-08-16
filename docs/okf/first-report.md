@@ -3,7 +3,7 @@ type: Component
 title: First report — dead notes, read counts, staleness (gold + renderers)
 description: kbo report computes gold facts once from silver + the registry inventory, writes the gold JSON twin, and renders the wikilinked Markdown worklist into the vault's _generated/.
 tags: [component, gold, report, renderer, vault]
-timestamp: 2026-08-15T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 status: implemented
 ---
 
@@ -17,6 +17,7 @@ The *act* surface (Q7): worklists that wikilink to the notes they criticise. All
 |---|---|---|
 | Dead notes/skills | in inventory ≥ 30 days AND zero reads in 60 days (G2-12: M=30, N=60); reference notes in active sources only (ADR-0034) | inventory (registry roots) minus reads (silver `events_preferred`) |
 | Lifecycle artifacts | per-source counts of notes under `/superpowers/plans/`, `/superpowers/specs/`, `/journal/` — die on completion, never on the dead worklist (ADR-0034) | inventory × `NoteRole` |
+| Machine-managed files | per-source counts of tool-owned files (`/docs/ai/`, `/adr/template.md`) — overwritten by tooling, never on the dead worklist (ADR-0036) | inventory × `NoteRole` |
 | Dormant sources | sources with no *usage* (reads/context loads — writes don't count, ADR-0035) in 21 days; their dead notes are withheld and reported as a count with last activity (ADR-0034) | silver `events_preferred` (by subject + by direct repo containment) |
 | Hot notes | top read counts in the 60-day window + all-time totals | silver `events_preferred` |
 | Staleness | ≥ 3 reads in 60 days AND unmodified > 90 days (owner-confirmed start values, ritual-tunable) | reads × file mtime |

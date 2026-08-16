@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Machine-managed files (`docs/ai/**` fleet law, `docs/adr/template.md` scaffolding) are excluded from the dead worklist and reported as per-source counts (ADR-0036) — tool-owned artifacts are not knowledge to prune.
+- Registry sources accept `excludePaths: [subdir, ...]` (ADR-0036): relative subtrees (tool fixtures, benchmark data) are skipped by the note inventory; path resolution and kbroot tagging are unaffected. Glob sources propagate the list to every expanded source.
 - Registry glob sources accept `exclude: [dirname, ...]` (ADR-0034): named `*`-matched directories (e.g. archived repos) are skipped during glob expansion and never enter the inventory; `exclude` on a non-glob source is a validation error.
 - opencode skill capture (ADR-0033): `skill.invoked` is now mined from the opencode session store too (`skill` tool parts) — opencode's store gained skill invocations since ADR-0024 scoped it out. `kbo harvest opencode --backfill-skills` recovers historical invocations from already-harvested sessions (additive, idempotent), so opencode skills appear on past day pages and the dashboard's "Top skills used".
 - `kbo doctor` surfaces capture-error drops (ADR-0029): the running count and the last drop's date, flagged as a problem only when the most recent drop is within the 3-day dead-man threshold — so silent capture data-loss becomes visible at login instead of hiding in a log no one reads.
