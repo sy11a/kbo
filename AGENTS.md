@@ -23,6 +23,7 @@ Stack: `.NET`
 @docs/ai/rules/core/adr.md
 @docs/ai/rules/core/dev-journal.md
 @docs/ai/rules/core/changelog.md
+@docs/ai/rules/core/artifact-lifecycle.md
 @docs/ai/rules/core/project-rules.md
 @docs/ai/rules/core/skills.md
 @docs/ai/rules/core/verification.md

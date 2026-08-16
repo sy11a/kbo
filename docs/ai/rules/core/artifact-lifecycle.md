@@ -1,0 +1,11 @@
+## Artifact Lifecycle
+
+Dead weight is an artifact nobody declared a death for. Every artifact produced in this repo — a document, a plan, a note, a script, a report — carries a life contract:
+
+- **Role is declared at creation** — every artifact is either *reference* (lives while it is used: OKF docs, glossary, rules, ADRs — they are looked up, not executed) or *lifecycle* (dies when the work it serves completes: specs, plans, journal entries, one-off scripts). Placement encodes the role: lifecycle artifacts live only in their conventional homes (`docs/superpowers/`, `docs/journal/`), never mixed into reference locations. An artifact whose role can't be named shouldn't be created — "I'll sort it out later" is how dead weight starts.
+- **Completed lifecycle artifacts are history, not clutter** — they record work already executed: never rewritten, never counted as stale, never swept up by "unused — delete?" reviews. Their going out of date is the design, not a defect.
+- **Reference artifacts die by non-use, through review — never silently** — removing or archiving a reference artifact is a deliberate act by its owner, not an automatic cleanup step.
+- **Every surfaced worklist item is an action** — a report, audit, or worklist may only list items its owner can act on. A class of items that systematically yields no action is excluded mechanically — by a classifier or an explicit rule — never left for humans to filter mentally. A worklist that is mostly noise gets ignored, which kills the ritual it exists to serve.
+- **Alert thresholds derive from declared cadence** — any recurring process (a job, a report, a review) declares its cadence in exactly one authoritative place, and every health check or alert threshold is computed from that declaration. A threshold restated as an independent constant is a bug waiting for the schedule to change.
+- **Unknown classification fails toward the cheap error** — when a role, cadence, or category can't be determined, default to the class whose misclassification costs least: alert too early rather than too late, keep rather than delete.
+- **No silent caps** — when a report withholds, truncates, or suspends items (a dormant scope, a top-N limit), it states how many were withheld and why. Truncation that reads as completeness is a lie.
