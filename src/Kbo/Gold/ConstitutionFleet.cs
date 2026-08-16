@@ -39,6 +39,10 @@ public static class ConstitutionFleet
         {
             foreach (string repo in Directory.EnumerateDirectories(root))
             {
+                if (config.Exclude.Contains(Path.GetFileName(repo), StringComparer.Ordinal))
+                {
+                    continue;
+                }
                 string manifest = Path.Combine(repo, "docs", "ai", "manifest.json");
                 if (!File.Exists(manifest))
                 {

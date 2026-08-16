@@ -12,6 +12,7 @@ machine: example-machine
 #   versionFile: /home/user/Repository/legislator/skill/VERSION
 #   scanRoots:
 #     - /home/user/Repository
+#   exclude: [some-archived-repo]
 sources:
   - id: knowledge
     layer: global

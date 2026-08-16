@@ -77,6 +77,18 @@ public class ConstitutionFleetTests : IDisposable
     }
 
     [Fact]
+    public void Scan_ExcludedRepoName_IsNotScanned()
+    {
+        ConstitutionConfig config = new(versionFile, [scanRoot]) { Exclude = ["repo-behind"] };
+
+        ConstitutionFleetGold gold = ConstitutionFleet.Scan(config)!;
+
+        Assert.DoesNotContain(gold.Repos, repo => repo.Repo.EndsWith("repo-behind", StringComparison.Ordinal));
+        Assert.Equal(2, gold.Repos.Count);
+        Assert.Equal(1, gold.Behind);
+    }
+
+    [Fact]
     public void Scan_MissingScanRoot_IsSkipped()
     {
         ConstitutionConfig config = new(versionFile, [Path.Combine(workspace, "no-such-root"), scanRoot]);

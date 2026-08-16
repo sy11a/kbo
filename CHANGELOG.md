@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Dashboard "Constitution fleet" panel (ADR-0037): legislated repos (scanned via their `docs/ai/manifest.json` — no fleet registry to maintain) against the current legislator constitution version, one row per repo, red when behind or unreadable. Opt-in via a top-level `constitution: {versionFile, scanRoots}` registry block; without it the panel is absent. The `kbo report` summary line gains `fleet: N repo(s), M behind vX`.
+- Dashboard "Constitution fleet" panel (ADR-0037): legislated repos (scanned via their `docs/ai/manifest.json` — no fleet registry to maintain) against the current legislator constitution version, one row per repo, red when behind or unreadable. Opt-in via a top-level `constitution: {versionFile, scanRoots}` registry block (optional `exclude` skips named directories, e.g. archives); without it the panel is absent. The `kbo report` summary line gains `fleet: N repo(s), M behind vX`.
 - Machine-managed files (`docs/ai/**` fleet law, `docs/adr/template.md` scaffolding) are excluded from the dead worklist and reported as per-source counts (ADR-0036) — tool-owned artifacts are not knowledge to prune.
 - Registry sources accept `excludePaths: [subdir, ...]` (ADR-0036): relative subtrees (tool fixtures, benchmark data) are skipped by the note inventory; path resolution and kbroot tagging are unaffected. Glob sources propagate the list to every expanded source.
 - Registry glob sources accept `exclude: [dirname, ...]` (ADR-0034): named `*`-matched directories (e.g. archived repos) are skipped during glob expansion and never enter the inventory; `exclude` on a non-glob source is a validation error.

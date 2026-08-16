@@ -202,7 +202,18 @@ public sealed class KnowledgeRegistry
             }
             scanRoots.Add(root.Length > 1 ? root.TrimEnd('/') : root);
         }
-        return valid ? new ConstitutionConfig(entry.VersionFile!, scanRoots) : null;
+        List<string> excludeNames = new();
+        foreach (string name in entry.Exclude ?? new List<string>())
+        {
+            if (string.IsNullOrWhiteSpace(name) || name.Contains('/') || name.Contains('*'))
+            {
+                errors.Add($"constitution: exclude entry '{name}' must be a plain directory name");
+                valid = false;
+                continue;
+            }
+            excludeNames.Add(name);
+        }
+        return valid ? new ConstitutionConfig(entry.VersionFile!, scanRoots) { Exclude = excludeNames } : null;
     }
 
     private static Regex? CompileTaskPattern(string? pattern, List<string> errors)
@@ -283,6 +294,7 @@ public sealed class KnowledgeRegistry
     {
         public string? VersionFile { get; set; }
         public List<string>? ScanRoots { get; set; }
+        public List<string>? Exclude { get; set; }
     }
 
     private sealed class SourceEntry

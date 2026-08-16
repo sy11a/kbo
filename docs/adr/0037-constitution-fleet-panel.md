@@ -23,8 +23,11 @@ or deleted, and it is an artifact with no death condition.
 2. **Opt-in configuration** (ADR-0031 pattern): an optional top-level
    `constitution:` registry block — `versionFile` (absolute path to the
    legislator `skill/VERSION`) and `scanRoots` (absolute dirs whose direct
-   children are candidate repos). No block → no panel; a public tool ships
-   no default legislator location.
+   children are candidate repos), plus optional `exclude` — directory
+   basenames the scan skips (an archived repo keeps its manifest as
+   history but is deliberately outside the fleet, and a permanently red
+   row would violate the actionable-worklist law). No block → no panel; a
+   public tool ships no default legislator location.
 3. **Dashboard panel, no new job.** `kbo report`/`kbo watch` pass the scan
    into `DashboardGold` ("Constitution fleet — skill vN"): one row per
    repo, `ok` when its manifest version equals the current version, `red`

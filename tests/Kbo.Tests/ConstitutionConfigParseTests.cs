@@ -28,6 +28,47 @@ public class ConstitutionConfigParseTests
     }
 
     [Fact]
+    public void Parse_ExcludeNames_AreCarried()
+    {
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse("""
+            machine: example-machine
+            constitution:
+              versionFile: /home/u/legislator/skill/VERSION
+              scanRoots:
+                - /home/u/Repository
+              exclude:
+                - some-archived-repo
+            sources:
+              - id: knowledge
+                layer: global
+                root: /home/u/Knowledge
+            """);
+
+        Assert.Equal(["some-archived-repo"], registry.Constitution!.Exclude);
+    }
+
+    [Fact]
+    public void Parse_ExcludeWithPathOrGlob_IsRejected()
+    {
+        RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("""
+            machine: example-machine
+            constitution:
+              versionFile: /home/u/legislator/skill/VERSION
+              scanRoots:
+                - /home/u/Repository
+              exclude:
+                - nested/path
+            sources:
+              - id: knowledge
+                layer: global
+                root: /home/u/Knowledge
+            """));
+
+        Assert.Contains("exclude", exception.Message);
+        Assert.Contains("plain directory name", exception.Message);
+    }
+
+    [Fact]
     public void Parse_WithoutConstitutionBlock_IsNull()
     {
         KnowledgeRegistry registry = KnowledgeRegistry.Parse("""
