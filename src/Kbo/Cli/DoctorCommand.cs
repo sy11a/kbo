@@ -14,7 +14,7 @@ namespace Kbo.Cli;
 public static class DoctorCommand
 {
     private const string Usage = "usage: kbo doctor [--notify]";
-    private const int DeadManThresholdDays = 3;
+    private const int CaptureDropThresholdDays = 3;
 
     public static int Run(
         string[] args,
@@ -61,7 +61,7 @@ public static class DoctorCommand
         foreach ((string job, DateTimeOffset last) in lastCompleted.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             double daysSilent = (now - last).TotalDays;
-            if (daysSilent > DeadManThresholdDays)
+            if (daysSilent > JobDeadMan.ThresholdDays(job))
             {
                 string line = $"{job}: SILENT {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d (last {last:yyyy-MM-dd})";
                 output.WriteLine(line);
@@ -117,7 +117,7 @@ public static class DoctorCommand
         string line = $"capture errors: {drops.Length} (last {when})";
         output.WriteLine(line);
 
-        if (lastDrop is { } recent && (now - recent).TotalDays <= DeadManThresholdDays)
+        if (lastDrop is { } recent && (now - recent).TotalDays <= CaptureDropThresholdDays)
         {
             problems.Add(line + " — recent capture drops; check the registry/hook");
         }

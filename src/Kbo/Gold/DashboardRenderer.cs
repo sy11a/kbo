@@ -87,9 +87,9 @@ public static class DashboardRenderer
             $"""<p class="generated-at">generated at <strong>{Timestamp(gold.GeneratedAt)}</strong> on <strong>{Html(gold.Machine)}</strong> — a stale dashboard must look stale</p>""");
 
         html.AppendLine(CultureInfo.InvariantCulture,
-            $"<h2>Dead-man health — red after {gold.DeadManThresholdDays} days of silence</h2>");
+            $"<h2>Dead-man health — red past the job's cadence threshold (daily {gold.DeadManThresholdDays}d, weekly {gold.WeeklyDeadManThresholdDays}d)</h2>");
         AppendDescription(html, FormattableString.Invariant(
-            $"Здоровье фоновых задач: плитка становится красной, если задача не завершалась успешно более {gold.DeadManThresholdDays} дней. Если плитка красная — смотрите журнал: journalctl --user -u kbo-pulse.service."));
+            $"Здоровье фоновых задач: плитка становится красной, если задача молчит дольше порога своей каденции — {gold.DeadManThresholdDays} дн. для ежедневных, {gold.WeeklyDeadManThresholdDays} дн. для еженедельных (report, audit). Если плитка красная — смотрите журнал: journalctl --user -u kbo-pulse.service."));
         html.AppendLine("""<div class="tiles">""");
         foreach (JobHealthTile tile in gold.JobHealth)
         {

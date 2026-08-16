@@ -8,6 +8,10 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-16 — Cadence-aware dead-man thresholds
+
+[pulse.md](pulse.md) doctor description and [dashboard.md](dashboard.md) dead-man tiles updated: silence thresholds are per-cadence (3d daily, 9.5d weekly via `JobDeadMan`), and the glossary's dead-man row reflects it. Why: the flat 3-day rule falsely flagged the weekly `report`/`audit` jobs SILENT/red from day 3 to day ~7 of every week — diagnosed 2026-08-16 when both "silent" jobs turned out to have completed normally on their last due day. See ADR-0037.
+
 ## 2026-08-16 — Rebuild bulk-loads via the DuckDB Appender
 
 [silver.md](silver.md) implementation note updated: rows bulk-load through `DuckDBAppender` (one appender per rebuild, flushed on dispose) instead of the per-row prepared `INSERT`. Why: the per-row interop dominated rebuild time — ~16s → ~1.6s on a 23.6k-event store with identical output — and rebuild runs hourly via pulse and inside `kbo watch`. Closes the last fresh-eye-review backlog item; the backlog is now empty.

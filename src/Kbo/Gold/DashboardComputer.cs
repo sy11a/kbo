@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data;
+using Kbo.Jobs;
 using Kbo.Registry;
 using Kbo.Schemas;
 using Kbo.Silver;
@@ -29,6 +30,7 @@ public static class DashboardComputer
             now,
             registry.Machine,
             DeadManThresholdDays,
+            JobDeadMan.WeeklyThresholdDays,
             JobHealth(connection, now),
             LastSeen(connection, now),
             ReadsByLayer(connection, registry),
@@ -349,11 +351,12 @@ public static class DashboardComputer
             """))
         {
             DateTimeOffset last = AsUtc(row[3]);
+            string job = (string)row[2]!;
             double daysSilent = (now - last).TotalDays;
             tiles.Add(new JobHealthTile(
-                (string)row[0]!, (string)row[1]!, (string)row[2]!, last,
+                (string)row[0]!, (string)row[1]!, job, last,
                 Math.Round(daysSilent, 1),
-                daysSilent > DeadManThresholdDays ? "red" : "ok"));
+                daysSilent > JobDeadMan.ThresholdDays(job) ? "red" : "ok"));
         }
         return tiles;
     }

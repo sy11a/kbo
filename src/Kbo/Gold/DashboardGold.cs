@@ -55,6 +55,7 @@ public sealed record DashboardGold(
     DateTimeOffset GeneratedAt,
     string Machine,
     int DeadManThresholdDays,
+    double WeeklyDeadManThresholdDays,
     IReadOnlyList<JobHealthTile> JobHealth,
     IReadOnlyList<LastSeenTile> LastSeen,
     IReadOnlyList<ReadsByLayerRow> ReadsByLayerDaily,

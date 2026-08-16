@@ -3,7 +3,7 @@ type: Component
 title: Pulse — job registry, scheduler registration, self-observation
 description: kbo pulse runs the registered jobs (harvest, rebuild, archive, vault-git, bronze-git, backup every pulse; report and audit weekly), emits job.* events into bronze, and kbo init registers the single systemd user timer.
 tags: [component, pulse, jobs, scheduler, self-observation]
-timestamp: 2026-08-13T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 status: implemented
 ---
 
@@ -30,7 +30,7 @@ One OS-scheduler entry → `kbo pulse` → every registered job; every job run e
 
 ## Doctor (login-time self-check)
 
-`kbo doctor [--notify]` — timer armed? every job completed within the 3-day dead-man threshold? Installed by `kbo init` as `kbo-doctor.service` (runs at every login, desktop notification: critical on problems, brief "healthy" otherwise). Same facts as the dashboard tiles, pushed instead of waited for (ADR-0016). Owner cheat sheet: `docs/operations.md`.
+`kbo doctor [--notify]` — timer armed? every job completed within its cadence's dead-man threshold (3d daily, 9.5d weekly — `JobDeadMan`, ADR-0037)? Installed by `kbo init` as `kbo-doctor.service` (runs at every login, desktop notification: critical on problems, brief "healthy" otherwise). Same facts as the dashboard tiles, pushed instead of waited for (ADR-0016). Owner cheat sheet: `docs/operations.md`.
 
 It also reports capture-error drops from `~/.local/state/kbo/capture-errors.log` (written by `kbo capture` when it drops an event rather than fail a session, ADR-0029): the running total plus the last drop's date, flagged as a problem only when the most recent drop is within the dead-man threshold — a stale count is informational, a fresh one means the registry or hook needs a look.
 
