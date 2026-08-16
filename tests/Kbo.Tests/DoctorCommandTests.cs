@@ -80,6 +80,34 @@ public class DoctorCommandTests : IDisposable
     }
 
     [Fact]
+    public void WeeklyJobsWithinTheirCadence_AreNotSilent()
+    {
+        JobCompleted("harvest", 0.2);
+        JobCompleted("audit", 4.0);
+        JobCompleted("report", 5.0);
+        FakeRunner runner = new();
+
+        int exitCode = Run(runner);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("audit: ok", output.ToString());
+        Assert.Contains("report: ok", output.ToString());
+    }
+
+    [Fact]
+    public void WeeklyJobPastItsThreshold_IsSilent()
+    {
+        JobCompleted("harvest", 0.2);
+        JobCompleted("audit", 10.0);
+        FakeRunner runner = new();
+
+        int exitCode = Run(runner);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("audit: SILENT", output.ToString());
+    }
+
+    [Fact]
     public void SilentJob_Exit1_AndReportsIt()
     {
         JobCompleted("harvest", 0.2);

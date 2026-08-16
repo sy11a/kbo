@@ -8,7 +8,7 @@ namespace Kbo.Jobs;
 public static class PulseRunner
 {
     public const string AgentName = "kbo";
-    private const double WeeklyDueDays = 6.5;
+    public const double WeeklyDueDays = 6.5;
 
     public static int Run(
         IReadOnlyList<IPulseJob> jobs,

@@ -1,9 +1,9 @@
 ---
 type: Component
 title: Dashboard — health panel + Vega-Lite charts (the see surface)
-description: kbo report renders a static HTML dashboard from gold — dead-man health tiles (3-day threshold), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, and a reads-by-theme breakdown with a never-read list.
+description: kbo report renders a static HTML dashboard from gold — dead-man health tiles (cadence-aware thresholds), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, and a reads-by-theme breakdown with a never-read list.
 tags: [component, dashboard, health, vega-lite, gold]
-timestamp: 2026-08-13T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 status: implemented
 ---
 
@@ -13,7 +13,7 @@ The *see* surface (Q7): trends and health tiles; never worklists (the report own
 
 ## Health panel (P5)
 
-- **Dead-man tiles** per machine × agent × job: last `job.completed`, days silent, status `ok`/`red` at the G2-12 threshold (3 days). Status ships as text + symbol, never color alone.
+- **Dead-man tiles** per machine × agent × job: last `job.completed`, days silent, status `ok`/`red` at the job's cadence threshold (3d daily, 9.5d weekly — ADR-0037 refining G2-12). Status ships as text + symbol, never color alone.
 - **Last-seen tiles** per machine × agent: newest bronze event of any type.
 - **"generated at"** rendered prominently — a stale dashboard must look stale.
 - **Live refresh (ADR-0022)**: `kbo watch [--interval <seconds>]` is a foreground loop that rebuilds silver and re-renders the dashboard each tick, emitting a `<meta http-equiv="refresh">` so an open tab self-reloads. No server or daemon (stops on Ctrl-C); each tick is still a compute-once render (P2). `report`/pulse render without the auto-reload tag.

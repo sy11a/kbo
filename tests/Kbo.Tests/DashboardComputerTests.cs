@@ -86,6 +86,21 @@ public class DashboardComputerTests : IDisposable
     }
 
     [Fact]
+    public void DeadManTiles_WeeklyJobsRedOnlyPastTheWeeklyThreshold()
+    {
+        DashboardGold gold = Compute(
+            Event("01F00000000000000000000090", "job.completed", "2026-08-08T22:00:00Z", agent: "kbo", subject: "audit",
+                session: null, data: new JsonObject { ["job"] = "audit", ["duration_ms"] = 5 }),
+            Event("01F00000000000000000000091", "job.completed", "2026-08-02T00:00:00Z", agent: "kbo", subject: "report",
+                session: null, data: new JsonObject { ["job"] = "report", ["duration_ms"] = 5 }));
+
+        JobHealthTile audit = gold.JobHealth.Single(tile => tile.Job == "audit");
+        JobHealthTile report = gold.JobHealth.Single(tile => tile.Job == "report");
+        Assert.Equal("ok", audit.Status);
+        Assert.Equal("red", report.Status);
+    }
+
+    [Fact]
     public void LastSeenTiles_TrackNewestEventPerAgent()
     {
         DashboardGold gold = Compute(

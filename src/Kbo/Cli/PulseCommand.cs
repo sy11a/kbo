@@ -81,10 +81,10 @@ public static class PulseCommand
             jobs.Add(new GitCommitJob("bronze-git", eventsRepo, processRunner, TimeProvider.System));
         }
         jobs.Add(new BackupJob(resticRepo, resticPasswordFile, backupPaths, processRunner));
-        jobs.Add(new CommandJob("report", JobCadence.Weekly,
+        jobs.Add(new CommandJob("report", JobDeadMan.CadenceOf("report"),
             (jobOutput, jobError) => ReportCommand.Run(
                 Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)));
-        jobs.Add(new CommandJob("audit", JobCadence.Weekly,
+        jobs.Add(new CommandJob("audit", JobDeadMan.CadenceOf("audit"),
             (jobOutput, jobError) => AuditCommand.Run(
                 Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)));
 

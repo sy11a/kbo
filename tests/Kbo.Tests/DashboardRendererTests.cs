@@ -11,6 +11,7 @@ public class DashboardRendererTests
             DateTimeOffset.Parse("2026-08-12T22:00:00Z", CultureInfo.InvariantCulture),
             "test-machine",
             DeadManThresholdDays: 3,
+            WeeklyDeadManThresholdDays: 9.5,
             JobHealth:
             [
                 new JobHealthTile("test-machine", "kbo", "harvest",
@@ -80,6 +81,7 @@ public class DashboardRendererTests
             DateTimeOffset.Parse("2026-08-12T22:00:00Z", CultureInfo.InvariantCulture),
             "evil<script>alert(1)</script>machine",
             DeadManThresholdDays: 3,
+            WeeklyDeadManThresholdDays: 9.5,
             JobHealth:
             [
                 new JobHealthTile("m", "a", "job<img src=x onerror=alert(1)>",
