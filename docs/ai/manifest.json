@@ -1,9 +1,10 @@
 {
-  "legislatorVersion": 14,
+  "legislatorVersion": 15,
   "profiles": ["dotnet"],
   "keep": [],
   "ownedFiles": [
     "docs/ai/rules/core/adr.md",
+    "docs/ai/rules/core/artifact-lifecycle.md",
     "docs/ai/rules/core/changelog.md",
     "docs/ai/rules/core/decision-gate.md",
     "docs/ai/rules/core/dev-journal.md",
