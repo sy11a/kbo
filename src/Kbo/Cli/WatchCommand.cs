@@ -123,9 +123,20 @@ public static class WatchCommand
             return 1;
         }
 
+        ConstitutionFleetGold? fleet;
+        try
+        {
+            fleet = ConstitutionFleet.Scan(registry.Constitution);
+        }
+        catch (RegistryFormatException exception)
+        {
+            error.WriteLine(exception.Message);
+            return 1;
+        }
+
         string silverPath = environment(KboEnvironment.SilverVariable)
             ?? KboEnvironment.DefaultSilverPath(homeDirectory);
-        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System);
+        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
 
         string outputDirectory = Path.Combine(vault.Root, "_generated");
         Directory.CreateDirectory(outputDirectory);

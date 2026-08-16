@@ -63,8 +63,19 @@ public static class ReportCommand
             return 1;
         }
 
+        ConstitutionFleetGold? fleet;
+        try
+        {
+            fleet = ConstitutionFleet.Scan(registry.Constitution);
+        }
+        catch (RegistryFormatException exception)
+        {
+            error.WriteLine(exception.Message);
+            return 1;
+        }
+
         GoldReport report = GoldComputer.Compute(silverPath, registry, TimeProvider.System);
-        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System);
+        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
         IReadOnlyList<DayDigest> digests = DailyDigestComputer.Compute(silverPath, registry, TimeProvider.System);
 
         string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
@@ -87,8 +98,11 @@ public static class ReportCommand
 
         WriteDailyDigests(outputDirectory, digests);
 
+        string fleetSummary = fleet is null
+            ? string.Empty
+            : $"; fleet: {fleet.Repos.Count} repo(s), {fleet.Behind} behind v{fleet.CurrentVersion}";
         output.WriteLine(
-            $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status == "red")} red; {digests.Count} day page(s)");
+            $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status == "red")} red{fleetSummary}; {digests.Count} day page(s)");
         return 0;
     }
 

@@ -58,6 +58,7 @@ public sealed record DashboardGold(
     double WeeklyDeadManThresholdDays,
     IReadOnlyList<JobHealthTile> JobHealth,
     IReadOnlyList<LastSeenTile> LastSeen,
+    ConstitutionFleetGold? ConstitutionFleet,
     IReadOnlyList<ReadsByLayerRow> ReadsByLayerDaily,
     IReadOnlyList<FailedSearchRow> FailedSearchDaily,
     IReadOnlyList<KbTouchRow> KbTouchDaily,

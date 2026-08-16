@@ -17,7 +17,8 @@ public static class DashboardComputer
     public const int RecentSessionCap = 30;
     public const int TopListCap = 15;
 
-    public static DashboardGold Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
+    public static DashboardGold Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock,
+        ConstitutionFleetGold? constitutionFleet = null)
     {
         DateTimeOffset now = clock.GetUtcNow();
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
@@ -33,6 +34,7 @@ public static class DashboardComputer
             JobDeadMan.WeeklyThresholdDays,
             JobHealth(connection, now),
             LastSeen(connection, now),
+            constitutionFleet,
             ReadsByLayer(connection, registry),
             FailedSearches(connection),
             KbTouch(connection, touchedSessions),

@@ -16,6 +16,10 @@ The typed, hand-maintained map of knowledge on a machine: which directories are 
 ```yaml
 machine: example-machine
 taskPattern: 'AC-\d+'   # optional — branch → task id regex (ADR-0031)
+constitution:            # optional — legislator fleet panel (ADR-0037)
+  versionFile: /home/admin/Repository/legislator/skill/VERSION
+  scanRoots:
+    - /home/admin/Repository
 sources:
   - id: knowledge
     layer: global      # global | framework | local | skills
@@ -34,15 +38,17 @@ sources:
 - **Glob roots (ADR-0019)**: a root may contain `*` as a whole path segment (`/home/u/Repository/*/docs`); it expands at load time to one concrete source per matching directory, id `<entry-id>-<matched-dir>` (e.g. `repo-kb-observability`). Future directories are picked up automatically on the next load; zero matches is valid, partial-segment stars (`Repo*`) are rejected.
 - **Glob excludes (ADR-0034)**: a glob source may carry `exclude: [dirname, ...]`; a candidate whose `*`-matched directory name is listed is skipped during expansion (e.g. an archived repo that must not enter the inventory). `exclude` on a non-glob source is a validation error.
 - **Inventory excludePaths (ADR-0036)**: any source may carry `excludePaths: [subdir, ...]` — relative, glob-free subtrees under the root that the note inventory skips (tool fixtures, benchmark data). Glob sources propagate the list to every expanded source. Inventory-only: `Resolve`/kbroot tagging are unaffected.
+- **Constitution fleet (ADR-0037)**: optional top-level `constitution:` block — `versionFile` (absolute path to the legislator `skill/VERSION`) and `scanRoots` (absolute dirs whose **direct children** are candidate legislated repos, detected by `docs/ai/manifest.json`). Optional `exclude: [dirname, ...]` — plain directory basenames the scan skips (e.g. an archived repo that keeps its manifest but is never upgraded). Powers the dashboard "Constitution fleet" panel; no block → no panel. A configured-but-missing `versionFile` fails the report loudly.
 - **Task pattern (ADR-0031)**: optional top-level `taskPattern` — a .NET regex whose first match in a git branch name becomes the event's `task`; `KBO_TASK_PATTERN` env var overrides it. Unset means no task extraction: `task` is always `null`. No default pattern ships — a ticket convention is org-specific configuration, not tool behavior.
 - **Strict validation**: unknown layer, duplicate id (including glob-expanded ids), relative root, missing fields, or an invalid `taskPattern` regex throw `RegistryFormatException` naming every problem — the registry is load-bearing; it must fail loudly, not rot silently.
 - The registry doubles as the **denominator**: the note inventory (all files under all roots) is what "dead" is measured against.
 
 ## Implementation
 
-- `src/Kbo/Registry/` — `KnowledgeRegistry` (`Parse`/`Load`/`Resolve`), `KnowledgeSource`, `KnowledgeLayer`, `RegistryLocator`, `RegistryFormatException`
+- `src/Kbo/Registry/` — `KnowledgeRegistry` (`Parse`/`Load`/`Resolve`), `KnowledgeSource`, `KnowledgeLayer`, `ConstitutionConfig`, `RegistryLocator`, `RegistryFormatException`
 - `src/Kbo/Cli/RegistryCommand.cs` — `kbo registry show`, `kbo registry resolve <path>`
-- Tests: `RegistryParseTests`, `RegistryResolveTests`, `RegistryValidationTests`, `RegistryLocationTests`, `RegistryCommandTests`
+- `src/Kbo/Gold/ConstitutionFleet.cs` — the fleet scan the `constitution:` block powers
+- Tests: `RegistryParseTests`, `RegistryResolveTests`, `RegistryValidationTests`, `RegistryLocationTests`, `RegistryCommandTests`, `ConstitutionConfigParseTests`, `ConstitutionFleetTests`
 
 ## Links
 

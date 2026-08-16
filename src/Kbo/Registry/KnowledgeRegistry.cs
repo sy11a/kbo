@@ -15,11 +15,20 @@ public sealed class KnowledgeRegistry
     /// </summary>
     public Regex? TaskPattern { get; }
 
-    private KnowledgeRegistry(string machine, IReadOnlyList<KnowledgeSource> sources, Regex? taskPattern)
+    /// <summary>
+    /// Optional legislator wiring for the constitution-fleet panel
+    /// (ADR-0037). Null means no fleet tracking: a public tool ships no
+    /// default legislator location (ADR-0031 pattern).
+    /// </summary>
+    public ConstitutionConfig? Constitution { get; }
+
+    private KnowledgeRegistry(string machine, IReadOnlyList<KnowledgeSource> sources, Regex? taskPattern,
+        ConstitutionConfig? constitution)
     {
         Machine = machine;
         Sources = sources;
         TaskPattern = taskPattern;
+        Constitution = constitution;
     }
 
     public string? Resolve(string path)
@@ -150,13 +159,61 @@ public sealed class KnowledgeRegistry
 
         Regex? taskPattern = CompileTaskPattern(
             string.IsNullOrWhiteSpace(taskPatternOverride) ? document?.TaskPattern : taskPatternOverride, errors);
+        ConstitutionConfig? constitution = ParseConstitution(document?.Constitution, errors);
 
         if (errors.Count > 0)
         {
             throw new RegistryFormatException("invalid registry: " + string.Join("; ", errors));
         }
 
-        return new KnowledgeRegistry(document!.Machine!, sources, taskPattern);
+        return new KnowledgeRegistry(document!.Machine!, sources, taskPattern, constitution);
+    }
+
+    private static ConstitutionConfig? ParseConstitution(ConstitutionEntry? entry, List<string> errors)
+    {
+        if (entry is null)
+        {
+            return null;
+        }
+        bool valid = true;
+        if (string.IsNullOrWhiteSpace(entry.VersionFile))
+        {
+            errors.Add("constitution: 'versionFile' is missing");
+            valid = false;
+        }
+        else if (!Path.IsPathRooted(entry.VersionFile))
+        {
+            errors.Add($"constitution: versionFile '{entry.VersionFile}' is not an absolute path");
+            valid = false;
+        }
+        if (entry.ScanRoots is null || entry.ScanRoots.Count == 0)
+        {
+            errors.Add("constitution: 'scanRoots' is missing or empty");
+            valid = false;
+        }
+        List<string> scanRoots = new();
+        foreach (string root in entry.ScanRoots ?? new List<string>())
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Path.IsPathRooted(root))
+            {
+                errors.Add($"constitution: scanRoot '{root}' is not an absolute path");
+                valid = false;
+                continue;
+            }
+            scanRoots.Add(root.Length > 1 ? root.TrimEnd('/') : root);
+        }
+        List<string> excludeNames = new();
+        foreach (string name in entry.Exclude ?? new List<string>())
+        {
+            if (string.IsNullOrWhiteSpace(name) || name.Contains('/') || name.Contains('*'))
+            {
+                errors.Add($"constitution: exclude entry '{name}' must be a plain directory name");
+                valid = false;
+                continue;
+            }
+            excludeNames.Add(name);
+        }
+        return valid ? new ConstitutionConfig(entry.VersionFile!, scanRoots) { Exclude = excludeNames } : null;
     }
 
     private static Regex? CompileTaskPattern(string? pattern, List<string> errors)
@@ -229,7 +286,15 @@ public sealed class KnowledgeRegistry
     {
         public string? Machine { get; set; }
         public string? TaskPattern { get; set; }
+        public ConstitutionEntry? Constitution { get; set; }
         public List<SourceEntry>? Sources { get; set; }
+    }
+
+    private sealed class ConstitutionEntry
+    {
+        public string? VersionFile { get; set; }
+        public List<string>? ScanRoots { get; set; }
+        public List<string>? Exclude { get; set; }
     }
 
     private sealed class SourceEntry
