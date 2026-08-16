@@ -8,8 +8,8 @@ ADR-0034 defined a source's activity as its newest silver event (any type).
 Live verification immediately falsified that definition: a fleet-wide
 legislator run on 2026-08-05 wrote `docs/ai/manifest.json` into every
 repo, and that single machine-generated `knowledge.written` event kept
-`repo-CareerPlatform` (no real work since 2026-07-15) and
-`repo-RKruiter_TestClient` "active" — leaving their 77 dead rows on the
+`repo-SomeApp` (no real work since 2026-07-15) and
+`repo-OtherApp` "active" — leaving their 77 dead rows on the
 worklist. Candidate fixes considered: exclude machine-managed paths
 (`docs/ai/**`) in gold code (hardcodes a legislator convention, against
 the no-hardcoded-paths principle), make the exclusion registry-config
