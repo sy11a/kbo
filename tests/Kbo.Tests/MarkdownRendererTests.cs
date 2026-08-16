@@ -67,25 +67,25 @@ public class MarkdownRendererTests
     public void Render_LifecycleCountsSection_ListsPerSourceCounts()
     {
         string markdown = MarkdownRenderer.Render(
-            Report(lifecycle: new Dictionary<string, int> { ["repo-CareerPlatform"] = 46 }),
+            Report(lifecycle: new Dictionary<string, int> { ["repo-SomeApp"] = 46 }),
             "/home/u/Knowledge");
 
         Assert.Contains("## Lifecycle artifacts", markdown);
-        Assert.Contains("`repo-CareerPlatform`: 46 note(s)", markdown);
+        Assert.Contains("`repo-SomeApp`: 46 note(s)", markdown);
     }
 
     [Fact]
     public void Render_DormantSourcesSection_ListsSourceWithWithheldCount()
     {
         DormantSource dormant = new(
-            "repo-CareerPlatform",
+            "repo-SomeApp",
             DateTimeOffset.Parse("2026-07-15T10:00:00Z", CultureInfo.InvariantCulture),
             70);
 
         string markdown = MarkdownRenderer.Render(Report(dormant: [dormant]), "/home/u/Knowledge");
 
         Assert.Contains("## Dormant sources", markdown);
-        Assert.Contains("`repo-CareerPlatform`", markdown);
+        Assert.Contains("`repo-SomeApp`", markdown);
         Assert.Contains("| 70 |", markdown);
     }
 

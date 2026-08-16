@@ -15,7 +15,7 @@
 The dead-notes worklist had ~155 rows, of which:
 - 69 inventory notes came from `repo-kb-observability-private-archive` — an **archive** swept in by the `Repository/*/docs` glob. Archives are not live knowledge; they don't belong in inventory at all.
 - ~50 rows were executed `docs/superpowers/plans/*` and `specs/*` documents plus journal files. These are **lifecycle artifacts**: they are *done* when their work is done. A read-count death condition is the wrong one for them; they would sit on the worklist forever.
-- ~70 rows came from `repo-CareerPlatform`, whose last recorded activity is 2026-07-15 (`docs/backlog.md`, 24 reads, then silence). The project is **dormant**; its docs are not dead knowledge, they are paused with the project and will revive with it.
+- ~70 rows came from `repo-SomeApp`, whose last recorded activity is 2026-07-15 (`docs/backlog.md`, 24 reads, then silence). The project is **dormant**; its docs are not dead knowledge, they are paused with the project and will revive with it.
 
 After this plan, the dead worklist contains only *reference notes in active sources with zero reads* — the category that actually deserves ritual attention. Everything withheld is still visible (counts + dormant section), never silently dropped (no-silent-caps).
 
@@ -194,8 +194,8 @@ namespace Kbo.Tests;
 public class NoteRoleTests
 {
     [Theory]
-    [InlineData("/r/CareerPlatform/docs/superpowers/plans/2026-06-27-kanban-a.md")]
-    [InlineData("/r/CareerPlatform/docs/superpowers/specs/career-page.md")]
+    [InlineData("/r/SomeApp/docs/superpowers/plans/2026-06-27-kanban-a.md")]
+    [InlineData("/r/SomeApp/docs/superpowers/specs/feature-page.md")]
     [InlineData("/r/kbo/docs/journal/2026-08-11.md")]
     public void Executed_plans_specs_and_journals_are_lifecycle(string path)
     {
@@ -204,8 +204,8 @@ public class NoteRoleTests
 
     [Theory]
     [InlineData("/home/admin/Knowledge/homelab-sec/Glossary/Beacon.md")]
-    [InlineData("/r/CareerPlatform/docs/okf/tenancy/tenant-resolution.md")]
-    [InlineData("/r/CareerPlatform/docs/adr/0001-record-architecture-decisions.md")]
+    [InlineData("/r/SomeApp/docs/okf/tenancy/tenant-resolution.md")]
+    [InlineData("/r/SomeApp/docs/adr/0001-record-architecture-decisions.md")]
     [InlineData("/r/X/docs/planshet.md")]
     public void Reference_notes_including_adrs_are_reference(string path)
     {
@@ -358,10 +358,10 @@ Append to `MarkdownRendererTests.cs` (reuse its existing report-construction hel
 [Fact]
 public void Renders_lifecycle_counts_section()
 {
-    // construct a GoldReport with LifecycleCounts = { ["repo-CareerPlatform"] = 46 }
+    // construct a GoldReport with LifecycleCounts = { ["repo-SomeApp"] = 46 }
     // via the file's existing builder/helper, then:
     Assert.Contains("## Lifecycle artifacts", markdown);
-    Assert.Contains("`repo-CareerPlatform`: 46 note(s)", markdown);
+    Assert.Contains("`repo-SomeApp`: 46 note(s)", markdown);
 }
 ```
 Run: `dotnet test tests/Kbo.Tests -v minimal`
@@ -559,10 +559,10 @@ Expected: PASS. If any pre-existing `GoldComputerTests` case now trips dormancy 
 [Fact]
 public void Renders_dormant_sources_section()
 {
-    // construct a GoldReport with one DormantSource("repo-CareerPlatform", <date>, 70)
+    // construct a GoldReport with one DormantSource("repo-SomeApp", <date>, 70)
     // via the file's existing builder/helper, then:
     Assert.Contains("## Dormant sources", markdown);
-    Assert.Contains("`repo-CareerPlatform`", markdown);
+    Assert.Contains("`repo-SomeApp`", markdown);
     Assert.Contains("| 70 |", markdown);
 }
 ```
@@ -652,8 +652,8 @@ kbo report
 ```
 Then check `~/Knowledge/_generated/kbo-report.md` against four concrete expectations:
 1. Inventory has **no** `repo-kb-observability-private-archive` line (was 69 notes).
-2. A `## Lifecycle artifacts` section exists; `repo-CareerPlatform` shows roughly 40–60 notes (its plans+specs+journal files).
-3. A `## Dormant sources` section lists `repo-CareerPlatform` (last activity ≈ 2026-07-15) with its withheld count — **provided** it has stayed inactive; if work resumed there since, it is legitimately active and stays on the worklist.
+2. A `## Lifecycle artifacts` section exists; `repo-SomeApp` shows roughly 40–60 notes (its plans+specs+journal files).
+3. A `## Dormant sources` section lists `repo-SomeApp` (last activity ≈ 2026-07-15) with its withheld count — **provided** it has stayed inactive; if work resumed there since, it is legitimately active and stays on the worklist.
 4. The dead worklist is dramatically shorter (expect roughly 10–30 rows, all reference notes in active sources) — read every remaining row and confirm each one is a *plausible* ritual candidate. If any row is still obvious noise, it is a new category this plan missed: record it in `docs/backlog.md`, do not patch ad hoc.
 
 - [ ] **Step 6: Final commit and wrap-up**
