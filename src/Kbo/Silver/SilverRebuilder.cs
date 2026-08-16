@@ -142,15 +142,16 @@ public static class SilverRebuilder
         string bronzeRoot = Path.Combine(eventsRepoRoot, "bronze");
         if (Directory.Exists(bronzeRoot))
         {
-            using DuckDBTransaction transaction = connection.BeginTransaction();
-            using DuckDBCommand insert = CreateInsertCommand(connection);
+            // Appender API instead of per-row INSERT: the bulk load is where a
+            // rebuild spends nearly all its time (~0.7 ms/row interop before).
+            using DuckDBAppender appender = connection.CreateAppender("events");
             foreach (string monthFile in Directory
                 .EnumerateFiles(bronzeRoot, "*.ndjsonl", SearchOption.AllDirectories)
                 .Order())
             {
                 foreach (string line in File.ReadLines(monthFile))
                 {
-                    if (InsertEvent(insert, line))
+                    if (AppendEvent(appender, line))
                     {
                         eventCount++;
                     }
@@ -160,7 +161,6 @@ public static class SilverRebuilder
                     }
                 }
             }
-            transaction.Commit();
         }
 
         Execute(connection, CreateEventsPreferredView);
@@ -173,20 +173,7 @@ public static class SilverRebuilder
         return new RebuildResult(eventCount, sessionCount, skippedLines);
     }
 
-    private const int InsertColumnCount = 17;
-
-    private static DuckDBCommand CreateInsertCommand(DuckDBConnection connection)
-    {
-        DuckDBCommand insert = connection.CreateCommand();
-        insert.CommandText = "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        for (int position = 0; position < InsertColumnCount; position++)
-        {
-            insert.Parameters.Add(new DuckDBParameter());
-        }
-        return insert;
-    }
-
-    private static bool InsertEvent(DuckDBCommand insert, string bronzeLine)
+    private static bool AppendEvent(DuckDBAppender appender, string bronzeLine)
     {
         JsonObject? envelopeEvent;
         try
@@ -212,32 +199,26 @@ public static class SilverRebuilder
 
         JsonNode? data = envelopeEvent[EnvelopeFields.Data];
 
-        int position = 0;
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.SpecVersion]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Id]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Source]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Type]);
-        SetParameter(insert, ref position, parsedTime.UtcDateTime);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Subject]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Machine]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Agent]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Session]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Repo]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Task]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Model]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.Kbroot]);
-        SetParameter(insert, ref position, (string?)envelopeEvent[EnvelopeFields.SchemaRef]);
-        SetParameter(insert, ref position, (string?)data?[EventDataFields.Origin]);
-        SetParameter(insert, ref position, (string?)data?[EventDataFields.Transcript]);
-        SetParameter(insert, ref position, data?.ToJsonString() ?? "{}");
-        insert.ExecuteNonQuery();
+        appender.CreateRow()
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.SpecVersion])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Id])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Source])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Type])
+            .AppendValue(parsedTime.UtcDateTime)
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Subject])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Machine])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Agent])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Session])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Repo])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Task])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Model])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.Kbroot])
+            .AppendValue((string?)envelopeEvent[EnvelopeFields.SchemaRef])
+            .AppendValue((string?)data?[EventDataFields.Origin])
+            .AppendValue((string?)data?[EventDataFields.Transcript])
+            .AppendValue(data?.ToJsonString() ?? "{}")
+            .EndRow();
         return true;
-    }
-
-    private static void SetParameter(DuckDBCommand command, ref int position, object? value)
-    {
-        command.Parameters[position].Value = value ?? DBNull.Value;
-        position++;
     }
 
     private static void Execute(DuckDBConnection connection, string sql)

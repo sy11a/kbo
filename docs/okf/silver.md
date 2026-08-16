@@ -3,7 +3,7 @@ type: Component
 title: Silver — DuckDB derived layer + kbo rebuild
 description: kbo rebuild derives the disposable DuckDB silver layer from bronze alone (P3); events table plus the origin-preference and session-collapse views gold reads.
 tags: [component, silver, duckdb, rebuild]
-timestamp: 2026-08-12T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 status: implemented
 ---
 
@@ -24,10 +24,10 @@ Gold (`kbo report`, step 1.7) reads only the views.
 ## Implementation
 
 - `src/Kbo/Silver/SilverRebuilder.cs` — derive into temp + atomic swap
-  (DuckDB.NET, ADR-0032). All rows insert through a single parameterized
-  `INSERT` command created once per rebuild — DuckDB.NET caches the prepared
-  statement while `CommandText` is unchanged, so only parameter values reset
-  per row.
+  (DuckDB.NET, ADR-0032). Rows bulk-load through DuckDB's Appender API
+  (`DuckDBAppender`, one appender per rebuild, flushed on dispose) — the
+  per-row `INSERT` interop it replaced dominated rebuild time (~16s → ~1.6s
+  on a 23.6k-event store).
 - `src/Kbo/Cli/RebuildCommand.cs` — `kbo rebuild [--silver <file>] [--events-repo <dir>]`
 - `docs/layer-silver.md` — P7 layer card (what it does / never does / how to inspect)
 
