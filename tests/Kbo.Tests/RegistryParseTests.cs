@@ -43,6 +43,22 @@ public class RegistryParseTests
     }
 
     [Fact]
+    public void Parse_ExcludePaths_AreCarriedOnTheSource()
+    {
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse("""
+            machine: example-machine
+            sources:
+              - id: skills-repo
+                layer: local
+                root: /home/admin/skills-repo
+                excludePaths: [evals, .superpowers]
+            """);
+
+        KnowledgeSource source = Assert.Single(registry.Sources);
+        Assert.Equal(["evals", ".superpowers"], source.ExcludePaths);
+    }
+
+    [Fact]
     public void Parse_WithoutTaskPattern_HasNoTaskExtraction()
     {
         KnowledgeRegistry registry = KnowledgeRegistry.Parse(SpecExample);

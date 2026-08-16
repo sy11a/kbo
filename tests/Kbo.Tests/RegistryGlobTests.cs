@@ -120,6 +120,25 @@ public class RegistryGlobTests : IDisposable
     }
 
     [Fact]
+    public void Glob_ExcludePaths_PropagateToExpandedSources()
+    {
+        Directory.CreateDirectory(Path.Combine(workspace, "Alpha", "docs"));
+
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
+            machine: test-machine
+            sources:
+              - id: repo
+                layer: local
+                root: {workspace}/*/docs
+                excludePaths: [ai]
+            """);
+
+        KnowledgeSource expanded = Assert.Single(registry.Sources);
+        Assert.Equal("repo-Alpha", expanded.Id);
+        Assert.Equal(["ai"], expanded.ExcludePaths);
+    }
+
+    [Fact]
     public void PartialStarSegment_IsRejected()
     {
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse($"""
