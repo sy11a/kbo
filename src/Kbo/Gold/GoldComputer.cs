@@ -102,6 +102,10 @@ public static class GoldComputer
             staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
     }
 
+    /// <summary>
+    /// Last *usage* per source (reads + context loads only): a write alone —
+    /// e.g. a fleet-wide maintenance stamp — never proves a source is alive (ADR-0035).
+    /// </summary>
     private static Dictionary<string, DateTimeOffset> QuerySourceActivity(string silverPath, KnowledgeRegistry registry)
     {
         Dictionary<string, DateTimeOffset> lastBySource = new();
@@ -119,7 +123,8 @@ public static class GoldComputer
         {
             bySubject.CommandText = """
                 SELECT subject, max(time) FROM events_preferred
-                WHERE subject IS NOT NULL GROUP BY subject
+                WHERE type IN ('knowledge.read', 'context.loaded')
+                  AND subject IS NOT NULL GROUP BY subject
                 """;
             using DuckDBDataReader reader = (DuckDBDataReader)bySubject.ExecuteReader();
             while (reader.Read())
@@ -136,7 +141,8 @@ public static class GoldComputer
         {
             byRepo.CommandText = """
                 SELECT repo, max(time) FROM events_preferred
-                WHERE repo IS NOT NULL GROUP BY repo
+                WHERE type IN ('knowledge.read', 'context.loaded')
+                  AND repo IS NOT NULL GROUP BY repo
                 """;
             using DuckDBDataReader reader = (DuckDBDataReader)byRepo.ExecuteReader();
             while (reader.Read())
@@ -145,7 +151,7 @@ public static class GoldComputer
                 DateTimeOffset time = new(DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc));
                 foreach (KnowledgeSource source in registry.Sources)
                 {
-                    if (source.Root == repo || source.Root.StartsWith(repo + "/", StringComparison.Ordinal))
+                    if (source.Root == repo || Path.GetDirectoryName(source.Root) == repo)
                     {
                         Bump(source.Id, time);
                     }

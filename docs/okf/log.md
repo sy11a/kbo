@@ -8,6 +8,10 @@ timestamp: 2026-08-15T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-15 — Dormancy activity is usage-only
+
+[first-report.md](first-report.md) dormant-sources rule and the glossary's dormant-source row now state that only usage events (`knowledge.read`/`context.loaded`) count as activity — writes alone never wake a source. Why: live verification of ADR-0034 showed a fleet-wide legislator manifest write keeping two genuinely dormant repos "active" (77 noise rows); the backlog finding was resolved the same day by ADR-0035 rather than left to rot. See ADR-0035.
+
 ## 2026-08-15 — Report signal-over-noise: type-aware death + dormancy
 
 [first-report.md](first-report.md): dead worklist is now reference-notes-in-active-sources only; new facts rows for lifecycle artifacts (`NoteRole`) and dormant sources; `NoteRole.cs` added to the implementation list. [registry.md](registry.md): glob sources accept `exclude:` (archives skipped at expansion). Glossary rows added: note role, lifecycle artifact, dormant source, glob exclude. Why: the 2026-08-14 report's dead list was ~80% noise (archive sweep, executed plans/specs/journals, a dormant project); the worklist must shrink to genuine ritual candidates without silently dropping anything. See ADR-0034.

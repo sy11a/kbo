@@ -43,5 +43,5 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | skill.invoked | Event type recording a skill invocation (`data.skill` = name), mined from transcripts (Skill `tool_use`); harvest-only, backfillable retroactively via `harvest --backfill-skills` (ADR-0024) |
 | note role | Path-segment classification of a note's death condition (`NoteRole`): `reference` notes die by non-use; `lifecycle` artifacts die on completion (ADR-0034) |
 | lifecycle artifact | Note under `/superpowers/plans/`, `/superpowers/specs/`, or `/journal/` — done when its work is done; never on the dead worklist, reported as per-source counts (ADR-0034) |
-| dormant source | Registry source with no silver activity for 21 days; its dead notes are withheld from the worklist and reported as a count with last-activity date (ADR-0034) |
+| dormant source | Registry source with no silver *usage* (`knowledge.read`/`context.loaded`; writes alone don't count, ADR-0035) for 21 days; its dead notes are withheld from the worklist and reported as a count with last-activity date (ADR-0034) |
 | glob exclude | `exclude: [dirname, ...]` on a glob registry source; listed `*`-matched directories are skipped at expansion so archives never enter the inventory (ADR-0034) |

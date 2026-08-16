@@ -72,6 +72,13 @@ public class GoldComputerTests : IDisposable
         };
     }
 
+    private static JsonObject WriteEvent(string id, string path, int daysAgo)
+    {
+        JsonObject written = ReadEvent(id, path, daysAgo);
+        written["type"] = "knowledge.written";
+        return written;
+    }
+
     private GoldReport Compute(params JsonObject[] events)
     {
         string eventsRepo = Path.Combine(workspace, "kb-events");
@@ -193,6 +200,47 @@ public class GoldComputerTests : IDisposable
         DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
         Assert.Equal(1, dormant.WithheldDeadNotes);
         Assert.NotNull(dormant.LastActivity);
+    }
+
+    [Fact]
+    public void DormantSources_WriteEventsAloneAreNotActivity()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        string stampPath = Path.Combine(vaultRoot, "docs", "ai", "manifest.json");
+
+        GoldReport report = Compute(WriteEvent("01B00000000000000000000012", stampPath, daysAgo: 5));
+
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
+        DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Equal(1, dormant.WithheldDeadNotes);
+        Assert.Null(dormant.LastActivity);
+    }
+
+    [Fact]
+    public void DormantSources_ProjectRepoEventsWakeItsDirectDocsSource()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        JsonObject codeRead = ReadEvent("01B00000000000000000000013", Path.Combine(workspace, "src", "Program.cs"), daysAgo: 2);
+        codeRead["repo"] = workspace;
+
+        GoldReport report = Compute(codeRead);
+
+        Assert.DoesNotContain(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Contains(report.DeadNotes, note => note.Path == deadPath);
+    }
+
+    [Fact]
+    public void DormantSources_AncestorRepoEventsDoNotWakeNestedSources()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        JsonObject codeRead = ReadEvent("01B00000000000000000000014", Path.Combine(workspace, "src", "Program.cs"), daysAgo: 2);
+        codeRead["repo"] = Path.GetDirectoryName(workspace);
+
+        GoldReport report = Compute(codeRead);
+
+        DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Equal(1, dormant.WithheldDeadNotes);
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
     }
 
     [Fact]

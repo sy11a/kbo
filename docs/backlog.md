@@ -9,9 +9,9 @@ Tasks pending implementation. **Rule: update the relevant `docs/okf/` document f
      threading, TreatWarningsAsErrors, ULID de-scope note, and the two
      measure-first items that measured immaterial). -->
 
-## Dormancy: machine maintenance writes count as activity
+## Dead-list residual noise: machine-managed law files and tool fixtures
 
-Found 2026-08-15 while verifying ADR-0034 on live data: `repo-CareerPlatform` and `repo-RKruiter_TestClient` should be dormant (no human/agent work since 2026-07-15 / 2026-07-17), but a single fleet-wide legislator run on 2026-08-05 wrote `docs/ai/manifest.json` in every repo, and that `knowledge.written` event counts as source activity — so both sources stayed "active" and kept their 77 dead rows on the worklist (112 instead of ~35). Missed category: machine-generated maintenance writes (legislator manifest regeneration, and any future fleet-wide stamp) are not evidence a project is alive. Candidate fixes to decide deliberately (ADR): exclude machine-managed paths (`docs/ai/**`) from the activity query, or exclude `knowledge.written` events whose subject is a machine-managed file, or classify activity by event origin. Not patched ad hoc per the plan's no-silent-caps discipline.
+Found 2026-08-15 reading the post-ADR-0035 dead list (35 rows). ~11 rows are genuine candidates (RKruiterApi's unread ADRs/OKF docs). The rest are two categories the worklist still misclassifies as reference knowledge: (1) legislator-managed law files — `docs/ai/rules/**` (11 rows in ProxyController) and `docs/adr/template.md` scaffolding — machine-written artifacts nobody "reads" as notes; (2) tooling data swept in by whole-dir registration of the legislator skill root — `evals/benchmarks/**`, `evals/fixtures/**`, `.superpowers/**` (12 rows). Candidate fixes to decide deliberately: registry sub-path excludes (extend ADR-0034's `exclude` to path segments), or new `NoteRole` categories (machine-managed / fixture), or narrowing the legislator source root. Not patched ad hoc.
 
 ---
 
