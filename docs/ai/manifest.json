@@ -1,5 +1,5 @@
 {
-  "legislatorVersion": 15,
+  "legislatorVersion": 16,
   "profiles": ["dotnet"],
   "keep": [],
   "ownedFiles": [
