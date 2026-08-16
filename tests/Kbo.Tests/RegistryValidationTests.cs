@@ -17,6 +17,25 @@ public class RegistryValidationTests
     }
 
     [Fact]
+    public void Parse_AbsoluteOrStarredExcludePath_Throws()
+    {
+        RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("""
+            machine: example-machine
+            sources:
+              - id: skills-repo
+                layer: local
+                root: /home/admin/skills-repo
+                excludePaths: [/evals]
+              - id: other
+                layer: local
+                root: /home/admin/other
+                excludePaths: ['ev*ls']
+            """));
+        Assert.Contains("'/evals'", exception.Message);
+        Assert.Contains("'ev*ls'", exception.Message);
+    }
+
+    [Fact]
     public void Parse_UnknownLayer_ThrowsNamingTheValue()
     {
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("""

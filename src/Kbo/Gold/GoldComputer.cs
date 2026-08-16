@@ -31,19 +31,24 @@ public static class GoldComputer
         List<DeadNote> deadNotes = new();
         List<StaleNote> staleNotes = new();
         Dictionary<string, int> lifecycleCounts = new();
+        Dictionary<string, int> machineManagedCounts = new();
         foreach (InventoryNote note in inventory)
         {
-            bool isLifecycle = NoteRole.Of(note.Path) == NoteRole.Lifecycle;
-            if (isLifecycle)
+            string role = NoteRole.Of(note.Path);
+            if (role == NoteRole.Lifecycle)
             {
                 lifecycleCounts[note.SourceId] = lifecycleCounts.GetValueOrDefault(note.SourceId) + 1;
+            }
+            if (role == NoteRole.MachineManaged)
+            {
+                machineManagedCounts[note.SourceId] = machineManagedCounts.GetValueOrDefault(note.SourceId) + 1;
             }
 
             int daysSinceModified = (int)(now - note.Modified).TotalDays;
             ReadStats? stats = statsByPath.GetValueOrDefault(note.Path);
             long readsInWindow = stats?.ReadsInWindow ?? 0;
 
-            if (!isLifecycle && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
+            if (role == NoteRole.Reference && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
             {
                 string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
                 deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
@@ -96,6 +101,7 @@ public static class GoldComputer
             DormantAfterDays,
             inventoryCounts,
             lifecycleCounts,
+            machineManagedCounts,
             dormantSources,
             deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
             hotNotes,

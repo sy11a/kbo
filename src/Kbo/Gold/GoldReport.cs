@@ -36,6 +36,7 @@ public sealed record GoldReport(
     int DormantAfterDays,
     IReadOnlyDictionary<string, int> InventoryCounts,
     IReadOnlyDictionary<string, int> LifecycleCounts,
+    IReadOnlyDictionary<string, int> MachineManagedCounts,
     IReadOnlyList<DormantSource> DormantSources,
     IReadOnlyList<DeadNote> DeadNotes,
     IReadOnlyList<HotNote> HotNotes,

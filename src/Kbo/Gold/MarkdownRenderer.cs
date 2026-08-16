@@ -38,6 +38,21 @@ public static class MarkdownRenderer
         }
         markdown.AppendLine();
 
+        markdown.AppendLine("## Machine-managed files — tool-owned, excluded from the dead worklist");
+        markdown.AppendLine();
+        if (report.MachineManagedCounts.Count == 0)
+        {
+            markdown.AppendLine("none");
+        }
+        else
+        {
+            foreach (KeyValuePair<string, int> entry in report.MachineManagedCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} file(s) (fleet law / templates)");
+            }
+        }
+        markdown.AppendLine();
+
         markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
         markdown.AppendLine();
         if (report.DormantSources.Count == 0)

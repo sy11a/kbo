@@ -3,10 +3,14 @@ type: Changelog
 title: OKF Bundle Changelog
 description: Chronological record of significant changes to the OKF knowledge bundle.
 tags: [changelog, okf]
-timestamp: 2026-08-15T00:00:00Z
+timestamp: 2026-08-16T00:00:00Z
 ---
 
 # OKF Bundle Changelog
+
+## 2026-08-16 — Machine-managed role + inventory excludePaths
+
+[first-report.md](first-report.md): new facts row — machine-managed files (`/docs/ai/`, `/adr/template.md`) are counted per source and never on the dead worklist. [registry.md](registry.md): sources accept `excludePaths:` (relative subtrees the inventory skips; resolution unaffected). Glossary rows: machine-managed, excludePaths. Why: the post-ADR-0035 dead list still carried ~24 rows of fleet-law files and tool fixtures — neither is knowledge a ritual should prune; conventions that are fleet-wide live in code (`NoteRole`), repo-specific layout lives in registry config. See ADR-0036.
 
 ## 2026-08-15 — Dormancy activity is usage-only
 

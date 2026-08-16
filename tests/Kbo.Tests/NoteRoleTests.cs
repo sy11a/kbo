@@ -22,4 +22,21 @@ public class NoteRoleTests
     {
         Assert.Equal(NoteRole.Reference, NoteRole.Of(path));
     }
+
+    [Theory]
+    [InlineData("/r/X/docs/ai/rules/core/okf.md")]
+    [InlineData("/r/X/docs/ai/rules/stacks/dotnet/architecture.md")]
+    [InlineData("/r/X/docs/adr/template.md")]
+    public void Fleet_law_and_scaffolding_templates_are_machine_managed(string path)
+    {
+        Assert.Equal(NoteRole.MachineManaged, NoteRole.Of(path));
+    }
+
+    [Theory]
+    [InlineData("/r/X/docs/aid/notes.md")]
+    [InlineData("/r/X/docs/adr/template-usage-guide.md")]
+    public void Near_miss_paths_stay_reference(string path)
+    {
+        Assert.Equal(NoteRole.Reference, NoteRole.Of(path));
+    }
 }

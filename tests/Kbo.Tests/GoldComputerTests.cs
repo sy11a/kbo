@@ -39,6 +39,7 @@ public class GoldComputerTests : IDisposable
               - id: skills
                 layer: skills
                 root: {skillsRoot}
+                excludePaths: [fixtures]
             """);
     }
 
@@ -241,6 +242,37 @@ public class GoldComputerTests : IDisposable
         DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
         Assert.Equal(1, dormant.WithheldDeadNotes);
         Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
+    }
+
+    [Fact]
+    public void MachineManagedNotes_AreCountedButNeverDead()
+    {
+        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        Note("docs/ai/rules/core/okf.md", modifiedDaysAgo: 40);
+        Note("docs/adr/template.md", modifiedDaysAgo: 40);
+        string activePath = Note("active.md", modifiedDaysAgo: 5);
+
+        GoldReport report = Compute(ReadEvent("01B00000000000000000000015", activePath, daysAgo: 1));
+
+        Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        Assert.Equal(2, report.MachineManagedCounts["vault"]);
+    }
+
+    [Fact]
+    public void ExcludePaths_KeepFixtureFilesOutOfInventory()
+    {
+        File.WriteAllText(Path.Combine(skillsRoot, "SKILL.md"), "s");
+        string fixturePath = Path.Combine(skillsRoot, "fixtures", "case.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(fixturePath)!);
+        File.WriteAllText(fixturePath, "f");
+        File.SetLastWriteTimeUtc(fixturePath, Now.AddDays(-100).UtcDateTime);
+        string activePath = Note("active.md", modifiedDaysAgo: 5);
+
+        GoldReport report = Compute(ReadEvent("01B00000000000000000000016", activePath, daysAgo: 1));
+
+        Assert.Equal(1, report.InventoryCounts["skills"]);
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == fixturePath);
     }
 
     [Fact]

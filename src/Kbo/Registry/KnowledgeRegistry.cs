@@ -117,17 +117,35 @@ public sealed class KnowledgeRegistry
                 errors.Add($"source '{entry.Id}': 'exclude' requires a glob root");
                 continue;
             }
+
+            List<string> excludePaths = new();
+            bool excludePathsValid = true;
+            foreach (string excludePath in entry.ExcludePaths ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath) || excludePath.Contains('*'))
+                {
+                    errors.Add($"source '{entry.Id}': excludePaths entry '{excludePath}' must be a relative path without '*'");
+                    excludePathsValid = false;
+                    continue;
+                }
+                excludePaths.Add(excludePath.TrimEnd('/'));
+            }
+            if (!excludePathsValid)
+            {
+                continue;
+            }
+
             if (normalizedRoot.Contains('*'))
             {
                 string? globError = ExpandGlob(entry.Id, layer, normalizedRoot,
-                    entry.Exclude ?? (IReadOnlyCollection<string>)Array.Empty<string>(), sources, seenIds);
+                    entry.Exclude ?? (IReadOnlyCollection<string>)Array.Empty<string>(), excludePaths, sources, seenIds);
                 if (globError is not null)
                 {
                     errors.Add(globError);
                 }
                 continue;
             }
-            sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot));
+            sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot) { ExcludePaths = excludePaths });
         }
 
         Regex? taskPattern = CompileTaskPattern(
@@ -159,7 +177,8 @@ public sealed class KnowledgeRegistry
     }
 
     private static string? ExpandGlob(string id, KnowledgeLayer layer, string root,
-        IReadOnlyCollection<string> exclude, List<KnowledgeSource> sources, HashSet<string> seenIds)
+        IReadOnlyCollection<string> exclude, IReadOnlyList<string> excludePaths,
+        List<KnowledgeSource> sources, HashSet<string> seenIds)
     {
         string[] segments = root.Split('/');
         if (segments.Any(segment => segment.Contains('*') && segment != "*"))
@@ -201,7 +220,7 @@ public sealed class KnowledgeRegistry
             {
                 return $"duplicate source id '{expandedId}' (expanded from glob '{root}')";
             }
-            sources.Add(new KnowledgeSource(expandedId, layer, path));
+            sources.Add(new KnowledgeSource(expandedId, layer, path) { ExcludePaths = excludePaths });
         }
         return null;
     }
@@ -219,5 +238,6 @@ public sealed class KnowledgeRegistry
         public string? Layer { get; set; }
         public string? Root { get; set; }
         public List<string>? Exclude { get; set; }
+        public List<string>? ExcludePaths { get; set; }
     }
 }
