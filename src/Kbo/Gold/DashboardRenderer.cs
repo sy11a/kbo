@@ -72,6 +72,8 @@ public static class DashboardRenderer
               .repos th, .repos td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e4e3db; }
               .repos th { color: #5f5e56; font-weight: 600; }
               .repos td.path { font-family: ui-monospace, monospace; word-break: break-all; }
+              .repos td.good { color: #008300; font-weight: 600; }
+              .repos td.bad { color: #c22e2d; font-weight: 600; }
               .wow { list-style: none; padding-left: 0; margin: 0.5rem 0 2rem; }
               .wow li { margin: 5px 0; }
               .wow .good { color: #008300; font-weight: 600; }
@@ -109,6 +111,7 @@ public static class DashboardRenderer
         }
         html.AppendLine("</div>");
 
+        AppendConstitutionFleet(html, gold.ConstitutionFleet);
         AppendWeekOverWeek(html, gold.WeekOverWeek);
         AppendSessionsByRepo(html, gold.SessionsByRepo);
         AppendRecentSessions(html, gold.RecentSessions);
@@ -154,6 +157,36 @@ public static class DashboardRenderer
               <div class="status">{symbol} — {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d silent</div>
             </div>
             """);
+    }
+
+    private static void AppendConstitutionFleet(StringBuilder html, ConstitutionFleetGold? fleet)
+    {
+        if (fleet is null)
+        {
+            return;
+        }
+        html.AppendLine(CultureInfo.InvariantCulture,
+            $"<h2>Constitution fleet — skill v{fleet.CurrentVersion}</h2>");
+        string summary = fleet.Behind == 0
+            ? "все на текущей версии. ✓"
+            : FormattableString.Invariant($"отстаёт {fleet.Behind} из {fleet.Repos.Count} — запустите tools/fleet.sh upgrade из репозитория legislator.");
+        AppendDescription(html, FormattableString.Invariant(
+            $"Легислированные репозитории (скан docs/ai/manifest.json) против текущей версии конституции: {summary}"));
+        if (fleet.Repos.Count == 0)
+        {
+            AppendDescription(html, "Ни одного легислированного репозитория не найдено в настроенных scanRoots.");
+            return;
+        }
+        html.AppendLine("""<table class="repos"><thead><tr><th>repository</th><th>constitution</th></tr></thead><tbody>""");
+        foreach (FleetRepoTile repo in fleet.Repos)
+        {
+            string state = repo.Status == "ok"
+                ? $"""<td class="good">✓ v{Html(repo.Version)}</td>"""
+                : $"""<td class="bad">✗ v{Html(repo.Version)} — behind</td>""";
+            html.AppendLine(CultureInfo.InvariantCulture,
+                $"<tr><td class=\"path\">{Html(repo.Repo)}</td>{state}</tr>");
+        }
+        html.AppendLine("</tbody></table>");
     }
 
     private static string Html(string value)

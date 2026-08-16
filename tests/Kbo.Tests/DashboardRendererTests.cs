@@ -23,6 +23,11 @@ public class DashboardRendererTests
                 new LastSeenTile("test-machine", "claude-code",
                     DateTimeOffset.Parse("2026-08-12T21:00:00Z", CultureInfo.InvariantCulture), 0.0, "ok"),
             ],
+            ConstitutionFleet: new ConstitutionFleetGold(15,
+            [
+                new FleetRepoTile("/home/u/Repository/RepoA", "15", "ok"),
+                new FleetRepoTile("/home/u/Repository/RepoB", "14", "red"),
+            ], 1),
             ReadsByLayerDaily: [new ReadsByLayerRow("2026-08-10", "global", 12)],
             FailedSearchDaily: [new FailedSearchRow("2026-08-10", 4, 1, 0.25)],
             KbTouchDaily: [new KbTouchRow("2026-08-10", 8, 3, 0.375)],
@@ -86,6 +91,8 @@ public class DashboardRendererTests
                     DateTimeOffset.Parse("2026-08-12T00:00:00Z", CultureInfo.InvariantCulture), 0.1, "ok"),
             ],
             LastSeen: [],
+            ConstitutionFleet: new ConstitutionFleetGold(15,
+                [new FleetRepoTile("/r/<script>alert(8)</script>", "14", "red")], 1),
             ReadsByLayerDaily: [],
             FailedSearchDaily: [],
             KbTouchDaily: [],
@@ -129,6 +136,29 @@ public class DashboardRendererTests
         Assert.Contains("/n/&lt;script&gt;", html);
         Assert.DoesNotContain("<script>alert(7)</script>", html);
         Assert.Contains("/w/&lt;script&gt;", html);
+        Assert.DoesNotContain("<script>alert(8)</script>", html);
+        Assert.Contains("/r/&lt;script&gt;", html);
+    }
+
+    [Fact]
+    public void Render_ConstitutionFleet_ListsReposWithStates()
+    {
+        string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Contains("Constitution fleet — skill v15", html);
+        Assert.Contains("/home/u/Repository/RepoA", html);
+        Assert.Contains("""<td class="good">✓ v15</td>""", html);
+        Assert.Contains("""<td class="bad">✗ v14 — behind</td>""", html);
+        Assert.Contains("fleet.sh upgrade", html);
+    }
+
+    [Fact]
+    public void Render_WithoutConstitutionConfig_OmitsFleetSection()
+    {
+        string html = DashboardRenderer.Render(Gold() with { ConstitutionFleet = null },
+            DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.DoesNotContain("Constitution fleet", html);
     }
 
     [Fact]
