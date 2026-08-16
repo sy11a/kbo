@@ -8,6 +8,10 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-16 — Rebuild bulk-loads via the DuckDB Appender
+
+[silver.md](silver.md) implementation note updated: rows bulk-load through `DuckDBAppender` (one appender per rebuild, flushed on dispose) instead of the per-row prepared `INSERT`. Why: the per-row interop dominated rebuild time — ~16s → ~1.6s on a 23.6k-event store with identical output — and rebuild runs hourly via pulse and inside `kbo watch`. Closes the last fresh-eye-review backlog item; the backlog is now empty.
+
 ## 2026-08-16 — Machine-managed role + inventory excludePaths
 
 [first-report.md](first-report.md): new facts row — machine-managed files (`/docs/ai/`, `/adr/template.md`) are counted per source and never on the dead worklist. [registry.md](registry.md): sources accept `excludePaths:` (relative subtrees the inventory skips; resolution unaffected). Glossary rows: machine-managed, excludePaths. Why: the post-ADR-0035 dead list still carried ~24 rows of fleet-law files and tool fixtures — neither is knowledge a ritual should prune; conventions that are fleet-wide live in code (`NoteRole`), repo-specific layout lives in registry config. See ADR-0036.
