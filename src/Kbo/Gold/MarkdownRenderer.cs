@@ -23,6 +23,40 @@ public static class MarkdownRenderer
         }
         markdown.AppendLine();
 
+        markdown.AppendLine("## Lifecycle artifacts — die on completion, excluded from the dead worklist");
+        markdown.AppendLine();
+        if (report.LifecycleCounts.Count == 0)
+        {
+            markdown.AppendLine("none");
+        }
+        else
+        {
+            foreach (KeyValuePair<string, int> entry in report.LifecycleCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s) (plans / specs / journal)");
+            }
+        }
+        markdown.AppendLine();
+
+        markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
+        markdown.AppendLine();
+        if (report.DormantSources.Count == 0)
+        {
+            markdown.AppendLine("none");
+        }
+        else
+        {
+            markdown.AppendLine("| Source | Last activity | Dead notes withheld |");
+            markdown.AppendLine("|--------|---------------|--------------------:|");
+            foreach (DormantSource source in report.DormantSources)
+            {
+                string lastActivity = source.LastActivity is null ? "never" : Timestamp(source.LastActivity.Value);
+                markdown.AppendLine(CultureInfo.InvariantCulture,
+                    $"| `{source.SourceId}` | {lastActivity} | {source.WithheldDeadNotes} |");
+            }
+        }
+        markdown.AppendLine();
+
         markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dead notes — in inventory ≥ {report.MinInventoryAgeDays}d, zero reads in {report.ReadWindowDays}d");
         markdown.AppendLine();
         if (report.DeadNotes.Count == 0)

@@ -21,6 +21,11 @@ public sealed record StaleNote(
     long ReadsInWindow,
     int DaysSinceModified);
 
+public sealed record DormantSource(
+    string SourceId,
+    DateTimeOffset? LastActivity,
+    int WithheldDeadNotes);
+
 public sealed record GoldReport(
     DateTimeOffset GeneratedAt,
     string Machine,
@@ -28,7 +33,10 @@ public sealed record GoldReport(
     int ReadWindowDays,
     int StaleMinReads,
     int StaleUnmodifiedDays,
+    int DormantAfterDays,
     IReadOnlyDictionary<string, int> InventoryCounts,
+    IReadOnlyDictionary<string, int> LifecycleCounts,
+    IReadOnlyList<DormantSource> DormantSources,
     IReadOnlyList<DeadNote> DeadNotes,
     IReadOnlyList<HotNote> HotNotes,
     IReadOnlyList<StaleNote> StaleNotes);

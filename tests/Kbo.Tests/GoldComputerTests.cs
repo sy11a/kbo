@@ -99,8 +99,11 @@ public class GoldComputerTests : IDisposable
     public void DeadNotes_OnlyOldReadsStillCountAsDead()
     {
         string path = Note("stale-read.md", modifiedDaysAgo: 200);
+        string activePath = Note("active.md", modifiedDaysAgo: 5);
 
-        GoldReport report = Compute(ReadEvent("01B00000000000000000000002", path, daysAgo: 100));
+        GoldReport report = Compute(
+            ReadEvent("01B00000000000000000000002", path, daysAgo: 100),
+            ReadEvent("01B00000000000000000000010", activePath, daysAgo: 1));
 
         Kbo.Gold.DeadNote dead = Assert.Single(report.DeadNotes, n => n.Path == path);
         Assert.NotNull(dead.LastRead);
@@ -150,6 +153,46 @@ public class GoldComputerTests : IDisposable
 
         Assert.DoesNotContain(report.DeadNotes, n => n.Path == latePath);
         Assert.Contains(report.HotNotes, n => n.Path == latePath);
+    }
+
+    [Fact]
+    public void LifecycleNotes_AreCountedButNeverDead()
+    {
+        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        Note("docs/superpowers/plans/2026-06-01-old-plan.md", modifiedDaysAgo: 40);
+        string activePath = Note("active.md", modifiedDaysAgo: 5);
+
+        GoldReport report = Compute(ReadEvent("01B00000000000000000000011", activePath, daysAgo: 1));
+
+        Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        Assert.Equal(1, report.LifecycleCounts["vault"]);
+    }
+
+    [Fact]
+    public void DormantSources_RecentActivityKeepsDeadNotesOnWorklist()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        string readPath = Note("Now.md", modifiedDaysAgo: 5);
+
+        GoldReport report = Compute(ReadEvent("01B0000000000000000000000E", readPath, daysAgo: 2));
+
+        Assert.Contains(report.DeadNotes, note => note.Path == deadPath);
+        Assert.DoesNotContain(report.DormantSources, source => source.SourceId == "vault");
+    }
+
+    [Fact]
+    public void DormantSources_SilentSourceIsDormantAndDeadNotesWithheld()
+    {
+        string deadPath = Note("Glossary/unread.md", modifiedDaysAgo: 40);
+        string oldReadPath = Note("Now.md", modifiedDaysAgo: 40);
+
+        GoldReport report = Compute(ReadEvent("01B0000000000000000000000F", oldReadPath, daysAgo: 30));
+
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
+        DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
+        Assert.Equal(1, dormant.WithheldDeadNotes);
+        Assert.NotNull(dormant.LastActivity);
     }
 
     [Fact]

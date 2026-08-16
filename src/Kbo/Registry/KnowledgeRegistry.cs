@@ -111,9 +111,16 @@ public sealed class KnowledgeRegistry
             }
 
             string normalizedRoot = entry.Root.Length > 1 ? entry.Root.TrimEnd('/') : entry.Root;
+            bool hasExclude = entry.Exclude is { Count: > 0 };
+            if (hasExclude && !normalizedRoot.Contains('*'))
+            {
+                errors.Add($"source '{entry.Id}': 'exclude' requires a glob root");
+                continue;
+            }
             if (normalizedRoot.Contains('*'))
             {
-                string? globError = ExpandGlob(entry.Id, layer, normalizedRoot, sources, seenIds);
+                string? globError = ExpandGlob(entry.Id, layer, normalizedRoot,
+                    entry.Exclude ?? (IReadOnlyCollection<string>)Array.Empty<string>(), sources, seenIds);
                 if (globError is not null)
                 {
                     errors.Add(globError);
@@ -151,7 +158,8 @@ public sealed class KnowledgeRegistry
         }
     }
 
-    private static string? ExpandGlob(string id, KnowledgeLayer layer, string root, List<KnowledgeSource> sources, HashSet<string> seenIds)
+    private static string? ExpandGlob(string id, KnowledgeLayer layer, string root,
+        IReadOnlyCollection<string> exclude, List<KnowledgeSource> sources, HashSet<string> seenIds)
     {
         string[] segments = root.Split('/');
         if (segments.Any(segment => segment.Contains('*') && segment != "*"))
@@ -184,6 +192,10 @@ public sealed class KnowledgeRegistry
 
         foreach ((string path, List<string> matched) in candidates.Where(candidate => Directory.Exists(candidate.Path)))
         {
+            if (matched.Any(exclude.Contains))
+            {
+                continue;
+            }
             string expandedId = id + "-" + string.Join("-", matched);
             if (!seenIds.Add(expandedId))
             {
@@ -206,5 +218,6 @@ public sealed class KnowledgeRegistry
         public string? Id { get; set; }
         public string? Layer { get; set; }
         public string? Root { get; set; }
+        public List<string>? Exclude { get; set; }
     }
 }

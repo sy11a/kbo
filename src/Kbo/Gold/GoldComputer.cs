@@ -1,4 +1,3 @@
-using System.Globalization;
 using DuckDB.NET.Data;
 using Kbo.Registry;
 using Kbo.Silver;
@@ -12,6 +11,7 @@ public static class GoldComputer
     public const int StaleMinReads = 3;
     public const int StaleUnmodifiedDays = 90;
     public const int HotNoteLimit = 20;
+    public const int DormantAfterDays = 21;
 
     private static readonly string[] NoteActions = ["archive", "merge", "re-link"];
     private static readonly string[] SkillActions = ["retire", "fix trigger phrases"];
@@ -30,13 +30,20 @@ public static class GoldComputer
 
         List<DeadNote> deadNotes = new();
         List<StaleNote> staleNotes = new();
+        Dictionary<string, int> lifecycleCounts = new();
         foreach (InventoryNote note in inventory)
         {
+            bool isLifecycle = NoteRole.Of(note.Path) == NoteRole.Lifecycle;
+            if (isLifecycle)
+            {
+                lifecycleCounts[note.SourceId] = lifecycleCounts.GetValueOrDefault(note.SourceId) + 1;
+            }
+
             int daysSinceModified = (int)(now - note.Modified).TotalDays;
             ReadStats? stats = statsByPath.GetValueOrDefault(note.Path);
             long readsInWindow = stats?.ReadsInWindow ?? 0;
 
-            if (daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
+            if (!isLifecycle && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
             {
                 string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
                 deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
@@ -63,6 +70,22 @@ public static class GoldComputer
                 entry.Value.LastRead))
             .ToList();
 
+        Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
+        DateTimeOffset dormantCutoff = now.AddDays(-DormantAfterDays);
+        HashSet<string> dormantSourceIds = inventoryCounts.Keys
+            .Where(id => !activityBySource.TryGetValue(id, out DateTimeOffset last) || last < dormantCutoff)
+            .ToHashSet();
+
+        List<DormantSource> dormantSources = dormantSourceIds
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .Select(id => new DormantSource(
+                id,
+                activityBySource.TryGetValue(id, out DateTimeOffset last) ? last : null,
+                deadNotes.Count(note => note.SourceId == id)))
+            .ToList();
+
+        deadNotes = deadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId)).ToList();
+
         return new GoldReport(
             now,
             registry.Machine,
@@ -70,10 +93,67 @@ public static class GoldComputer
             ReadWindowDays,
             StaleMinReads,
             StaleUnmodifiedDays,
+            DormantAfterDays,
             inventoryCounts,
+            lifecycleCounts,
+            dormantSources,
             deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
             hotNotes,
             staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+    }
+
+    private static Dictionary<string, DateTimeOffset> QuerySourceActivity(string silverPath, KnowledgeRegistry registry)
+    {
+        Dictionary<string, DateTimeOffset> lastBySource = new();
+        void Bump(string sourceId, DateTimeOffset time)
+        {
+            if (!lastBySource.TryGetValue(sourceId, out DateTimeOffset existing) || time > existing)
+            {
+                lastBySource[sourceId] = time;
+            }
+        }
+
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
+
+        using (DuckDBCommand bySubject = connection.CreateCommand())
+        {
+            bySubject.CommandText = """
+                SELECT subject, max(time) FROM events_preferred
+                WHERE subject IS NOT NULL GROUP BY subject
+                """;
+            using DuckDBDataReader reader = (DuckDBDataReader)bySubject.ExecuteReader();
+            while (reader.Read())
+            {
+                string? sourceId = registry.Resolve(reader.GetString(0));
+                if (sourceId is not null)
+                {
+                    Bump(sourceId, new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc)));
+                }
+            }
+        }
+
+        using (DuckDBCommand byRepo = connection.CreateCommand())
+        {
+            byRepo.CommandText = """
+                SELECT repo, max(time) FROM events_preferred
+                WHERE repo IS NOT NULL GROUP BY repo
+                """;
+            using DuckDBDataReader reader = (DuckDBDataReader)byRepo.ExecuteReader();
+            while (reader.Read())
+            {
+                string repo = reader.GetString(0);
+                DateTimeOffset time = new(DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc));
+                foreach (KnowledgeSource source in registry.Sources)
+                {
+                    if (source.Root == repo || source.Root.StartsWith(repo + "/", StringComparison.Ordinal))
+                    {
+                        Bump(source.Id, time);
+                    }
+                }
+            }
+        }
+
+        return lastBySource;
     }
 
     private static string LayerName(KnowledgeLayer layer)
