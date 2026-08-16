@@ -10,6 +10,7 @@ public class MarkdownRendererTests
         IReadOnlyList<HotNote>? hot = null,
         IReadOnlyList<StaleNote>? stale = null,
         IReadOnlyDictionary<string, int>? lifecycle = null,
+        IReadOnlyDictionary<string, int>? machineManaged = null,
         IReadOnlyList<DormantSource>? dormant = null)
     {
         return new GoldReport(
@@ -22,6 +23,7 @@ public class MarkdownRendererTests
             DormantAfterDays: 21,
             new Dictionary<string, int> { ["vault"] = 10, ["skills"] = 4 },
             lifecycle ?? new Dictionary<string, int>(),
+            machineManaged ?? new Dictionary<string, int>(),
             dormant ?? [],
             dead ?? [],
             hot ?? [],
@@ -85,6 +87,17 @@ public class MarkdownRendererTests
         Assert.Contains("## Dormant sources", markdown);
         Assert.Contains("`repo-CareerPlatform`", markdown);
         Assert.Contains("| 70 |", markdown);
+    }
+
+    [Fact]
+    public void Render_MachineManagedSection_ListsPerSourceCounts()
+    {
+        string markdown = MarkdownRenderer.Render(
+            Report(machineManaged: new Dictionary<string, int> { ["repo-app"] = 12 }),
+            "/home/u/Knowledge");
+
+        Assert.Contains("## Machine-managed files", markdown);
+        Assert.Contains("`repo-app`: 12 file(s)", markdown);
     }
 
     [Fact]

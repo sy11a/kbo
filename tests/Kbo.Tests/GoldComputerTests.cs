@@ -244,6 +244,21 @@ public class GoldComputerTests : IDisposable
     }
 
     [Fact]
+    public void MachineManagedNotes_AreCountedButNeverDead()
+    {
+        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        Note("docs/ai/rules/core/okf.md", modifiedDaysAgo: 40);
+        Note("docs/adr/template.md", modifiedDaysAgo: 40);
+        string activePath = Note("active.md", modifiedDaysAgo: 5);
+
+        GoldReport report = Compute(ReadEvent("01B00000000000000000000015", activePath, daysAgo: 1));
+
+        Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        Assert.Equal(2, report.MachineManagedCounts["vault"]);
+    }
+
+    [Fact]
     public void Report_CarriesInventoryTotalsAndGeneratedAt()
     {
         Note("a.md", 200);
