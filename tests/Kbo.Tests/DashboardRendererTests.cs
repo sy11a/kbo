@@ -29,6 +29,7 @@ public class DashboardRendererTests
                 new FleetRepoTile("/home/u/Repository/RepoA", "15", "ok"),
                 new FleetRepoTile("/home/u/Repository/RepoB", "14", "red"),
             ], 1),
+            ServiceSessions: new ServiceSessionsSummary(7, "service-fleet"),
             ReadsByLayerDaily: [new ReadsByLayerRow("2026-08-10", "global", 12)],
             FailedSearchDaily: [new FailedSearchRow("2026-08-10", 4, 1, 0.25)],
             KbTouchDaily: [new KbTouchRow("2026-08-10", 8, 3, 0.375)],
@@ -95,6 +96,7 @@ public class DashboardRendererTests
             LastSeen: [],
             ConstitutionFleet: new ConstitutionFleetGold(15,
                 [new FleetRepoTile("/r/<script>alert(8)</script>", "14", "red")], 1),
+            ServiceSessions: new ServiceSessionsSummary(0, ""),
             ReadsByLayerDaily: [],
             FailedSearchDaily: [],
             KbTouchDaily: [],
@@ -152,6 +154,25 @@ public class DashboardRendererTests
         Assert.Contains("""<td class="good">✓ v15</td>""", html);
         Assert.Contains("""<td class="bad">✗ v14 — behind</td>""", html);
         Assert.Contains("fleet.sh upgrade", html);
+    }
+
+    [Fact]
+    public void Render_ServiceSessionNote_StatesTheExclusion()
+    {
+        string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Contains("Служебные сессии: 7", html);
+        Assert.Contains("service-fleet", html);
+        Assert.Contains("ADR-0039", html);
+    }
+
+    [Fact]
+    public void Render_NoServiceSessions_OmitsTheNote()
+    {
+        string html = DashboardRenderer.Render(Gold() with { ServiceSessions = new ServiceSessionsSummary(0, "") },
+            DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.DoesNotContain("Служебные сессии", html);
     }
 
     [Fact]

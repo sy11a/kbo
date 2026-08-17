@@ -109,8 +109,10 @@ public static class GoldComputer
     }
 
     /// <summary>
-    /// Last *usage* per source (reads + context loads only): a write alone —
-    /// e.g. a fleet-wide maintenance stamp — never proves a source is alive (ADR-0035).
+    /// Last *usage* per source (practice reads + context loads only): a write
+    /// alone — e.g. a fleet-wide maintenance stamp — never proves a source is
+    /// alive (ADR-0035), and neither does a service session's read — a fleet
+    /// rollout must not wake a paused project (ADR-0039).
     /// </summary>
     private static Dictionary<string, DateTimeOffset> QuerySourceActivity(string silverPath, KnowledgeRegistry registry)
     {
@@ -128,7 +130,7 @@ public static class GoldComputer
         using (DuckDBCommand bySubject = connection.CreateCommand())
         {
             bySubject.CommandText = """
-                SELECT subject, max(time) FROM events_preferred
+                SELECT subject, max(time) FROM practice_events
                 WHERE type IN ('knowledge.read', 'context.loaded')
                   AND subject IS NOT NULL GROUP BY subject
                 """;
@@ -146,7 +148,7 @@ public static class GoldComputer
         using (DuckDBCommand byRepo = connection.CreateCommand())
         {
             byRepo.CommandText = """
-                SELECT repo, max(time) FROM events_preferred
+                SELECT repo, max(time) FROM practice_events
                 WHERE type IN ('knowledge.read', 'context.loaded')
                   AND repo IS NOT NULL GROUP BY repo
                 """;
@@ -184,7 +186,7 @@ public static class GoldComputer
                    count(*) FILTER (WHERE time >= ?) AS reads_in_window,
                    count(*) AS reads_total,
                    max(time) AS last_read
-            FROM events_preferred
+            FROM practice_events
             WHERE type IN ('knowledge.read', 'context.loaded')
               AND subject IS NOT NULL
             GROUP BY subject

@@ -35,6 +35,7 @@ public static class DashboardComputer
             JobHealth(connection, now),
             LastSeen(connection, now),
             constitutionFleet,
+            ServiceSessions(connection, now),
             ReadsByLayer(connection, registry),
             FailedSearches(connection),
             KbTouch(connection, touchedSessions),
@@ -62,7 +63,9 @@ public static class DashboardComputer
         long[] sessions = new long[2];
         long[] touched = new long[2];
         foreach (object?[] row in Query(connection, """
-            SELECT started_at, session FROM sessions WHERE started_at >= $cutoff
+            SELECT started_at, session FROM sessions
+            WHERE started_at >= $cutoff
+              AND session NOT IN (SELECT session FROM service_sessions)
             """, ("cutoff", lastStart)))
         {
             int window = Window((DateTime)row[0]!);
@@ -77,7 +80,7 @@ public static class DashboardComputer
         long[] zeroHits = new long[2];
         foreach (object?[] row in Query(connection, """
             SELECT time, TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) AS hits
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.searched' AND time >= $cutoff
               AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) IS NOT NULL
             """, ("cutoff", lastStart)))
@@ -92,7 +95,7 @@ public static class DashboardComputer
 
         long[] noteReads = new long[2];
         foreach (object?[] row in Query(connection, """
-            SELECT time, subject FROM events_preferred
+            SELECT time, subject FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
             """, ("cutoff", lastStart)))
         {
@@ -120,7 +123,7 @@ public static class DashboardComputer
         Dictionary<string, DateTime> firstWrite = new();
         foreach (object?[] row in Query(connection, """
             SELECT subject, min(time) AS first_write
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $cutoff
             GROUP BY subject
             """, ("cutoff", cutoff)))
@@ -136,7 +139,7 @@ public static class DashboardComputer
         Dictionary<string, long> laterReads = new();
         foreach (object?[] row in Query(connection, """
             SELECT subject, time
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
             """, ("cutoff", cutoff)))
         {
@@ -162,7 +165,7 @@ public static class DashboardComputer
         List<ReuseRow> notes = new();
         foreach (object?[] row in Query(connection, """
             SELECT subject, count(*) AS reads, count(DISTINCT session) AS sessions
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
             GROUP BY subject
             """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
@@ -190,7 +193,7 @@ public static class DashboardComputer
         Dictionary<string, long> byKind = new();
         foreach (object?[] row in Query(connection, """
             SELECT subject, count(*)
-            FROM events_preferred
+            FROM practice_events
             WHERE type IN ('knowledge.read', 'context.loaded') AND subject IS NOT NULL AND time >= $cutoff
             GROUP BY subject
             """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
@@ -233,7 +236,7 @@ public static class DashboardComputer
         List<DayCount> rows = new();
         foreach (object?[] row in Query(connection, $"""
             SELECT subject, count(*)
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.searched' AND time >= $cutoff
               AND subject IS NOT NULL
               AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0
@@ -383,6 +386,26 @@ public static class DashboardComputer
         return tiles;
     }
 
+    /// <summary>
+    /// Service sessions in the window — excluded from the practice lenses,
+    /// stated on the dashboard per the no-silent-caps rule (ADR-0039).
+    /// </summary>
+    private static ServiceSessionsSummary ServiceSessions(DuckDBConnection connection, DateTimeOffset now)
+    {
+        foreach (object?[] row in Query(connection, """
+            SELECT count(DISTINCT session),
+                   coalesce(string_agg(DISTINCT json_extract_string(data, '$.agent_mode'), ', '), '')
+            FROM events_preferred
+            WHERE type = 'session.started' AND session IS NOT NULL
+              AND json_extract_string(data, '$.agent_mode') LIKE 'service-%'
+              AND time >= $cutoff
+            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
+        {
+            return new ServiceSessionsSummary(AsLong(row[0]), (string)row[1]!);
+        }
+        return new ServiceSessionsSummary(0, "");
+    }
+
     private static List<ReadsByLayerRow> ReadsByLayer(DuckDBConnection connection, KnowledgeRegistry registry)
     {
         Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
@@ -390,7 +413,7 @@ public static class DashboardComputer
         Dictionary<(string Date, string Layer), long> reads = new();
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day, subject, count(*)
-            FROM events_preferred
+            FROM practice_events
             WHERE type IN ('knowledge.read', 'context.loaded') AND subject IS NOT NULL
             GROUP BY day, subject
             """))
@@ -419,7 +442,7 @@ public static class DashboardComputer
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    count(*) AS searches,
                    count(*) FILTER (WHERE TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0) AS zero_hits
-            FROM events_preferred
+            FROM practice_events
             WHERE type = 'knowledge.searched'
               AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) IS NOT NULL
             GROUP BY day
@@ -440,6 +463,7 @@ public static class DashboardComputer
             SELECT strftime(date_trunc('day', started_at), '%Y-%m-%d') AS day,
                    list(session) AS sessions
             FROM sessions
+            WHERE session NOT IN (SELECT session FROM service_sessions)
             GROUP BY day
             ORDER BY day
             """))
@@ -477,7 +501,7 @@ public static class DashboardComputer
         Dictionary<(string Source, string Theme), long> reads = new();
         foreach (object?[] row in Query(connection, """
             SELECT subject, count(*)
-            FROM events_preferred
+            FROM practice_events
             WHERE type IN ('knowledge.read', 'context.loaded')
               AND subject IS NOT NULL
               AND time >= $cutoff

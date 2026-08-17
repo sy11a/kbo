@@ -15,6 +15,8 @@ public sealed record LastSeenTile(
     double DaysSilent,
     string Status);
 
+public sealed record ServiceSessionsSummary(long Sessions, string Agents);
+
 public sealed record ReadsByLayerRow(string Date, string Layer, long Reads);
 
 public sealed record FailedSearchRow(string Date, long Searches, long ZeroHits, double Rate);
@@ -59,6 +61,7 @@ public sealed record DashboardGold(
     IReadOnlyList<JobHealthTile> JobHealth,
     IReadOnlyList<LastSeenTile> LastSeen,
     ConstitutionFleetGold? ConstitutionFleet,
+    ServiceSessionsSummary ServiceSessions,
     IReadOnlyList<ReadsByLayerRow> ReadsByLayerDaily,
     IReadOnlyList<FailedSearchRow> FailedSearchDaily,
     IReadOnlyList<KbTouchRow> KbTouchDaily,

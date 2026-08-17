@@ -1,6 +1,6 @@
 # 0039 — Service sessions are marked and excluded from practice metrics
 
-Status: proposed · Date: 2026-08-17
+Status: accepted · Date: 2026-08-17
 
 ## Context
 
@@ -25,14 +25,21 @@ standing distortion, not a one-off.
    (the thing the four lenses exist to observe). A *service session* is a
    run whose purpose is maintaining or operating the system itself: fleet
    upgrades, batch/scripted sweeps, migrations, recovery harvests.
-2. **Marking at launch, via agent identity — no schema change.** Service
-   runs launch under a dedicated agent identity with the `service-`
-   prefix (e.g. `opencode --agent service-fleet`); the harvesters carry
-   the identity into the envelope's existing `agent` field. Launchers own
-   the marking: `fleet.sh` passes it always; other automation adopts the
-   same prefix. An unmarked session counts as practice — the only
-   workable default, with the known cost that a forgotten flag inflates
-   metrics (loudly visible in recent-sessions) rather than hiding work.
+2. **Marking at launch, via agent identity — no schema and no harvest
+   change.** Service runs launch under a dedicated opencode agent whose
+   name carries the `service-` prefix (e.g. `opencode --agent
+   service-fleet`). The opencode session store records that agent, and
+   the miner *already* carries it into bronze as the `session.started`
+   event's `data.agent_mode` — so the mark is present end-to-end with
+   zero capture changes. The envelope's `agent` field keeps meaning the
+   adapter (`opencode`), so dead-man and last-seen are untouched by
+   construction. Silver derives two views: `service_sessions` (session
+   ids whose `agent_mode LIKE 'service-%'`) and `practice_events`
+   (`events_preferred` minus those sessions). Launchers own the marking:
+   `fleet.sh` passes it always; other automation adopts the same prefix.
+   An unmarked session counts as practice — the only workable default,
+   with the known cost that a forgotten flag inflates metrics (loudly
+   visible in recent-sessions) rather than hiding work.
 3. **Metric semantics.** Practice lenses — KB-touch, reads-by-layer,
    failed-search, reuse, write→read, week-over-week, hot/dead/stale
    usage, and source activity for dormancy (tightening ADR-0035: usage

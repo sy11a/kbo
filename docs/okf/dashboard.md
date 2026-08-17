@@ -13,6 +13,7 @@ The *see* surface (Q7): trends and health tiles; never worklists (the report own
 
 ## Health panel (P5)
 
+- **Practice vs service:** every usage lens counts *practice* sessions only; sessions launched as `opencode --agent service-*` are filtered via silver's `practice_events` view and disclosed as a "Служебные сессии: N исключено" note (ADR-0039). Dead-man, last-seen, sessions tables see them as usual.
 - **Dead-man tiles** per machine × agent × job: last `job.completed`, days silent, status `ok`/`red` at the job's cadence threshold (3d daily, 9.5d weekly — ADR-0037 refining G2-12). Status ships as text + symbol, never color alone.
 - **Last-seen tiles** per machine × agent: newest bronze event of any type.
 - **"generated at"** rendered prominently — a stale dashboard must look stale.

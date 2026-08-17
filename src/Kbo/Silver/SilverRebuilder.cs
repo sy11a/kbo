@@ -47,6 +47,20 @@ public static class SilverRebuilder
            OR events.time > harvested.harvested_until
         """;
 
+    private const string CreateServiceSessionsView = """
+        CREATE VIEW service_sessions AS
+        SELECT DISTINCT session FROM events_preferred
+        WHERE type = 'session.started' AND session IS NOT NULL
+          AND json_extract_string(data, '$.agent_mode') LIKE 'service-%'
+        """;
+
+    private const string CreatePracticeEventsView = """
+        CREATE VIEW practice_events AS
+        SELECT * FROM events_preferred
+        WHERE session IS NULL
+           OR session NOT IN (SELECT session FROM service_sessions)
+        """;
+
     private const string CreateSessionsView = """
         CREATE VIEW sessions AS
         SELECT
@@ -164,6 +178,8 @@ public static class SilverRebuilder
         }
 
         Execute(connection, CreateEventsPreferredView);
+        Execute(connection, CreateServiceSessionsView);
+        Execute(connection, CreatePracticeEventsView);
         Execute(connection, CreateSessionsView);
 
         using DuckDBCommand sessionCountCommand = connection.CreateCommand();
