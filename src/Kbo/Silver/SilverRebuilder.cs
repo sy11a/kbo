@@ -51,7 +51,7 @@ public static class SilverRebuilder
         CREATE VIEW service_sessions AS
         SELECT DISTINCT session FROM events_preferred
         WHERE type = 'session.started' AND session IS NOT NULL
-          AND json_extract_string(data, '$.agent_mode') LIKE 'service-%'
+          AND json_extract_string(data, '$.raw.agent_mode') LIKE 'service-%'
         """;
 
     private const string CreatePracticeEventsView = """
