@@ -122,6 +122,41 @@ public class DashboardComputerTests : IDisposable
     }
 
     [Fact]
+    public void ServiceSessions_AreExcludedFromPracticeLensesButCounted()
+    {
+        // A service session (agent_mode service-*) reads a registered note; a
+        // practice session reads another. Practice lenses must only see the
+        // practice read, the summary must count the service session, and
+        // last-seen must still see the service agent's events (ADR-0039).
+        DashboardGold gold = Compute(
+            Event("01F00000000000000000000060", "session.started", "2026-08-12T09:00:00Z", session: "svc-1", agent: "opencode",
+                data: new JsonObject { ["agent_mode"] = "service-fleet" }),
+            Event("01F00000000000000000000061", "knowledge.read", "2026-08-12T09:01:00Z", session: "svc-1", agent: "opencode",
+                subject: Path.Combine(workspace, "Knowledge", "a.md"), kbroot: "vault"),
+            Event("01F00000000000000000000062", "session.started", "2026-08-12T10:00:00Z", session: "prac-1",
+                data: new JsonObject { ["agent_mode"] = "build" }),
+            Event("01F00000000000000000000063", "knowledge.read", "2026-08-12T10:01:00Z", session: "prac-1",
+                subject: Path.Combine(workspace, "Knowledge", "b.md"), kbroot: "vault"));
+
+        Assert.Equal(1, gold.ReadsByLayerDaily.Sum(row => row.Reads));
+        KbTouchRow day = Assert.Single(gold.KbTouchDaily);
+        Assert.Equal(1, day.Sessions);
+        Assert.Equal(1, gold.ServiceSessions.Sessions);
+        Assert.Equal("service-fleet", gold.ServiceSessions.Agents);
+        Assert.Contains(gold.LastSeen, tile => tile.Agent == "opencode");
+    }
+
+    [Fact]
+    public void ServiceSessions_ZeroWhenNoneMarked()
+    {
+        DashboardGold gold = Compute(
+            Event("01F00000000000000000000064", "session.started", "2026-08-12T10:00:00Z", session: "prac-1",
+                data: new JsonObject { ["agent_mode"] = "build" }));
+
+        Assert.Equal(0, gold.ServiceSessions.Sessions);
+    }
+
+    [Fact]
     public void LastSeenTiles_TrackNewestEventPerAgent()
     {
         DashboardGold gold = Compute(

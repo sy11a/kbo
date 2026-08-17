@@ -80,6 +80,16 @@ public class GoldComputerTests : IDisposable
         return written;
     }
 
+    private static JsonObject ServiceSessionStart(string id, string session, int daysAgo)
+    {
+        JsonObject started = ReadEvent(id, "/dev/null", daysAgo);
+        started["type"] = "session.started";
+        started["subject"] = null;
+        started["session"] = session;
+        started["data"] = new JsonObject { ["origin"] = "harvest", ["agent_mode"] = "service-fleet" };
+        return started;
+    }
+
     private GoldReport Compute(params JsonObject[] events)
     {
         string eventsRepo = Path.Combine(workspace, "kb-events");
@@ -101,6 +111,26 @@ public class GoldComputerTests : IDisposable
         Assert.Contains(deadPath, deadPaths);
         Assert.DoesNotContain(readPath, deadPaths);
         Assert.DoesNotContain(Path.Combine(vaultRoot, "young-unread.md"), deadPaths);
+    }
+
+    [Fact]
+    public void ServiceSessionReads_DoNotRescueADeadNote()
+    {
+        // A note read only by a service session (ADR-0039) stays dead; a note
+        // read by a practice session does not.
+        string deadPath = Note("only-service-read.md", modifiedDaysAgo: 200);
+        string practicePath = Note("practice-read.md", modifiedDaysAgo: 200);
+
+        JsonObject serviceRead = ReadEvent("01B00000000000000000000040", deadPath, daysAgo: 5);
+        serviceRead["session"] = "svc-1";
+
+        GoldReport report = Compute(
+            ServiceSessionStart("01B00000000000000000000041", "svc-1", daysAgo: 5),
+            serviceRead,
+            ReadEvent("01B00000000000000000000042", practicePath, daysAgo: 5));
+
+        Assert.Contains(report.DeadNotes, note => note.Path == deadPath);
+        Assert.DoesNotContain(report.DeadNotes, note => note.Path == practicePath);
     }
 
     [Fact]

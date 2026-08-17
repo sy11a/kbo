@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Service sessions are excluded from practice metrics (ADR-0039): runs
+  launched as `opencode --agent service-*` (fleet rollouts, batch sweeps)
+  no longer count toward KB-touch, reads-by-layer/themes/content-type,
+  failed searches, reuse, write→read, week-over-week, or dead/hot/stale
+  usage — and a service read no longer wakes a dormant source. The mark
+  travels via the already-captured `session.started` `agent_mode`; silver
+  gains `service_sessions` and `practice_events` views. Dead-man,
+  last-seen, day pages, sessions tables and bronze keep service events
+  first-class, and the dashboard states "N служебных сессий исключено"
+  whenever the window has any (no-silent-caps). Motivated by 2026-08-16:
+  a fleet rollout pushed local reads to 601/day, flipped KB-touch green,
+  and woke two dormant sources (dead worklist 11→93).
+
+### Changed
+
 - Dormancy activity is usage-only (ADR-0035): only `knowledge.read`/`context.loaded` events keep a source active — machine-generated writes (e.g. a fleet-wide legislator manifest stamp) no longer prevent a genuinely paused project from being reported dormant. A dormant source's "Last activity" now means last usage.
 - The dead-notes worklist is now type- and activity-aware (ADR-0034): lifecycle artifacts (superpowers plans/specs and journal entries) are excluded and reported as per-source counts; sources with no recorded activity for 21 days are dormant and their dead notes are withheld into a "Dormant sources" section with last-activity dates. Nothing is silently dropped — every exclusion surfaces as a count or section.
 - `kbo rebuild` is now atomic (ADR-0032): silver derives into a temp file and is renamed over `silver.duckdb`, so the live file is never write-locked by a rebuild and never observable half-built — concurrent `kbo watch`, `rebuild`, `report`, and the hourly pulse no longer fail with DuckDB "Conflicting lock" errors, and killing `watch` mid-rebuild leaves only a swept-up temp file instead of a viewless silver. Gold readers open silver read-only, so concurrent readers share the file.

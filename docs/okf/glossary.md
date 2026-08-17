@@ -25,6 +25,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | adapter | The only agent-specific code: live capture + implicit-loads + retention manifest per agent (Claude Code hook, opencode plugin) |
 | harvest | `kbo harvest` — transcript miner producing the same events from agent transcripts; backfill, gap recovery, and authoritative hit counts |
 | pulse | `kbo pulse` — runs all due jobs from the job registry via one OS-scheduler entry; every run emits `job.*` events |
+| service session | An agent run whose purpose is operating the system itself (fleet upgrade, batch sweep) — launched as `opencode --agent service-*`, excluded from practice metrics, first-class everywhere else (ADR-0039) |
 | dead-man switch | Health alerting on job *silence*, not errors — a dead job emits nothing; red past the job's cadence threshold: 3d daily, 9.5d weekly (G2-12, ADR-0037) |
 | tracer bullet | Build order: thinnest end-to-end slice first (capture → bronze → silver → report → ritual), never layers-in-full |
 | ritual | Weekly owner review: health panel first, worklists, ≥1 data-driven KB fix, logged in the vault (`~/Knowledge/rituals/`) |

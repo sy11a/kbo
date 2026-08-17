@@ -112,6 +112,7 @@ public static class DashboardRenderer
         html.AppendLine("</div>");
 
         AppendConstitutionFleet(html, gold.ConstitutionFleet);
+        AppendServiceSessions(html, gold.ServiceSessions);
         AppendWeekOverWeek(html, gold.WeekOverWeek);
         AppendSessionsByRepo(html, gold.SessionsByRepo);
         AppendRecentSessions(html, gold.RecentSessions);
@@ -187,6 +188,16 @@ public static class DashboardRenderer
                 $"<tr><td class=\"path\">{Html(repo.Repo)}</td>{state}</tr>");
         }
         html.AppendLine("</tbody></table>");
+    }
+
+    private static void AppendServiceSessions(StringBuilder html, ServiceSessionsSummary service)
+    {
+        if (service.Sessions == 0)
+        {
+            return;
+        }
+        AppendDescription(html, FormattableString.Invariant(
+            $"Служебные сессии: {service.Sessions} за последние {DashboardComputer.ThemeWindowDays} дней ({service.Agents}) исключены из практико-метрик ниже (ADR-0039). Dead-man, last-seen и таблицы сессий видят их как обычно."));
     }
 
     private static string Html(string value)
