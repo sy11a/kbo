@@ -101,6 +101,27 @@ public class DashboardComputerTests : IDisposable
     }
 
     [Fact]
+    public void DeadManTiles_UnknownJobDefaultsToTheDailyThreshold()
+    {
+        // Events from a retired job must err toward the cheap error: flag too
+        // early (daily rule), never too late.
+        DashboardGold gold = Compute(
+            Event("01F00000000000000000000092", "job.completed", "2026-08-08T22:00:00Z", agent: "kbo", subject: "some-retired-job",
+                session: null, data: new JsonObject { ["job"] = "some-retired-job", ["duration_ms"] = 5 }));
+
+        Assert.Equal("red", gold.JobHealth.Single(tile => tile.Job == "some-retired-job").Status);
+    }
+
+    [Fact]
+    public void DeadMan_CadenceMapDeclaresReportAndAuditWeekly()
+    {
+        Assert.Equal(Kbo.Jobs.JobCadence.Weekly, Kbo.Jobs.JobDeadMan.CadenceOf("report"));
+        Assert.Equal(Kbo.Jobs.JobCadence.Weekly, Kbo.Jobs.JobDeadMan.CadenceOf("audit"));
+        Assert.Equal(Kbo.Jobs.JobCadence.Daily, Kbo.Jobs.JobDeadMan.CadenceOf("harvest"));
+        Assert.Equal(Kbo.Jobs.PulseRunner.WeeklyDueDays + Kbo.Jobs.JobDeadMan.GraceDays, Kbo.Jobs.JobDeadMan.WeeklyThresholdDays);
+    }
+
+    [Fact]
     public void LastSeenTiles_TrackNewestEventPerAgent()
     {
         DashboardGold gold = Compute(

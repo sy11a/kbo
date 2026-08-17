@@ -5,7 +5,7 @@ machine: example-machine
 # match becomes the event's `task`. Unset = no task extraction (task stays
 # null). Env override: KBO_TASK_PATTERN (ADR-0031).
 # taskPattern: 'JIRA-\d+'
-# Optional: legislator fleet panel (ADR-0037) — the constitution's VERSION
+# Optional: legislator fleet panel (ADR-0038) — the constitution's VERSION
 # file plus roots whose DIRECT children are candidate legislated repos
 # (detected by docs/ai/manifest.json). Unset = no panel.
 # constitution:
