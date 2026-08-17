@@ -17,7 +17,7 @@ public sealed class KnowledgeRegistry
 
     /// <summary>
     /// Optional legislator wiring for the constitution-fleet panel
-    /// (ADR-0037). Null means no fleet tracking: a public tool ships no
+    /// (ADR-0038). Null means no fleet tracking: a public tool ships no
     /// default legislator location (ADR-0031 pattern).
     /// </summary>
     public ConstitutionConfig? Constitution { get; }

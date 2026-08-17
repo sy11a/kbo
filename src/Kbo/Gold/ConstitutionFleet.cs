@@ -12,7 +12,7 @@ public sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<Fle
 /// Legislated-repo fleet vs the current constitution version. There is no
 /// fleet registry to maintain: the repos' docs/ai/manifest.json files ARE the
 /// database (derived-rebuildable) — this scans the configured roots' direct
-/// children at report time (ADR-0037). An unreadable manifest renders as
+/// children at report time (ADR-0038). An unreadable manifest renders as
 /// version "?" and counts as behind: unknown classification fails toward the
 /// cheap error.
 /// </summary>
