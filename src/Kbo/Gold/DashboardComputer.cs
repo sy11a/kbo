@@ -394,10 +394,10 @@ public static class DashboardComputer
     {
         foreach (object?[] row in Query(connection, """
             SELECT count(DISTINCT session),
-                   coalesce(string_agg(DISTINCT json_extract_string(data, '$.agent_mode'), ', '), '')
+                   coalesce(string_agg(DISTINCT json_extract_string(data, '$.raw.agent_mode'), ', '), '')
             FROM events_preferred
             WHERE type = 'session.started' AND session IS NOT NULL
-              AND json_extract_string(data, '$.agent_mode') LIKE 'service-%'
+              AND json_extract_string(data, '$.raw.agent_mode') LIKE 'service-%'
               AND time >= $cutoff
             """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
         {

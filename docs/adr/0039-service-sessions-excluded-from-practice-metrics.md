@@ -29,8 +29,8 @@ standing distortion, not a one-off.
    change.** Service runs launch under a dedicated opencode agent whose
    name carries the `service-` prefix (e.g. `opencode --agent
    service-fleet`). The opencode session store records that agent, and
-   the miner *already* carries it into bronze as the `session.started`
-   event's `data.agent_mode` — so the mark is present end-to-end with
+   the miner *already* carries it into bronze inside the
+   `session.started` event's `data.raw.agent_mode` — so the mark is present end-to-end with
    zero capture changes. The envelope's `agent` field keeps meaning the
    adapter (`opencode`), so dead-man and last-seen are untouched by
    construction. Silver derives two views: `service_sessions` (session

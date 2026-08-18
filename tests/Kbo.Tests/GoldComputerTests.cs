@@ -86,7 +86,7 @@ public class GoldComputerTests : IDisposable
         started["type"] = "session.started";
         started["subject"] = null;
         started["session"] = session;
-        started["data"] = new JsonObject { ["origin"] = "harvest", ["agent_mode"] = "service-fleet" };
+        started["data"] = new JsonObject { ["origin"] = "harvest", ["raw"] = new JsonObject { ["agent_mode"] = "service-fleet" } };
         return started;
     }
 
