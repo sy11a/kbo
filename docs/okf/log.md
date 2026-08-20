@@ -8,6 +8,10 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-20 — SDD practice panel (spec-before-code, writes balance, SDD-skill rate)
+
+[dashboard.md](dashboard.md): new panel section — the before/after instrument for the legislator's SDD law (edition v17): per-session spec-before-code ordering (subjects under `/docs/superpowers/` or `/docs/cases/` strictly before the first code write) per repo × ISO week; writes by content kind with machine-managed writes (`/docs/ai/`) excluded and disclosed (no-silent-caps); SDD-skill rate from the registry's optional `sdd: { skills }` block (absent block = stated, not silent — ADR-0031 pattern). Glossary row: SDD panel. Why: rolling out the SDD law without a baseline makes the improvement claim unfalsifiable; the recipe (legislator research spec 2026-08-19) verified all inputs already flow into bronze — the gaps were gold-side and additive. See ADR-0040.
+
 ## 2026-08-16 — Cadence-aware dead-man thresholds
 
 [pulse.md](pulse.md) doctor description and [dashboard.md](dashboard.md) dead-man tiles updated: silence thresholds are per-cadence (3d daily, 9.5d weekly via `JobDeadMan`), and the glossary's dead-man row reflects it. Why: the flat 3-day rule falsely flagged the weekly `report`/`audit` jobs SILENT/red from day 3 to day ~7 of every week — diagnosed 2026-08-16 when both "silent" jobs turned out to have completed normally on their last due day. See ADR-0037.

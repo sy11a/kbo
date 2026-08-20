@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- SDD practice panel (ADR-0040): a dashboard section measuring
+  spec-driven-development practice — the before/after instrument for the
+  legislator's SDD law. Three metrics over 60 days, practice sessions
+  only: spec-before-code ordering (per repo × ISO week + fleet summary;
+  spec activity = subjects under `/docs/superpowers/` or
+  `/docs/cases/`, strictly before the session's first code write); writes
+  by content kind with machine-managed `/docs/ai/` writes excluded and
+  disclosed (a rollout must not machine-write its documentation
+  discipline up); SDD-skill rate from the new optional registry block
+  `sdd: { skills: [...] }` (absent block disables the metric with a
+  stated note — a public tool ships no default skill names; empty list
+  is a config error).
+
 ### Changed
 
 - Service sessions are excluded from practice metrics (ADR-0039): runs

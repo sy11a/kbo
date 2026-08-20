@@ -22,13 +22,21 @@ public sealed class KnowledgeRegistry
     /// </summary>
     public ConstitutionConfig? Constitution { get; }
 
+    /// <summary>
+    /// Optional SDD-panel wiring (ADR-0040): skill names counted as
+    /// spec/plan-writing practice. Null means the skill-rate metric is
+    /// unconfigured (stated on the dashboard, never silently omitted).
+    /// </summary>
+    public SddConfig? Sdd { get; }
+
     private KnowledgeRegistry(string machine, IReadOnlyList<KnowledgeSource> sources, Regex? taskPattern,
-        ConstitutionConfig? constitution)
+        ConstitutionConfig? constitution, SddConfig? sdd)
     {
         Machine = machine;
         Sources = sources;
         TaskPattern = taskPattern;
         Constitution = constitution;
+        Sdd = sdd;
     }
 
     public string? Resolve(string path)
@@ -160,13 +168,38 @@ public sealed class KnowledgeRegistry
         Regex? taskPattern = CompileTaskPattern(
             string.IsNullOrWhiteSpace(taskPatternOverride) ? document?.TaskPattern : taskPatternOverride, errors);
         ConstitutionConfig? constitution = ParseConstitution(document?.Constitution, errors);
+        SddConfig? sdd = ParseSdd(document?.Sdd, errors);
 
         if (errors.Count > 0)
         {
             throw new RegistryFormatException("invalid registry: " + string.Join("; ", errors));
         }
 
-        return new KnowledgeRegistry(document!.Machine!, sources, taskPattern, constitution);
+        return new KnowledgeRegistry(document!.Machine!, sources, taskPattern, constitution, sdd);
+    }
+
+    private static SddConfig? ParseSdd(SddEntry? entry, List<string> errors)
+    {
+        if (entry is null)
+        {
+            return null;
+        }
+        List<string> skills = new();
+        foreach (string skill in entry.Skills ?? new List<string>())
+        {
+            if (string.IsNullOrWhiteSpace(skill))
+            {
+                errors.Add("sdd: skills entries must be non-empty skill names");
+                continue;
+            }
+            skills.Add(skill.Trim());
+        }
+        if (skills.Count == 0)
+        {
+            errors.Add("sdd: 'skills' is missing or empty — remove the block or list at least one skill name");
+            return null;
+        }
+        return new SddConfig(skills);
     }
 
     private static ConstitutionConfig? ParseConstitution(ConstitutionEntry? entry, List<string> errors)
@@ -287,7 +320,13 @@ public sealed class KnowledgeRegistry
         public string? Machine { get; set; }
         public string? TaskPattern { get; set; }
         public ConstitutionEntry? Constitution { get; set; }
+        public SddEntry? Sdd { get; set; }
         public List<SourceEntry>? Sources { get; set; }
+    }
+
+    private sealed class SddEntry
+    {
+        public List<string>? Skills { get; set; }
     }
 
     private sealed class ConstitutionEntry

@@ -30,6 +30,13 @@ public class DashboardRendererTests
                 new FleetRepoTile("/home/u/Repository/RepoB", "14", "red"),
             ], 1),
             ServiceSessions: new ServiceSessionsSummary(7, "service-fleet"),
+            SddPanel: new SddPanelGold(
+                [new SddOrderingRow("2026-W33", "/home/u/Repository/RepoA", 4, 2, 0.5)],
+                new SddOrderingSummary(4, 2, 0.5),
+                [new SddWritesRow("knowledge", 18), new SddWritesRow("code", 240)],
+                MachineManagedWrites: 12,
+                SkillRate: [new SddSkillRateRow("/home/u/Repository/RepoA", 6, 3, 0.5)],
+                SkillConfigured: true),
             ReadsByLayerDaily: [new ReadsByLayerRow("2026-08-10", "global", 12)],
             FailedSearchDaily: [new FailedSearchRow("2026-08-10", 4, 1, 0.25)],
             KbTouchDaily: [new KbTouchRow("2026-08-10", 8, 3, 0.375)],
@@ -97,6 +104,8 @@ public class DashboardRendererTests
             ConstitutionFleet: new ConstitutionFleetGold(15,
                 [new FleetRepoTile("/r/<script>alert(8)</script>", "14", "red")], 1),
             ServiceSessions: new ServiceSessionsSummary(0, ""),
+            SddPanel: new SddPanelGold(
+                [], new SddOrderingSummary(0, 0, 0), [], 0, [], SkillConfigured: false),
             ReadsByLayerDaily: [],
             FailedSearchDaily: [],
             KbTouchDaily: [],
@@ -164,6 +173,35 @@ public class DashboardRendererTests
         Assert.Contains("Служебные сессии: 7", html);
         Assert.Contains("service-fleet", html);
         Assert.Contains("ADR-0039", html);
+    }
+
+    [Fact]
+    public void Render_SddPanel_ShowsOrderingWritesAndSkillRate()
+    {
+        string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Contains("SDD practice — spec before code", html);
+        Assert.Contains("2026-W33", html);
+        Assert.Contains("/home/u/Repository/RepoA", html);
+        Assert.Contains("50%", html);
+        // machine-managed disclosure (no-silent-caps)
+        Assert.Contains("12", html);
+        Assert.Contains("ADR-0040", html);
+    }
+
+    [Fact]
+    public void Render_SddPanel_UnconfiguredSkillRate_StatesTheAbsence()
+    {
+        string html = DashboardRenderer.Render(
+            Gold() with
+            {
+                SddPanel = new SddPanelGold(
+                    [], new SddOrderingSummary(0, 0, 0), [], 0, [], SkillConfigured: false),
+            },
+            DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Contains("SDD practice — spec before code", html);
+        Assert.Contains("sdd: { skills:", html);
     }
 
     [Fact]

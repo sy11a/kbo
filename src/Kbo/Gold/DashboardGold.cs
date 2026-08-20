@@ -37,6 +37,26 @@ public sealed record WriteReadRow(string Path, long LaterReads);
 
 public sealed record WriteReadSummary(long Written, long Reused, double LoopRate);
 
+public sealed record SddOrderingRow(string Week, string Repo, long CodeSessions, long SpecFirstSessions, double Rate);
+
+public sealed record SddOrderingSummary(long CodeSessions, long SpecFirstSessions, double Rate);
+
+public sealed record SddWritesRow(string Kind, long Writes);
+
+public sealed record SddSkillRateRow(string Repo, long Sessions, long SddSessions, double Rate);
+
+/// <summary>SDD-practice panel (ADR-0040): spec-before-code ordering,
+/// writes by content kind (machine-managed excluded and disclosed —
+/// no-silent-caps), SDD-skill rate (empty + <paramref name="SkillConfigured"/>
+/// false when the registry has no sdd block).</summary>
+public sealed record SddPanelGold(
+    IReadOnlyList<SddOrderingRow> Ordering,
+    SddOrderingSummary OrderingSummary,
+    IReadOnlyList<SddWritesRow> WritesByKind,
+    long MachineManagedWrites,
+    IReadOnlyList<SddSkillRateRow> SkillRate,
+    bool SkillConfigured);
+
 /// <summary>One metric's this-week vs last-week values. Format is "percent" or "count".</summary>
 public sealed record MetricDelta(string Label, double Current, double Previous, string Format, bool HigherIsBetter);
 
@@ -62,6 +82,7 @@ public sealed record DashboardGold(
     IReadOnlyList<LastSeenTile> LastSeen,
     ConstitutionFleetGold? ConstitutionFleet,
     ServiceSessionsSummary ServiceSessions,
+    SddPanelGold SddPanel,
     IReadOnlyList<ReadsByLayerRow> ReadsByLayerDaily,
     IReadOnlyList<FailedSearchRow> FailedSearchDaily,
     IReadOnlyList<KbTouchRow> KbTouchDaily,

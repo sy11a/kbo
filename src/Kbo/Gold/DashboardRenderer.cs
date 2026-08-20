@@ -113,6 +113,7 @@ public static class DashboardRenderer
 
         AppendConstitutionFleet(html, gold.ConstitutionFleet);
         AppendServiceSessions(html, gold.ServiceSessions);
+        AppendSddPanel(html, gold.SddPanel);
         AppendWeekOverWeek(html, gold.WeekOverWeek);
         AppendSessionsByRepo(html, gold.SessionsByRepo);
         AppendRecentSessions(html, gold.RecentSessions);
@@ -198,6 +199,70 @@ public static class DashboardRenderer
         }
         AppendDescription(html, FormattableString.Invariant(
             $"Служебные сессии: {service.Sessions} за последние {DashboardComputer.ThemeWindowDays} дней ({service.Agents}) исключены из практико-метрик ниже (ADR-0039). Dead-man, last-seen и таблицы сессий видят их как обычно."));
+    }
+
+    private static void AppendSddPanel(StringBuilder html, SddPanelGold panel)
+    {
+        html.AppendLine("<h2>SDD practice — spec before code</h2>");
+        AppendDescription(html, FormattableString.Invariant(
+            $"Замер SDD-практики за {DashboardComputer.ThemeWindowDays} дней (ADR-0040). «Спек прежде кода»: доля сессий, где работа с спеками/планами (docs/superpowers/, docs/cases/) началась строго раньше первой правки кода — среди сессий, вообще правивших код, по репозиториям × неделям. Флот: {panel.OrderingSummary.SpecFirstSessions} из {panel.OrderingSummary.CodeSessions} ({RatePercent(panel.OrderingSummary.Rate)})."));
+        if (panel.Ordering.Count > 0)
+        {
+            html.AppendLine("""<table class="repos"><thead><tr><th>week</th><th>repository</th><th>code sessions</th><th>spec-first</th><th>rate</th></tr></thead><tbody>""");
+            foreach (SddOrderingRow row in panel.Ordering)
+            {
+                html.AppendLine(CultureInfo.InvariantCulture,
+                    $"<tr><td>{Html(row.Week)}</td><td class=\"path\">{Html(row.Repo)}</td><td>{row.CodeSessions}</td><td>{row.SpecFirstSessions}</td><td>{RatePercent(row.Rate)}</td></tr>");
+            }
+            html.AppendLine("</tbody></table>");
+        }
+        else
+        {
+            AppendDescription(html, "Ни одной сессии с правками кода за окно — упорядочение не определено.");
+        }
+
+        AppendDescription(html, FormattableString.Invariant(
+            $"Баланс записей по типам содержимого (ADR-0040): knowledge — рукописные доки, code — исходники, config/other — прочее. Машинные записи (docs/ai/ — копии конституции, сгенерированный baseline) исключены и посчитаны отдельно: {panel.MachineManagedWrites} — это не документационная дисциплина."));
+        if (panel.WritesByKind.Count > 0)
+        {
+            html.AppendLine("""<table class="repos"><thead><tr><th>kind</th><th>writes</th></tr></thead><tbody>""");
+            foreach (SddWritesRow row in panel.WritesByKind)
+            {
+                html.AppendLine(CultureInfo.InvariantCulture,
+                    $"<tr><td>{Html(row.Kind)}</td><td>{row.Writes}</td></tr>");
+            }
+            html.AppendLine("</tbody></table>");
+        }
+        else
+        {
+            AppendDescription(html, "За окно не было записей (knowledge.written) в практических сессиях.");
+        }
+
+        if (!panel.SkillConfigured)
+        {
+            AppendDescription(html, "Доля SDD-скиллов не настроена: добавьте блок sdd: { skills: [...] } в реестр (ADR-0040) — публичный инструмент не знает чужих имён навыков.");
+            return;
+        }
+        AppendDescription(html, "Доля сессий, вызвавших хотя бы один SDD-скилл из настроенного набора (реестр, блок sdd) — по репозиториям.");
+        if (panel.SkillRate.Count > 0)
+        {
+            html.AppendLine("""<table class="repos"><thead><tr><th>repository</th><th>sessions</th><th>with SDD skill</th><th>rate</th></tr></thead><tbody>""");
+            foreach (SddSkillRateRow row in panel.SkillRate)
+            {
+                html.AppendLine(CultureInfo.InvariantCulture,
+                    $"<tr><td class=\"path\">{Html(row.Repo)}</td><td>{row.Sessions}</td><td>{row.SddSessions}</td><td>{RatePercent(row.Rate)}</td></tr>");
+            }
+            html.AppendLine("</tbody></table>");
+        }
+        else
+        {
+            AppendDescription(html, "За окно не было сессий.");
+        }
+    }
+
+    private static string RatePercent(double rate)
+    {
+        return FormattableString.Invariant($"{rate * 100:F0}%");
     }
 
     private static string Html(string value)

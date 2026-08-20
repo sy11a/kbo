@@ -1,9 +1,9 @@
 ---
 type: Component
 title: Dashboard — health panel + Vega-Lite charts (the see surface)
-description: kbo report renders a static HTML dashboard from gold — dead-man health tiles (cadence-aware thresholds), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, and a reads-by-theme breakdown with a never-read list.
-tags: [component, dashboard, health, vega-lite, gold]
-timestamp: 2026-08-16T00:00:00Z
+description: kbo report renders a static HTML dashboard from gold — dead-man health tiles (cadence-aware thresholds), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, a reads-by-theme breakdown with a never-read list, and the SDD practice panel (spec-before-code, writes balance, SDD-skill rate).
+tags: [component, dashboard, health, vega-lite, gold, sdd]
+timestamp: 2026-08-20T00:00:00Z
 status: implemented
 ---
 
@@ -25,6 +25,7 @@ The *see* surface (Q7): trends and health tiles; never worklists (the report own
 - **Most-reused knowledge notes** (ADR-0026): notes (`.md` only) ranked by distinct-session reach over the 60-day window, plus the single-use ratio — the load-bearing core vs the single-use tail, the ritual's keep/promote/prune signal.
 - **Reads by content type** ranked breakdown (ADR-0025): registered reads split into knowledge (`.md`…), code, config, other over the 60-day window — shows what fraction of "knowledge reads" are actual notes vs source code swept in by whole-repo registration. Other read-metrics still count all registered reads; this makes the composition legible.
 - **Top skills used** and **Top zero-hit searches** ranked lists (top `TopListCap` = 15 over the 60-day window): which skills (`skill.invoked`) agents leaned on, and which search queries most often found nothing — the day-page detail (skill names, query text) surfaced on the dashboard.
+- **SDD practice panel** (ADR-0040): the before/after instrument for the legislator's SDD law (edition v17). Three metrics over the 60-day window, practice sessions only: (1) **spec-before-code ordering** — share of code-writing sessions whose earliest spec activity (`/docs/superpowers/` or `/docs/cases/` subjects, read or write) strictly precedes their first code write (`ContentKind` code), per repo × ISO week + fleet summary; (2) **writes by content kind** — the docs-vs-code balance of `knowledge.written`, with machine-managed writes (`/docs/ai/` — constitution copies, the future generated baseline) excluded **and disclosed as a count** (no-silent-caps: machine writes are not documentation discipline); (3) **SDD-skill rate** — share of sessions invoking ≥1 skill from the registry's optional `sdd: { skills: [...] }` block; no block → the other two metrics render and the skill table states "not configured" (ADR-0031 pattern — a public tool ships no default skill names).
 
 ## Charts (v2 set, spec-fixed)
 
