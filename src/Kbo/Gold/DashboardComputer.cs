@@ -36,6 +36,7 @@ public static class DashboardComputer
             LastSeen(connection, now),
             constitutionFleet,
             ServiceSessions(connection, now),
+            SddPanel(connection, registry, now),
             ReadsByLayer(connection, registry),
             FailedSearches(connection),
             KbTouch(connection, touchedSessions),
@@ -116,9 +117,175 @@ public static class DashboardComputer
         };
     }
 
-    private static (List<WriteReadRow> Top, WriteReadSummary Summary) WriteReadLoop(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
+    /// <summary>
+    /// SDD-practice panel (ADR-0040). Spec activity = subjects under the
+    /// fleet spec homes (/docs/superpowers/, /docs/cases/); code write =
+    /// knowledge.written with ContentKind code; writes under /docs/ai/
+    /// are machine-managed and never count as documentation discipline.
+    /// Practice sessions only (practice_events, ADR-0039).
+    /// </summary>
+    private static SddPanelGold SddPanel(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
     {
         DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
+
+        // Session → repo (sessions view; '(unknown)' when absent —
+        // SessionsByRepo precedent).
+        Dictionary<string, string> repoBySession = new();
+        foreach (object?[] row in Query(connection, """
+            SELECT session, coalesce(repo, '(unknown)') AS repo
+            FROM sessions
+            WHERE session IS NOT NULL
+            GROUP BY session, repo
+            """))
+        {
+            repoBySession[(string)row[0]!] = (string)row[1]!;
+        }
+
+        // Ordering: per session, earliest spec activity vs first code write.
+        Dictionary<string, DateTime> firstSpec = new();
+        foreach (object?[] row in Query(connection, """
+            SELECT session, min(time) AS first_spec
+            FROM practice_events
+            WHERE session IS NOT NULL AND subject IS NOT NULL
+              AND type IN ('knowledge.read', 'knowledge.written')
+              AND (contains(subject, '/docs/superpowers/') OR contains(subject, '/docs/cases/'))
+              AND time >= $cutoff
+            GROUP BY session
+            """, ("cutoff", cutoff)))
+        {
+            firstSpec[(string)row[0]!] = (DateTime)row[1]!;
+        }
+
+        Dictionary<string, DateTime> firstCodeWrite = new();
+        long machineManagedWrites = 0;
+        Dictionary<string, long> writesByKind = new();
+        foreach (object?[] row in Query(connection, """
+            SELECT session, subject, time
+            FROM practice_events
+            WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $cutoff
+            """, ("cutoff", cutoff)))
+        {
+            string subject = (string)row[1]!;
+            if (subject.Contains("/docs/ai/", StringComparison.Ordinal))
+            {
+                machineManagedWrites++;
+                continue;
+            }
+            string kind = ContentKind.Of(subject);
+            writesByKind[kind] = writesByKind.GetValueOrDefault(kind) + 1;
+            if (kind != ContentKind.Code)
+            {
+                continue;
+            }
+            string session = (string)row[0]!;
+            DateTime time = (DateTime)row[2]!;
+            if (!firstCodeWrite.TryGetValue(session, out DateTime existing) || time < existing)
+            {
+                firstCodeWrite[session] = time;
+            }
+        }
+
+        // Ordering rows per repo × ISO week of the first code write.
+        Dictionary<(string Week, string Repo), long[]> ordering = new();
+        long codeSessions = 0;
+        long specFirst = 0;
+        foreach (KeyValuePair<string, DateTime> entry in firstCodeWrite)
+        {
+            codeSessions++;
+            bool isSpecFirst = firstSpec.TryGetValue(entry.Key, out DateTime spec) && spec < entry.Value;
+            if (isSpecFirst)
+            {
+                specFirst++;
+            }
+            DateTime firstWrite = entry.Value;
+            int weekYear = IsoWeekYear(firstWrite);
+            int week = System.Globalization.ISOWeek.GetWeekOfYear(firstWrite);
+            string key = FormattableString.Invariant($"{weekYear:D4}-W{week:D2}");
+            string repo = repoBySession.GetValueOrDefault(entry.Key, "(unknown)");
+            long[] slot = ordering.TryGetValue((key, repo), out long[]? existing)
+                ? existing : ordering[(key, repo)] = new long[2];
+            slot[0]++;
+            if (isSpecFirst)
+            {
+                slot[1]++;
+            }
+        }
+
+        List<SddOrderingRow> orderingRows = ordering
+            .OrderByDescending(entry => entry.Key.Week, StringComparer.Ordinal)
+            .ThenBy(entry => entry.Key.Repo, StringComparer.Ordinal)
+            .Take(RepoListCap)
+            .Select(entry => new SddOrderingRow(
+                entry.Key.Week, entry.Key.Repo, entry.Value[0], entry.Value[1],
+                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))
+            .ToList();
+        SddOrderingSummary orderingSummary = new(
+            codeSessions, specFirst, codeSessions == 0 ? 0 : (double)specFirst / codeSessions);
+
+        List<SddWritesRow> writesRows = writesByKind
+            .OrderByDescending(entry => entry.Value)
+            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+            .Select(entry => new SddWritesRow(entry.Key, entry.Value))
+            .ToList();
+
+        // Skill rate: configured skill names only (ADR-0031 pattern);
+        // an unconfigured block is stated, never silently omitted.
+        List<SddSkillRateRow> skillRows = new();
+        bool skillConfigured = registry.Sdd is not null;
+        if (registry.Sdd is not null)
+        {
+            HashSet<string> skills = new(registry.Sdd.Skills, StringComparer.Ordinal);
+            Dictionary<string, long> sessionsTotal = new();
+            Dictionary<string, long> sessionsWithSddSkill = new();
+            foreach (object?[] row in Query(connection, """
+                SELECT session, json_extract_string(data, '$.skill') AS skill
+                FROM practice_events
+                WHERE type = 'skill.invoked' AND session IS NOT NULL
+                  AND skill IS NOT NULL AND time >= $cutoff
+                """, ("cutoff", cutoff)))
+            {
+                string session = (string)row[0]!;
+                sessionsTotal.TryAdd(session, 0);
+                if (skills.Contains((string)row[1]!))
+                {
+                    sessionsWithSddSkill.TryAdd(session, 0);
+                }
+            }
+            foreach (object?[] row in Query(connection, """
+                SELECT DISTINCT session FROM practice_events
+                WHERE session IS NOT NULL AND time >= $cutoff
+                """, ("cutoff", cutoff)))
+            {
+                sessionsTotal.TryAdd((string)row[0]!, 0);
+            }
+
+            Dictionary<string, long[]> byRepo = new();
+            foreach (string session in sessionsTotal.Keys)
+            {
+                string repo = repoBySession.GetValueOrDefault(session, "(unknown)");
+                long[] slot = byRepo.TryGetValue(repo, out long[]? existing)
+                    ? existing : byRepo[repo] = new long[2];
+                slot[0]++;
+                if (sessionsWithSddSkill.ContainsKey(session))
+                {
+                    slot[1]++;
+                }
+            }
+            skillRows = byRepo
+                .OrderByDescending(entry => entry.Value[0])
+                .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+                .Take(RepoListCap)
+                .Select(entry => new SddSkillRateRow(
+                    entry.Key, entry.Value[0], entry.Value[1],
+                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))
+                .ToList();
+        }
+
+        return new SddPanelGold(orderingRows, orderingSummary, writesRows, machineManagedWrites, skillRows, skillConfigured);
+    }
+
+    private static (List<WriteReadRow> Top, WriteReadSummary Summary) WriteReadLoop(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
+    {        DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
 
         Dictionary<string, DateTime> firstWrite = new();
         foreach (object?[] row in Query(connection, """
@@ -575,6 +742,14 @@ public static class DashboardComputer
             return (long)bigInteger;
         }
         return Convert.ToInt64(value, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>The ISO week-year: the year of the week's Thursday — a
+    /// Dec 29 can already belong to next year's W01.</summary>
+    private static int IsoWeekYear(DateTime date)
+    {
+        int daysFromMonday = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(3 - daysFromMonday).Year;
     }
 
     private static DateTimeOffset AsUtc(object? value)

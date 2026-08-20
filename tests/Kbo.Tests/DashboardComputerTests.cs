@@ -493,4 +493,117 @@ public class DashboardComputerTests : IDisposable
         Assert.Equal(150, row.InputTokens);
         Assert.Equal(7000, row.CacheReadTokens);
     }
+
+    [Fact]
+    public void SddPanel_Ordering_ClassifiesSpecFirstSessions()
+    {
+        DashboardGold gold = Compute(
+            // s-spec-first: spec read 09:00 → code write 10:00 → spec-first
+            Session("01F000000000000000000000A0", "s-spec-first", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000A1", "knowledge.read", "2026-08-10T09:00:00Z", kbroot: "vault",
+                session: "s-spec-first", subject: "/home/u/RepoA/docs/superpowers/specs/x-design.md"),
+            Event("01F000000000000000000000A2", "knowledge.written", "2026-08-10T10:00:00Z", kbroot: "vault",
+                session: "s-spec-first", subject: "/home/u/RepoA/src/Program.cs"),
+            // s-code-first: code write 09:00 → spec read 10:00 → not spec-first
+            Session("01F000000000000000000000A3", "s-code-first", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000A4", "knowledge.written", "2026-08-10T09:00:00Z", kbroot: "vault",
+                session: "s-code-first", subject: "/home/u/RepoA/src/Program.cs"),
+            Event("01F000000000000000000000A5", "knowledge.read", "2026-08-10T10:00:00Z", kbroot: "vault",
+                session: "s-code-first", subject: "/home/u/RepoA/docs/superpowers/plans/x.md"),
+            // s-code-only: code writes, never a spec → denominator only
+            Session("01F000000000000000000000A6", "s-code-only", "2026-08-11T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000A7", "knowledge.written", "2026-08-11T09:00:00Z", kbroot: "vault",
+                session: "s-code-only", subject: "/home/u/RepoA/src/Other.cs"),
+            // s-spec-only: spec activity, no code write → outside the denominator
+            Session("01F000000000000000000000A8", "s-spec-only", "2026-08-11T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000A9", "knowledge.read", "2026-08-11T09:00:00Z", kbroot: "vault",
+                session: "s-spec-only", subject: "/home/u/RepoA/docs/superpowers/specs/y.md"));
+
+        SddOrderingSummary summary = gold.SddPanel.OrderingSummary;
+        Assert.Equal(3, summary.CodeSessions);
+        Assert.Equal(1, summary.SpecFirstSessions);
+        Assert.Equal(1.0 / 3, summary.Rate, precision: 3);
+
+        SddOrderingRow week = Assert.Single(gold.SddPanel.Ordering);
+        Assert.Equal("2026-W33", week.Week); // Aug 10–11, 2026 → ISO week 33
+        Assert.Equal("/home/u/RepoA", week.Repo);
+        Assert.Equal(3, week.CodeSessions);
+        Assert.Equal(1, week.SpecFirstSessions);
+    }
+
+    [Fact]
+    public void SddPanel_WritesByKind_ExcludesMachineManagedAndDisclosesThem()
+    {
+        DashboardGold gold = Compute(
+            Session("01F000000000000000000000B0", "s-1", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000B1", "knowledge.written", "2026-08-10T09:00:00Z", kbroot: "vault",
+                session: "s-1", subject: "/home/u/RepoA/docs/superpowers/specs/x.md"),
+            Event("01F000000000000000000000B2", "knowledge.written", "2026-08-10T09:05:00Z", kbroot: "vault",
+                session: "s-1", subject: "/home/u/RepoA/src/Program.cs"),
+            Event("01F000000000000000000000B3", "knowledge.written", "2026-08-10T09:10:00Z", kbroot: "vault",
+                session: "s-1", subject: "/home/u/RepoA/appsettings.json"),
+            // machine-managed: constitution copy — excluded from kinds, disclosed
+            Event("01F000000000000000000000B4", "knowledge.written", "2026-08-10T09:15:00Z", kbroot: "vault",
+                session: "s-1", subject: "/home/u/RepoA/docs/ai/rules/core/okf.md"),
+            // codebase-map.md is knowledge-kind but under docs/ai → still machine-managed
+            Event("01F000000000000000000000B5", "knowledge.written", "2026-08-10T09:20:00Z", kbroot: "vault",
+                session: "s-1", subject: "/home/u/RepoA/docs/ai/baseline.md"));
+
+        Assert.Equal(2, gold.SddPanel.MachineManagedWrites);
+        Dictionary<string, long> kinds = gold.SddPanel.WritesByKind.ToDictionary(row => row.Kind, row => row.Writes);
+        Assert.Equal(1, kinds["knowledge"]);
+        Assert.Equal(1, kinds["code"]);
+        Assert.Equal(1, kinds["config"]);
+        Assert.False(kinds.ContainsKey("other"));
+    }
+
+    [Fact]
+    public void SddPanel_SkillRate_UsesConfiguredSkillsPerRepo()
+    {
+        KnowledgeRegistry sddRegistry = KnowledgeRegistry.Parse($"""
+            machine: test-machine
+            sdd:
+              skills:
+                - legislator
+                - superpowers:brainstorm
+            sources:
+              - id: vault
+                layer: global
+                root: {Path.Combine(workspace, "Knowledge")}
+            """);
+        string eventsRepo = Path.Combine(workspace, "kb-events-sdd");
+        JsonObject[] events =
+        {
+            Session("01F000000000000000000000C0", "s-a", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000C1", "skill.invoked", "2026-08-10T09:00:00Z",
+                session: "s-a", data: new JsonObject { ["skill"] = "legislator" }),
+            Session("01F000000000000000000000C2", "s-b", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
+            Event("01F000000000000000000000C3", "skill.invoked", "2026-08-10T09:00:00Z",
+                session: "s-b", data: new JsonObject { ["skill"] = "dotnet-refactoring" }),
+            Session("01F000000000000000000000C4", "s-c", "2026-08-10T08:00:00Z", "/home/u/RepoB"),
+            // s-c invokes no skills at all — still a session in the denominator
+        };
+        new BronzeStore(eventsRepo).Append(events);
+        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        DashboardGold gold = DashboardComputer.Compute(silverPath, sddRegistry, new FixedTimeProvider(Now));
+
+        Assert.True(gold.SddPanel.SkillConfigured);
+        SddSkillRateRow repoA = gold.SddPanel.SkillRate.Single(row => row.Repo == "/home/u/RepoA");
+        Assert.Equal(2, repoA.Sessions);
+        Assert.Equal(1, repoA.SddSessions);
+        Assert.Equal(0.5, repoA.Rate, precision: 3);
+        SddSkillRateRow repoB = gold.SddPanel.SkillRate.Single(row => row.Repo == "/home/u/RepoB");
+        Assert.Equal(1, repoB.Sessions);
+        Assert.Equal(0, repoB.SddSessions);
+    }
+
+    [Fact]
+    public void SddPanel_SkillRate_UnconfiguredIsFlaggedNotSilent()
+    {
+        DashboardGold gold = Compute(
+            Session("01F000000000000000000000D0", "s-a", "2026-08-10T08:00:00Z", "/home/u/RepoA"));
+
+        Assert.False(gold.SddPanel.SkillConfigured);
+        Assert.Empty(gold.SddPanel.SkillRate);
+    }
 }
