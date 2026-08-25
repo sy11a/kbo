@@ -1,8 +1,9 @@
 {
-  "legislatorVersion": 16,
-  "profiles": ["dotnet"],
+  "legislatorVersion": 20,
+  "stacks": ["dotnet"],
   "keep": [],
   "ownedFiles": [
+    "docs/ai/engine.py",
     "docs/ai/rules/core/adr.md",
     "docs/ai/rules/core/artifact-lifecycle.md",
     "docs/ai/rules/core/changelog.md",
@@ -11,6 +12,7 @@
     "docs/ai/rules/core/okf.md",
     "docs/ai/rules/core/pair-development.md",
     "docs/ai/rules/core/project-rules.md",
+    "docs/ai/rules/core/sdd.md",
     "docs/ai/rules/core/skills.md",
     "docs/ai/rules/core/verification.md",
     "docs/ai/rules/stacks/dotnet/architecture.md",

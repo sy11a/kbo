@@ -22,6 +22,48 @@ See this project's `docs/okf/index.md` for the category-to-file mapping table sp
 - **During refactoring** — if you rename a class, move a file, or change a method signature, update the OKF doc that references it
 - **On every task completion** — run the checklist above before committing
 
+### Link hardness — what each document is bonded to
+
+Hand-maintained truth rots; the parts of this repo that cannot rot are the
+parts a machine writes or checks. The bundle is three classes, and a
+document's class decides what can be checked about it:
+
+- **anchored** — `index.md`, `codebase-map.md`, and every concept document.
+  Hand-written, and every path or symbol it backticks resolves in this
+  repository. A broken anchor is a document describing code that is gone.
+- **human** — `glossary.md` and `log.md`. Anchoring does not apply: a glossary
+  defines terms and a log records what was true at the time, so naming
+  something since removed is correct there, not stale.
+- **generated** — written by a machine from a source it mirrors, never
+  hand-edited, regenerated on demand. Declared here; this bundle has no
+  generated member yet.
+
+**What counts as an anchor (closed).** A backticked token in an anchored
+document that carries no space, none of `<`, `>`, `*`, `?`, and does not start
+with `~` or `/`. It is a **path-anchor** when it contains `/` and its first
+segment is a top-level directory of this repository — it resolves when that
+path exists (a trailing `.Member()` is stripped first). It is a
+**symbol-anchor** when it is PascalCase of at least four characters,
+optionally dotted (`Type.Member`) — it resolves when its leading segment
+occurs literally under this repository's source roots (every non-hidden
+top-level directory except `docs/`, `bin/`, `obj/`, `node_modules/`,
+`dist/`). Everything else a document backticks — commands, field names,
+lowercase identifiers, templates — is not an anchor. A symbol-anchor asks
+whether the identifier still exists, not whether its declaration kept its
+shape, and a dotted anchor asks only about the type it names — the member
+half is prose.
+
+- **`python3 docs/ai/engine.py anchors` is the executing arm of this rule** —
+  it writes nothing and reports every anchor that no longer resolves.
+  `core/verification.md` carries the rung that requires it before "done".
+- **`python3 docs/ai/engine.py okf-debt`** names anchored documents whose
+  sources moved on without them: an anchored source file with a commit more
+  than 30 days newer than the document's own newest commit. A path-anchor
+  naming a directory is not a source for this purpose — a directory's history
+  is the union of everything beneath it and can never say whether one document
+  went stale. Repair is an ordinary OKF update by the document's owner —
+  never an automatic rewrite.
+
 ## OKF is non-negotiable
 
 - **Always update the relevant `docs/okf/` document** — before writing code, during implementation, and on completion. No exceptions.
