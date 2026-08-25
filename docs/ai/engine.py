@@ -9,7 +9,10 @@ Jobs (both read-only — this engine writes nothing):
   okf-debt   anchored documents whose sources moved on without them
 
 Usage: python3 docs/ai/engine.py <job>
-Exit:  0 clean, 1 findings printed to stdout, 2 usage error.
+Exit:  0 clean, 1 findings printed to stdout, 2 usage error,
+       3 the engine itself failed — stdout is NOT a verdict. A caller that
+       reads stdout lines only would take a crash for a clean check, so the
+       failure has to reach the exit code.
 
 The law this executes is `docs/ai/rules/core/okf.md` (link hardness and the
 closed anchor definition); the rung that requires it is
@@ -28,7 +31,10 @@ ROOT = Path(__file__).resolve().parents[2]
 OKF = ROOT / "docs" / "okf"
 
 HUMAN_CLASS = {"glossary.md", "log.md"}   # core/okf.md's human class
-IGNORED_DIRS = {"docs", "bin", "obj", "node_modules", "dist"}
+BUILD_DIRS = {"bin", "obj", "node_modules", "dist"}   # excluded at ANY depth
+# Top-level directories that are not source roots: build output, plus docs
+# itself (the knowledge layer must not resolve its own anchors).
+IGNORED_DIRS = BUILD_DIRS | {"docs"}
 SOURCE_EXTS = (".cs", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs",
                ".java", ".kt", ".rb", ".php", ".sql", ".html", ".css")
 DEBT_DAYS = 30            # the threshold core/okf.md declares; this mirrors it
@@ -49,10 +55,37 @@ def source_roots() -> list[Path]:
                   and p.name not in IGNORED_DIRS)
 
 
+STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.M)
+
+
+def front_matter(text: str) -> str:
+    """The YAML front-matter block, or "" when the document has none."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return ""
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "\n".join(lines[1:i])
+    return ""
+
+
+def is_removed(doc: Path) -> bool:
+    """core/okf.md: a document flipped to `status: removed` leaves the
+    anchored class. The checklist tells the owner to keep such a document and
+    mark it; anchoring it would make obedience to the checklist wedge every
+    later task through the verification rung, which is repo-global."""
+    try:
+        m = STATUS.search(front_matter(doc.read_text(errors="ignore")))
+    except OSError:
+        return False
+    return bool(m) and m.group(1).strip().strip('"\'') == "removed"
+
+
 def anchored_docs() -> list[Path]:
     if not OKF.is_dir():
         return []
-    return sorted(p for p in OKF.rglob("*.md") if p.name not in HUMAN_CLASS)
+    return sorted(p for p in OKF.rglob("*.md")
+                  if p.name not in HUMAN_CLASS and not is_removed(p))
 
 
 def scannable_lines(text: str):
@@ -107,7 +140,14 @@ def resolve_symbols(symbols: set[str]) -> set[str]:
                 return found
             if not p.is_file():
                 continue
-            if any(part.startswith(".") for part in p.relative_to(ROOT).parts):
+            parts = p.relative_to(ROOT).parts
+            if any(part.startswith(".") for part in parts):
+                continue
+            # Build output at ANY depth, not just top level: a stale
+            # src/App/obj/Debug/App.dll still carrying a deleted symbol would
+            # otherwise resolve it, and the check would silently miss the rot
+            # it exists to find — differently on a CI clone and a dev clone.
+            if any(part in BUILD_DIRS for part in parts):
                 continue
             try:
                 if p.stat().st_size > MAX_BYTES:
@@ -202,7 +242,13 @@ def main(argv: list[str]) -> int:
         print(f"usage: python3 {Path(__file__).name} "
               f"{{{'|'.join(sorted(JOBS))}}}", file=sys.stderr)
         return 2
-    findings = JOBS[argv[1]]()
+    try:
+        findings = JOBS[argv[1]]()
+    except Exception as exc:                       # noqa: BLE001 — deliberate
+        # Never let a crash reach a caller as an empty stdout: audit checks 15
+        # and 17 read stdout lines, so silence would read as "no findings".
+        print(f"engine failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 3
     for f in findings:
         print(f)
     return 1 if findings else 0
