@@ -33,7 +33,12 @@ document's class decides what can be checked about it:
   repository. A broken anchor is a document describing code that is gone.
 - **human** — `glossary.md` and `log.md`. Anchoring does not apply: a glossary
   defines terms and a log records what was true at the time, so naming
-  something since removed is correct there, not stale.
+  something since removed is correct there, not stale. A document whose front
+  matter carries `status: removed` joins them for the same reason: the
+  checklist above tells you to keep it and mark it, so the code it names is
+  *meant* to be gone. Anchoring it would make obeying the checklist block
+  every later task in the repository, since the rung in `verification.md` is
+  repo-global and restructure routes such findings to the team by design.
 - **generated** — written by a machine from a source it mirrors, never
   hand-edited, regenerated on demand. Declared here; this bundle has no
   generated member yet.
