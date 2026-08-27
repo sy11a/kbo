@@ -1,5 +1,5 @@
 {
-  "legislatorVersion": 22,
+  "legislatorVersion": 23,
   "stacks": ["dotnet"],
   "keep": [],
   "ownedFiles": [
