@@ -8,38 +8,38 @@ Tasks pending implementation. **Rule: update the relevant `docs/okf/` document f
 
 Rule: every section must feed a mirror tile or system trust. Session grill first (questions below).
 
-**Cut from RENDER (8):** Week over week (дублирует тренды зеркала; вычисление ОСТАВИТЬ —
-им питается SearchTile) · Reads-over-time by layer · Reads by content type · Reads by theme
-chart (запрос оставить — из него UnusedThemes) · Top skills · Sessions by repo ·
-Constitution fleet (сводка остаётся строкой report'а + gold json) · Service sessions.
+**Cut from RENDER (8):** Week over week (duplicates the mirror's trends; KEEP the computation —
+SearchTile feeds on it) · Reads-over-time by layer · Reads by content type · Reads by theme
+chart (keep the query — UnusedThemes comes from it) · Top skills · Sessions by repo ·
+Constitution fleet (the summary stays as a report line + gold json) · Service sessions.
 
-**Cut from COMPUTER + DashboardGold + tests (мёртвые вычисления, конституция «поле
-существует только если требует вопрос»):** ReadsByLayer · ReadsByContentType · TopSkills ·
+**Cut from COMPUTER + DashboardGold + tests (dead computations, constitution "a field exists
+only if a question requires it"):** ReadsByLayer · ReadsByContentType · TopSkills ·
 SessionsByRepo · ServiceSessions.
 
-**Keep & reorder to mirror-tile order:** Practice mirror → Dead-man (компактно) →
-Last seen в <details> свёрнуто → SDD panel → Reuse + Unused themes → Write→read loop →
+**Keep & reorder to mirror-tile order:** Practice mirror → Dead-man (compact) →
+Last seen collapsed into <details> → SDD panel → Reuse + Unused themes → Write→read loop →
 Failed-search chart + Top zero-hit → Tokens-trend → Recent sessions.
 
-**Grill перед правкой:** (1) пороги amber-плиток против 2 недель данных — пересобрать
-диапазоны? (2) WeekOverWeek-секция — вернуть чьим-то drill-down или мертва навсегда?
-(3) Dead-man — плитки-грид или одна строка-стрип? (4) gold json: продолжаем считать
-вырезанные серии для ad-hoc или режем по конституции? (5) Report-строка: добавить туда
-вырезанное (fleet уже есть)?
+**Grill before editing:** (1) amber-tile thresholds against 2 weeks of data — rebuild the
+ranges? (2) WeekOverWeek section — reinstate as someone's drill-down, or dead forever?
+(3) Dead-man — tile grid or a single strip line? (4) gold json: keep computing the cut
+series for ad-hoc, or cut them per the constitution? (5) Report line: add the cut content
+there (fleet is already there)?
 
-## ADR-0042 — practice-first dashboard + место kbo в каноне
+## ADR-0042 — practice-first dashboard + kbo's place in the canon
 
-Канон: **legislator пишет законы · kbl ведёт фонд знаний · kbo ревизует практику.**
-kbo = измерительный прибор: (a) зеркало шести вопросов, (b) dead-man системы (джобы +
-канарейка), (c) владелец реестра источников — kbl регистрируется в нём как source, читает
-silver/gold строго read-only. kbo никогда не хранит знание и не пишет законы; измерительная
-поверхность одна (у kbl дашборда нет — его проекции в Obsidian).
+Canon: **the legislator writes laws · kbl keeps the knowledge fund · kbo audits practice.**
+kbo is a measuring instrument: (a) the mirror of six questions, (b) the system dead-man
+(jobs + canary), (c) owner of the source registry — kbl registers in it as a source and
+reads silver/gold strictly read-only. kbo never stores knowledge and never writes laws;
+there is one measurement surface (kbl has no dashboard — its projections live in Obsidian).
 
-**Grill:** (1) точная формулировка владения реестром; (2) fleet-панель — только строка
-report'а или отдать legislator-репо свою сводку? (3) включить ли канарейку в ADR как
-часть dead-man-обязанности kbo?
+**Grill:** (1) the exact wording of registry ownership; (2) fleet panel — just a report
+line, or give the legislator repo its own summary? (3) include the canary in the ADR as
+part of kbo's dead-man duty?
 
-+ одна строка-ссылка на ADR-0042 в kbl/docs/okf/architecture.md (та же сессия).
++ one link line to ADR-0042 in kbl/docs/okf/architecture.md (same session).
 
 ## kbl contract (BL-001 in kbl) — kbo-side obligations
 
