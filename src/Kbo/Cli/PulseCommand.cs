@@ -66,6 +66,7 @@ public static class PulseCommand
             new CommandJob("rebuild", JobCadence.Daily,
                 (jobOutput, jobError) => RebuildCommand.Run(
                     Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)),
+            new IngestGraphMetricsJob(registry, eventsRepo, TimeProvider.System, Random.Shared),
             new ArchiveJob(
                 archiveRoot,
                 new[] { ClaudeCodeRetention.Manifest(homeDirectory), OpencodeRetention.Manifest(homeDirectory) },

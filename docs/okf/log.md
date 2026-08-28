@@ -8,6 +8,10 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-28 — Metrics-artifact ingest ships (BL-037)
+
+The pull leg of the kbl contract went live: `registry.md` and `pulse.md` gained the optional `metricsArtifact` source pointer (absolute path, forbidden on glob roots) and the daily `ingest-graph-metrics` job (envelope built by kbo, dedup by date+source at ingress, absent artifact = quiet skip, present-but-invalid = loud all-or-nothing failure). Glossary row `metrics artifact` added. Why: kbl's kb-graph first emit (Wave 0) is unblocked only after this consumer rides a kbo release — kbl ADR-0006 invariant 3.
+
 ## 2026-08-28 — `graph.metrics/1` joins the schema registry (BL-036)
 
 [schema-registry.md](schema-registry.md): new event type `graph.metrics/1` — the

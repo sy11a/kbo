@@ -152,6 +152,20 @@ public sealed class KnowledgeRegistry
                 continue;
             }
 
+            if (entry.MetricsArtifact is not null)
+            {
+                if (!Path.IsPathRooted(entry.MetricsArtifact))
+                {
+                    errors.Add($"source '{entry.Id}': metricsArtifact '{entry.MetricsArtifact}' is not an absolute path");
+                    continue;
+                }
+                if (normalizedRoot.Contains('*'))
+                {
+                    errors.Add($"source '{entry.Id}': metricsArtifact is not allowed on a glob root");
+                    continue;
+                }
+            }
+
             if (normalizedRoot.Contains('*'))
             {
                 string? globError = ExpandGlob(entry.Id, layer, normalizedRoot,
@@ -162,7 +176,11 @@ public sealed class KnowledgeRegistry
                 }
                 continue;
             }
-            sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot) { ExcludePaths = excludePaths });
+            sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot)
+            {
+                ExcludePaths = excludePaths,
+                MetricsArtifact = entry.MetricsArtifact,
+            });
         }
 
         Regex? taskPattern = CompileTaskPattern(
@@ -341,6 +359,7 @@ public sealed class KnowledgeRegistry
         public string? Id { get; set; }
         public string? Layer { get; set; }
         public string? Root { get; set; }
+        public string? MetricsArtifact { get; set; }
         public List<string>? Exclude { get; set; }
         public List<string>? ExcludePaths { get; set; }
     }

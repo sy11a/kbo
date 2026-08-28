@@ -1,9 +1,9 @@
 ---
 type: Component
 title: Pulse — job registry, scheduler registration, self-observation
-description: kbo pulse runs the registered jobs (harvest, rebuild, archive, vault-git, bronze-git, backup every pulse; report and audit weekly), emits job.* events into bronze, and kbo init registers the single systemd user timer.
+description: kbo pulse runs the registered jobs (harvest, ingest-graph-metrics, rebuild, archive, vault-git, bronze-git, backup every pulse; report and audit weekly), emits job.* events into bronze, and kbo init registers the single systemd user timer.
 tags: [component, pulse, jobs, scheduler, self-observation]
-timestamp: 2026-08-16T00:00:00Z
+timestamp: 2026-08-28T00:00:00Z
 status: implemented
 ---
 
@@ -17,6 +17,7 @@ One OS-scheduler entry → `kbo pulse` → every registered job; every job run e
 |---|---|---|
 | harvest | daily | `kbo harvest claude-code` in-process |
 | harvest-opencode | daily | `kbo harvest opencode` in-process (since 2.3) |
+| ingest-graph-metrics | daily | pulls each `metricsArtifact` export into bronze as `graph.metrics/1` events — envelope built by kbo, dedup by date+source, absent artifact = quiet skip (BL-037, kbl ADR-0006) |
 | rebuild | daily | `kbo rebuild` in-process (after harvest — silver sees fresh events) |
 | archive | daily | transcript archive per adapter retention manifests (zstd, idempotent, same layout as Phase 0 `kb-archive`) |
 | vault-git | daily | vault under local git, auto-commit (`kbo auto-commit <ts>`), before backup so snapshots capture the commit (ADR-0013) |

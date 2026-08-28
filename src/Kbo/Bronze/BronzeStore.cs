@@ -152,6 +152,32 @@ public sealed class BronzeStore
         return lastCompleted;
     }
 
+    /// <summary>
+    /// Dedup keys ("date|source") of every graph.metrics event already in
+    /// bronze — the idempotency fence the ingest job checks before appending
+    /// (kbl ADR-0006 invariant 4: one bronze line per snapshot, ever).
+    /// </summary>
+    public IReadOnlySet<string> GraphMetricsKeys()
+    {
+        HashSet<string> keys = new();
+        foreach (JsonObject envelopeEvent in ReadEvents())
+        {
+            if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.GraphMetrics)
+            {
+                continue;
+            }
+
+            JsonNode? data = envelopeEvent[EnvelopeFields.Data];
+            if ((string?)data?[EventDataFields.Date] is string date
+                && (string?)data?[EventDataFields.Source] is string source)
+            {
+                keys.Add(date + "|" + source);
+            }
+        }
+
+        return keys;
+    }
+
     // Every bronze scan is this loop: enumerate month files, parse each line,
     // skip lines that aren't a JSON object — a crashed writer can leave a
     // truncated tail line, and one bad line must not poison a whole scan.

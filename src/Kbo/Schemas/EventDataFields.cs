@@ -22,7 +22,10 @@ public static class EventDataFields
     public const string Job = "job";
     public const string DurationMs = "duration_ms";
     public const string Error = "error";
+    public const string Date = "date";
+    public const string Source = "source";
 
     public const string OriginHook = "hook";
     public const string OriginHarvest = "harvest";
+    public const string OriginJob = "job";
 }

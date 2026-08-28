@@ -1,9 +1,9 @@
 ---
 type: Component
 title: Registry (Corpus) — the typed map of knowledge on a machine
-description: Per-machine YAML registry of knowledge sources (id/layer/root), kbroot path resolution, and the `kbo registry` CLI.
+description: Per-machine YAML registry of knowledge sources (id/layer/root, optional metricsArtifact pointer), kbroot path resolution, and the `kbo registry` CLI.
 tags: [component, registry, corpus, kbroot]
-timestamp: 2026-08-16T00:00:00Z
+timestamp: 2026-08-28T00:00:00Z
 status: implemented
 ---
 
@@ -24,6 +24,9 @@ sources:
   - id: knowledge
     layer: global      # global | framework | local | skills
     root: /home/admin/Knowledge
+    # optional — sibling-repo corpus-aggregate export artifact (BL-037,
+    # kbl ADR-0006 touchpoint 4); read daily by the ingest-graph-metrics job
+    metricsArtifact: /home/admin/Repository/kbl/_generated/graph-metrics.ndjson
   - id: repo
     layer: local
     root: /home/admin/Repository/*/docs   # glob root (ADR-0019)
@@ -38,6 +41,7 @@ sources:
 - **Glob roots (ADR-0019)**: a root may contain `*` as a whole path segment (`/home/u/Repository/*/docs`); it expands at load time to one concrete source per matching directory, id `<entry-id>-<matched-dir>` (e.g. `repo-kb-observability`). Future directories are picked up automatically on the next load; zero matches is valid, partial-segment stars (`Repo*`) are rejected.
 - **Glob excludes (ADR-0034)**: a glob source may carry `exclude: [dirname, ...]`; a candidate whose `*`-matched directory name is listed is skipped during expansion (e.g. an archived repo that must not enter the inventory). `exclude` on a non-glob source is a validation error.
 - **Inventory excludePaths (ADR-0036)**: any source may carry `excludePaths: [subdir, ...]` — relative, glob-free subtrees under the root that the note inventory skips (tool fixtures, benchmark data). Glob sources propagate the list to every expanded source. Inventory-only: `Resolve`/kbroot tagging are unaffected.
+- **Metrics-artifact pointer (BL-037, kbl ADR-0006 touchpoint 4)**: a non-glob source may carry `metricsArtifact: <absolute file path>` — the sibling repo's corpus-aggregate export artifact (NDJSON of `graph.metrics/1` data payloads) that the daily `ingest-graph-metrics` pulse job pulls into bronze. Relative values and glob-root rows are validation errors. Ingest-pointer only: `Resolve`/kbroot tagging and the note inventory are unaffected. Absent file is the steady state until the sibling's first emit — the job skips quietly.
 - **Constitution fleet (ADR-0038)**: optional top-level `constitution:` block — `versionFile` (absolute path to the legislator `skill/VERSION`) and `scanRoots` (absolute dirs whose **direct children** are candidate legislated repos, detected by `docs/ai/manifest.json`). Optional `exclude: [dirname, ...]` — plain directory basenames the scan skips (e.g. an archived repo that keeps its manifest but is never upgraded). Powers the dashboard "Constitution fleet" panel; no block → no panel. A configured-but-missing `versionFile` fails the report loudly.
 - **Task pattern (ADR-0031)**: optional top-level `taskPattern` — a .NET regex whose first match in a git branch name becomes the event's `task`; `KBO_TASK_PATTERN` env var overrides it. Unset means no task extraction: `task` is always `null`. No default pattern ships — a ticket convention is org-specific configuration, not tool behavior.
 - **Strict validation**: unknown layer, duplicate id (including glob-expanded ids), relative root, missing fields, or an invalid `taskPattern` regex throw `RegistryFormatException` naming every problem — the registry is load-bearing; it must fail loudly, not rot silently.
@@ -49,7 +53,6 @@ sources:
 - `src/Kbo/Cli/RegistryCommand.cs` — `kbo registry show`, `kbo registry resolve <path>`
 - `src/Kbo/Gold/ConstitutionFleet.cs` — the fleet scan the `constitution:` block powers
 - Tests: `RegistryParseTests`, `RegistryResolveTests`, `RegistryValidationTests`, `RegistryLocationTests`, `RegistryCommandTests`, `ConstitutionConfigParseTests`, `ConstitutionFleetTests`
-
 ## Links
 
 - [Schema registry](schema-registry.md) — events carry the `kbroot` field this registry resolves
