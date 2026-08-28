@@ -2,7 +2,9 @@
 
 ## Status
 
-accepted (bounds the "no real-time" line of ADR-0003 rather than crossing it)
+accepted
+
+(bounds the "no real-time" line of ADR-0003 rather than crossing it)
 
 ## Context
 

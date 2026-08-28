@@ -1,6 +1,10 @@
 # 0037 — Cadence-aware dead-man thresholds
 
-Status: accepted · Date: 2026-08-16
+## Status
+
+accepted
+
+Date: 2026-08-16
 
 ## Context
 

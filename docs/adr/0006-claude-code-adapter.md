@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within the adapter contract of `03 - Architecture` and G2-1/G2-4/G2-5/G2-6; plan step 1.4; owner-confirmed items marked)
+accepted
+
+(executor decisions within the adapter contract of `03 - Architecture` and G2-1/G2-4/G2-5/G2-6; plan step 1.4; owner-confirmed items marked)
 
 ## Context
 

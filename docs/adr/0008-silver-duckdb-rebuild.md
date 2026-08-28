@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within `03 - Architecture` §Storage and G2-6; plan step 1.6; owner-confirmed items marked)
+accepted
+
+(executor decisions within `03 - Architecture` §Storage and G2-6; plan step 1.6; owner-confirmed items marked)
 
 ## Context
 

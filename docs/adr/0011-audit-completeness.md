@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within `07 - Feature Specs` §Completeness audit and §Registry; plan step 2.2)
+accepted
+
+(executor decisions within `07 - Feature Specs` §Completeness audit and §Registry; plan step 2.2)
 
 ## Context
 

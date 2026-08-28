@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within `03 - Architecture` §Scheduling, G2-12, P5; plan step 2.1; owner-confirmed items marked)
+accepted
+
+(executor decisions within `03 - Architecture` §Scheduling, G2-12, P5; plan step 2.1; owner-confirmed items marked)
 
 ## Context
 

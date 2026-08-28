@@ -2,7 +2,9 @@
 
 ## Status
 
-accepted (refines the `events_preferred` semantics of ADR-0008)
+accepted
+
+(refines the `events_preferred` semantics of ADR-0008)
 
 ## Context
 

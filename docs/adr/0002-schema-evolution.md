@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner decision, requirements `04 - Event Schema` / P4)
+accepted
+
+(owner decision, requirements `04 - Event Schema` / P4)
 
 ## Context
 

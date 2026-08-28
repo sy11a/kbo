@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner decision, requirements `05 - Principles`; referenced there as "ADR-0003 in the tooling repo")
+accepted
+
+(owner decision, requirements `05 - Principles`; referenced there as "ADR-0003 in the tooling repo")
 
 ## Context
 

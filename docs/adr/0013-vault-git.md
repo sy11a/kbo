@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within `07 - Feature Specs` §Vault git and G2-12; plan step 2.6, owner-approved in the plan)
+accepted
+
+(executor decisions within `07 - Feature Specs` §Vault git and G2-12; plan step 2.6, owner-approved in the plan)
 
 ## Context
 

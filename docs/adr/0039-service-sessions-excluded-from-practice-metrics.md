@@ -1,6 +1,10 @@
 # 0039 — Service sessions are marked and excluded from practice metrics
 
-Status: accepted · Date: 2026-08-17
+## Status
+
+accepted
+
+Date: 2026-08-17
 
 ## Context
 

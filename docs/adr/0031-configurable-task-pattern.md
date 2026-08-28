@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner decision 2026-08-14, fresh-eye review backlog)
+accepted
+
+(owner decision 2026-08-14, fresh-eye review backlog)
 
 ## Context
 
