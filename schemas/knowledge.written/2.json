@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/knowledge.written/2",
+  "title": "knowledge.written v2 — a file-tool write into a knowledge source",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "knowledge.written" },
+    "schemaref": { "const": "knowledge.written/2" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "contenthash": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+          ],
+          "description": "SHA-256 of the on-disk file after the write, truncated to 16 hex chars; only when kbroot != null and file <= 5 MB, null on harvest-mined writes (G2-5, ADR-0030)"
+        },
+        "size": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "File size in bytes, recorded when the file exceeds the 5 MB hash cap (ADR-0030)"
+        },
+        "linkcount": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Distinct normalized wikilink targets in the written note's body after the write (alias 'target|alias' and anchor 'target#anchor' stripped, duplicates deduped, embeds '![[x]]' counted); computed by the live hooks only, when kbroot != null and content kind is knowledge and file <= 5 MB — null on harvest-mined writes and outside that gating (BL-038)"
+        },
+        "raw": {
+          "type": "object",
+          "description": "Agent-native payload minus written content: tool_input's content/old_string/new_string/new_source are stripped and replaced by <field>_size byte counts (ADR-0030)"
+        }
+      },
+      "required": ["path", "raw"]
+    }
+  }
+}

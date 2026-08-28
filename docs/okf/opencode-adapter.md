@@ -3,7 +3,7 @@ type: Component
 title: opencode adapter — live capture plugin + SQLite session-store miner
 description: TypeScript plugin on tool.execute.after → kbo capture opencode; harvest mines the opencode.db session store; audit covers sessions via a SQLite session source.
 tags: [component, adapter, capture, harvest, opencode]
-timestamp: 2026-08-12T00:00:00Z
+timestamp: 2026-08-29T00:00:00Z
 status: implemented
 ---
 
@@ -19,7 +19,7 @@ The second adapter (contract: `03 - Architecture` §Adapters). Session-store for
 |---|---|---|
 | `read` (`args.filePath`) | `knowledge.read` | contenthash per G2-5 |
 | `grep`/`glob` (`args.pattern`, `args.path`) | `knowledge.searched` | hits null live; harvest authoritative (G2-6) |
-| `write`/`edit` (`args.filePath`) | `knowledge.written` | |
+| `write`/`edit` (`args.filePath`) | `knowledge.written` (v2) | `linkcount` = distinct normalized wikilinks, same gating as the Claude Code adapter (BL-038); no `contenthash` on this path (observed asymmetry, unresolved) |
 | session start (`directory`) | `session.started` + `context.loaded` | implicit files: global + project `AGENTS.md`; branch from the directory's current `.git/HEAD` (live capture may read the present) |
 
 - **Every opencode event carries `data.transcript` = session id** (hook AND harvest): the session row is the "transcript file" unit, so audit/idempotency reuse the existing stamp machinery unchanged.

@@ -214,6 +214,10 @@ public class TranscriptMinerTests : IDisposable
         Assert.Equal(15, (int?)rawInput["content_size"]);
         Assert.True(written["data"]!.AsObject().ContainsKey("contenthash"));
         Assert.Null(written["data"]!["contenthash"]);
+        // per R-005 — harvest stamps v2 but never re-reads the subject:
+        // linkcount stays null even when the note lies on disk.
+        Assert.Equal("knowledge.written/2", (string?)written["schemaref"]);
+        Assert.Null(written["data"]!["linkcount"]);
     }
 
     [Fact]

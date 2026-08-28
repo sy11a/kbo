@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `knowledge.written/2` — the schema registry's first version bump
+  (additive, no upcaster): live capture (Claude Code + opencode) computes
+  `data.linkcount` = distinct normalized wikilink targets of the written
+  note (alias/anchor stripped, embeds counted) when the subject is a
+  knowledge file under a registered root within the 5 MB cap; harvest
+  writes stamp v2 with `linkcount` null (BL-038, kbl discipline metric).
 - `metricsArtifact` optional registry field (absolute path on a non-glob
   source) pointing at a sibling repo's corpus-aggregate export, and the
   daily `ingest-graph-metrics` pulse job that pulls it into bronze as

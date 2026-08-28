@@ -254,10 +254,11 @@ public static class TranscriptMiner
                 {
                     [EventDataFields.Path] = filePath,
                     [EventDataFields.ContentHash] = null,
+                    [EventDataFields.Linkcount] = null,
                     [EventDataFields.Raw] = raw,
                     [EventDataFields.Origin] = EventDataFields.OriginHarvest,
                 };
-                return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random);
+                return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random, EventTypes.KnowledgeWrittenV2);
             }
             default:
                 return null;
@@ -274,11 +275,12 @@ public static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random)
+        Random random,
+        string? schemaRef = null)
     {
         return EventEnvelope.Create(
             type, subject, kbroot, data, registry.Machine, ClaudeCodeAdapter.AgentName,
-            session, repo, task, toolUse.Model, toolUse.Time, random);
+            session, repo, task, toolUse.Model, toolUse.Time, random, schemaRef);
     }
 
     private static JsonObject? SumUsage(Dictionary<string, JsonObject> usageByRequest)

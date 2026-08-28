@@ -144,6 +144,29 @@ public class HarvestCommandTests : IDisposable
         insertPart.Parameters.AddWithValue("@t", baseMs + 60_000);
         insertPart.Parameters.AddWithValue("@data", skillPart.ToJsonString());
         insertPart.ExecuteNonQuery();
+
+        JsonObject writePart = new()
+        {
+            ["type"] = "tool",
+            ["tool"] = "write",
+            ["callID"] = "call-2",
+            ["state"] = new JsonObject
+            {
+                ["status"] = "completed",
+                ["input"] = new JsonObject
+                {
+                    ["filePath"] = Path.Combine(workspace, "Knowledge", "mined.md"),
+                    ["content"] = "[[Alpha]] body",
+                },
+                ["time"] = new JsonObject { ["start"] = baseMs + 90_000 },
+            },
+        };
+        using SqliteCommand insertWrite = connection.CreateCommand();
+        insertWrite.CommandText = "INSERT INTO part VALUES ('prt_2', 'msg_1', @session, @t, @t, @data)";
+        insertWrite.Parameters.AddWithValue("@session", sessionId);
+        insertWrite.Parameters.AddWithValue("@t", baseMs + 90_000);
+        insertWrite.Parameters.AddWithValue("@data", writePart.ToJsonString());
+        insertWrite.ExecuteNonQuery();
     }
 
     private int RunOpencode(string databasePath, params string[] extraArgs)
@@ -186,7 +209,12 @@ public class HarvestCommandTests : IDisposable
         Assert.All(lines, line => Assert.True(validator.Validate(line).IsValid));
         Assert.Equal(2, lines.Count(l => l.Contains("\"session.started\"")));
         Assert.Contains(lines, l => l.Contains("\"knowledge.read\"") && l.Contains("sess-a"));
-        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"") && l.Contains("sess-b"));
+        // per R-005 — the mined write rides v2 end-to-end into bronze with a
+        // null linkcount, and the validator accepts it there.
+        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"")
+            && l.Contains("\"knowledge.written/2\"")
+            && l.Contains("\"linkcount\":null")
+            && l.Contains("sess-b"));
         Assert.Contains("2 session", output.ToString());
     }
 
@@ -259,6 +287,24 @@ public class HarvestCommandTests : IDisposable
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         Assert.Contains(File.ReadAllLines(monthFile),
             l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"tdd\""));
+    }
+
+    [Fact]
+    public void Harvest_Opencode_MinedWriteRidesV2WithNullLinkcount()
+    {
+        string databasePath = Path.Combine(workspace, "opencode.db");
+        WriteOpencodeDatabase(databasePath, "ses_oc", "grilling");
+
+        Assert.Equal(0, RunOpencode(databasePath));
+
+        string monthFile = Directory.EnumerateFiles(
+            Path.Combine(eventsRepo, "bronze", "test-machine", "opencode")).Single();
+        // per R-005 — the opencode miner stamps v2 and never counts links,
+        // even though the transcript carries the written content.
+        Assert.Contains(File.ReadAllLines(monthFile),
+            l => l.Contains("\"knowledge.written\"")
+                && l.Contains("\"knowledge.written/2\"")
+                && l.Contains("\"linkcount\":null"));
     }
 
     [Fact]

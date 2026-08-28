@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Gold;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -95,12 +96,14 @@ public static class OpencodeAdapter
                 {
                     return null;
                 }
+                string? kbroot = registry.Resolve(filePath);
                 JsonObject data = new()
                 {
                     [EventDataFields.Path] = filePath,
                     [EventDataFields.Raw] = payload.DeepClone(),
                 };
-                return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, payload, registry, clock.GetUtcNow(), random);
+                AddLinkcount(data, filePath, kbroot);
+                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
             }
             default:
                 return null;
@@ -178,6 +181,23 @@ public static class OpencodeAdapter
         data[EventDataFields.ContentHash] = Convert.ToHexStringLower(hash)[..16];
     }
 
+    // Same gating and normalization as the Claude Code adapter (BL-038): a
+    // linkcount is only meaningful for knowledge files under a registered
+    // root, within the shared size cap.
+    private static void AddLinkcount(JsonObject data, string filePath, string? kbroot)
+    {
+        data[EventDataFields.Linkcount] = null;
+        if (kbroot is null || !File.Exists(filePath) || new FileInfo(filePath).Length > HashSizeCapBytes)
+        {
+            return;
+        }
+        if (ContentKind.Of(filePath) != ContentKind.Knowledge)
+        {
+            return;
+        }
+        data[EventDataFields.Linkcount] = Wikilinks.CountDistinct(File.ReadAllText(filePath));
+    }
+
     private static JsonObject Envelope(
         string type,
         string? subject,
@@ -186,7 +206,8 @@ public static class OpencodeAdapter
         JsonObject payload,
         KnowledgeRegistry registry,
         DateTimeOffset time,
-        Random random)
+        Random random,
+        string? schemaRef = null)
     {
         GitContext git = GitContext.Discover((string?)payload[Payload.Directory], registry.TaskPattern);
         string? session = (string?)payload[Payload.SessionId];
@@ -208,6 +229,7 @@ public static class OpencodeAdapter
             task: git.Task,
             model: null,
             time,
-            random);
+            random,
+            schemaRef);
     }
 }
