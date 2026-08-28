@@ -54,3 +54,5 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | corridor | p25–p75 of a mirror tile's own weekly-snapshot history — «my normal»; a value inside it is stable, outside-and-z>2 is acute (BL-033) |
 | trust tile | Mirror tile believed healthy unless it acute-breaks: no goal, no trend state, ⚠️ only (cache discipline, burner share — BL-033) |
 | acute break | The mirror's only amber (⚠️): live value breaking its norm at robust z > 2 (saturated series: >2pp absolute); chronic sickness is 🔴 without alarm styling (BL-033) |
+| graph.metrics | Corpus-aggregate event (job-origin, no raw) appended by the kbo ingest job from kbl's card-graph export artifact; dedup key `date`+`source`; field contract fixed by the Wave-0 spec in BL-036 (ADR-0042, kbl ADR-0006) |
+| corpus aggregate | Metrics snapshot over a registered card-graph source at a snapshot date — notes/orphans (islands), links/linkrot, in-degree histogram, new-links-per-week; idempotent under re-ingest |

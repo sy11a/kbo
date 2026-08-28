@@ -3,7 +3,7 @@ type: Component
 title: Schema registry — event envelope + v1 event types
 description: JSON Schema registry (`schemas/<type>/<version>.json`), the envelope contract, golden corpus, and the C# validator that enforces them.
 tags: [component, schemas, bronze, validation]
-timestamp: 2026-08-10T00:00:00Z
+timestamp: 2026-08-28T00:00:00Z
 status: implemented
 ---
 
@@ -23,6 +23,7 @@ The folder `schemas/` at the repo root IS the registry ([ADR-0002](../adr/0002-s
 | `session.started/1` | `data`: nullable `branch` (raw git branch — G2-4), nullable `usage` (incl. `cache_read` vs fresh input tokens), `raw` |
 | `job.completed/1` | `data`: `job`, `duration_ms` (self-emitted by `kbo` — no `raw`) |
 | `job.failed/1` | `data`: `job`, nullable `duration_ms`, `error` (no `raw`) |
+| `graph.metrics/1` | `data`: `origin` (const `job`), `date` (snapshot date — dedup key part 1), `source` (registry source id — dedup key part 2), `notes`/`orphans` (islands: zero in- AND out-links), `links`/`linkrot`, `indegree` histogram, `new_links_7d`, `contract_version` (no `raw` — appended by the kbo ingest job from kbl's export artifact; field contract = BL-036 Wave-0 spec) |
 
 `skill.invoked` and `web.searched/fetched` are reserved in v1 (see [taxonomy registry](../events.md)) — no schema files until they ship.
 

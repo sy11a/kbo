@@ -8,6 +8,19 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-28 — `graph.metrics/1` joins the schema registry (BL-036)
+
+[schema-registry.md](schema-registry.md): new event type `graph.metrics/1` — the
+corpus-aggregate snapshot kbl's kb-graph will feed through the pull contract. Why now:
+kbo's first Wave-0 obligation under the kbl contract — the schema, golden fixture, and
+validator embedding must ship in a kbo release **before** kb-graph's first emit, because
+capture silently drops unregistered schemarefs (kbl ADR-0006 invariant 3). Field contract
+fixed in the case's Wave-0 spec: dedup key `date`+`source` (idempotent re-ingest), orphan =
+island (zero in- AND out-links), in-degree histogram map, `contract_version` mirrored from
+the artifact into bronze. `docs/events.md` taxonomy row added; glossary gains
+`graph.metrics` + `corpus aggregate`. No C# change — embedding, validation, and golden
+coverage all ride existing wildcards and generic tests.
+
 ## 2026-08-28 — Dashboard decluttered to the mirror questions (BL-035)
 
 [dashboard.md](dashboard.md): sections now follow mirror-tile order (mirror → dead-man

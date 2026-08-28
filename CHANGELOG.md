@@ -26,6 +26,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `graph.metrics/1` corpus-aggregate event schema + golden fixture (BL-036,
+  first kbo-side obligation of the kbl pull contract — schema ships before
+  kb-graph's first emit): `data` carries `origin` `job`, dedup key
+  `date`+`source`, `notes`/`orphans` (islands), `links`/`linkrot`, an
+  in-degree histogram, `new_links_7d`, and `contract_version`.
+
 - ADR-0042: kbo's side of the canon — registry ownership is a tenant
   model (kbo owns format/validation/tooling, each repo its rows), kbo is
   the only writer of bronze (siblings publish artifacts, kbo ingests),
