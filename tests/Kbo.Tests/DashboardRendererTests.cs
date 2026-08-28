@@ -64,7 +64,13 @@ public class DashboardRendererTests
             [
                 new MetricDelta("KB-touch rate", 0.25, 0.15, "percent", true),
                 new MetricDelta("Knowledge reads", 120, 80, "count", true),
-            ]);
+            ],
+            Mirror: new PracticeMirrorGold(
+            [
+                new MirrorTile("Cache discipline · 7d", "93%", "↑ +1% к прошлой неделе",
+                    "контекст переиспользуется — норма", "ok"),
+                new MirrorTile("Write→read loop", "12%", "→ без изменений", "пиши короче, ссылочнее", "red"),
+            ]));
     }
 
     [Fact]
@@ -85,6 +91,20 @@ public class DashboardRendererTests
         Assert.Contains("\"cacheReadTokens\":900000", html);
         Assert.Contains("vegaEmbed(\"#reads-over-time\"", html);
         Assert.Contains("integrity=\"sha384-", html);
+
+        Assert.Contains("Practice mirror", html);
+        Assert.Contains("Cache discipline", html);
+        Assert.Contains("Write", html);
+        Assert.Contains("tile red", html);
+    }
+
+    [Fact]
+    public void Render_PracticeMirrorIsNull_SectionOmitted_NoCrash()
+    {
+        DashboardGold gold = Gold() with { Mirror = null };
+        string html = DashboardRenderer.Render(gold, DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.DoesNotContain("Practice mirror", html);
     }
 
     [Fact]

@@ -27,6 +27,8 @@ public static class DashboardComputer
         (List<ThemeReadsRow> themeReads, List<ThemeReadsRow> unusedThemes) = ReadsByTheme(connection, registry, now);
         (List<ReuseRow> topReused, ReuseSummary reuseSummary) = NoteReuse(connection, registry, now);
         (List<WriteReadRow> topWriteRead, WriteReadSummary writeReadSummary) = WriteReadLoop(connection, registry, now);
+        SddPanelGold sddPanel = SddPanel(connection, registry, now);
+        List<MetricDelta> weekOverWeek = WeekOverWeek(connection, registry, touchedSessions, now);
         return new DashboardGold(
             now,
             registry.Machine,
@@ -36,7 +38,7 @@ public static class DashboardComputer
             LastSeen(connection, now),
             constitutionFleet,
             ServiceSessions(connection, now),
-            SddPanel(connection, registry, now),
+            sddPanel,
             ReadsByLayer(connection, registry),
             FailedSearches(connection),
             KbTouch(connection, touchedSessions),
@@ -52,7 +54,137 @@ public static class DashboardComputer
             reuseSummary,
             topWriteRead,
             writeReadSummary,
-            WeekOverWeek(connection, registry, touchedSessions, now));
+            weekOverWeek,
+            PracticeMirror(connection, now, reuseSummary, writeReadSummary, sddPanel, weekOverWeek));
+    }
+
+    /// <summary>Practice mirror v0.1 (2026-08-27): six micro-decision tiles from existing
+    /// aggregates plus one fresh sessions query (cache discipline / burner share).</summary>
+    private static PracticeMirrorGold PracticeMirror(
+        DuckDBConnection connection,
+        DateTimeOffset now,
+        ReuseSummary reuse,
+        WriteReadSummary writeReadLoop,
+        SddPanelGold sdd,
+        IReadOnlyList<MetricDelta> weekOverWeek)
+    {
+        (double cacheThis, double cachePrev, double burnerThis) = TokenDiscipline(connection, now);
+
+        MirrorTile CacheTile() => new(
+            "Cache discipline · 7d",
+            Pct(cacheThis),
+            Trend(cacheThis, cachePrev),
+            cacheThis >= 0.85
+                ? "контекст переиспользуется — норма"
+                : cacheThis >= 0.70
+                    ? "присмотрись: часть прогрева уходит впустую"
+                    : "контекст перепрогревается — реже стартуй сессии заново",
+            cacheThis >= 0.85 ? "ok" : cacheThis >= 0.70 ? "amber" : "red");
+
+        MirrorTile BurnerTile() => new(
+            "Burner sessions · 7d",
+            Pct(burnerThis),
+            "доля сессий на свежем контексте",
+            burnerThis <= 0.15
+                ? "одноразовых задач мало — норма"
+                : burnerThis <= 0.30
+                    ? "часть задач жжёт свежий контекст"
+                    : "группируй одноразовые задачи или бери дешёвую модель",
+            burnerThis <= 0.15 ? "ok" : burnerThis <= 0.30 ? "amber" : "red");
+
+        double loop = writeReadLoop.Written == 0 ? 0 : (double)writeReadLoop.Reused / writeReadLoop.Written;
+        MirrorTile LoopTile() => new(
+            "Write→read loop",
+            Pct(loop),
+            $"{writeReadLoop.Reused}/{writeReadLoop.Written} записей прочитаны снова",
+            loop >= 0.30
+                ? "записи окупаются — норма"
+                : loop >= 0.15
+                    ? "часть записей в пустую"
+                    : "пиши короче, ссылочнее и в читаемый корень",
+            loop >= 0.30 ? "ok" : loop >= 0.15 ? "amber" : "red");
+
+        MirrorTile SingleUseTile() => new(
+            "Single-use notes",
+            Pct(reuse.SingleUseRate),
+            $"{reuse.SingleUse} из {reuse.Notes} читаны один раз",
+            reuse.SingleUseRate <= 0.55
+                ? "фонд здоров — норма"
+                : reuse.SingleUseRate <= 0.70
+                    ? "зреет хвост единично читанных"
+                    : "кандидаты на weeding — очередь предложений",
+            reuse.SingleUseRate <= 0.55 ? "ok" : reuse.SingleUseRate <= 0.70 ? "amber" : "red");
+
+        MetricDelta? failed = weekOverWeek.FirstOrDefault(m => m.Label == "Failed-search rate");
+        double failedRate = failed?.Current ?? 0;
+        MirrorTile SearchTile() => new(
+            "Failed-search rate · 7d",
+            Pct(failedRate),
+            failed is null ? "нет данных" : Trend(failedRate, failed.Previous),
+            failedRate <= 0.15
+                ? "знание находится — норма"
+                : failedRate <= 0.30
+                    ? "часть поиска мимо"
+                    : "линкуй заметки от слов, которыми ищешь",
+            failedRate <= 0.15 ? "ok" : failedRate <= 0.30 ? "amber" : "red");
+
+        double sddRate = sdd.OrderingSummary.CodeSessions == 0
+            ? 0
+            : (double)sdd.OrderingSummary.SpecFirstSessions / sdd.OrderingSummary.CodeSessions;
+        MirrorTile SddTile() => new(
+            "Spec-before-code",
+            sdd.OrderingSummary.CodeSessions == 0 ? "нет данных" : Pct(sddRate),
+            $"{sdd.OrderingSummary.SpecFirstSessions}/{sdd.OrderingSummary.CodeSessions} сессий",
+            sdd.OrderingSummary.CodeSessions == 0
+                ? "кодовых сессий в окне нет"
+                : sddRate >= 0.50
+                    ? "спека идёт перед кодом — норма"
+                    : sddRate >= 0.25
+                        ? "спека иногда после кода"
+                        : "сначала код — включи спека-скиллы в практику",
+            sdd.OrderingSummary.CodeSessions == 0 || sddRate >= 0.50 ? "ok" : sddRate >= 0.25 ? "amber" : "red");
+
+        return new PracticeMirrorGold([CacheTile(), BurnerTile(), LoopTile(), SingleUseTile(), SearchTile(), SddTile()]);
+
+        static string Pct(double v) => v.ToString("0%", CultureInfo.InvariantCulture);
+        static string Trend(double current, double previous) => Math.Abs(current - previous) < 0.005
+            ? "→ без изменений"
+            : (current > previous ? "↑ +" : "↓ −") +
+              Math.Abs(current - previous).ToString("0.#%", CultureInfo.InvariantCulture) + " к прошлой неделе";
+    }
+
+    /// <summary>Cache discipline (cache_read share) for the last 7d and previous 7d,
+    /// plus this-week burner share (sessions dominated by fresh input).</summary>
+    private static (double CacheThis, double CachePrev, double BurnerThis) TokenDiscipline(
+        DuckDBConnection connection, DateTimeOffset now)
+    {
+        (double cache, double burner, long sessions) Window(DateTimeOffset cutoff)
+        {
+            foreach (object?[] row in Query(connection, """
+                SELECT coalesce(sum(cache_read_tokens), 0),
+                       coalesce(sum(input_tokens), 0),
+                       count(*),
+                       count_if(input_tokens > cache_read_tokens AND input_tokens > 100000)
+                FROM sessions
+                WHERE started_at >= $cutoff
+                  AND session NOT IN (SELECT session FROM service_sessions)
+                """, ("cutoff", cutoff.UtcDateTime))
+            )
+            {
+                long cacheRead = AsLong(row[0]);
+                long freshInput = AsLong(row[1]);
+                long total = Math.Max(1, cacheRead + freshInput);
+                long burners = AsLong(row[3]);
+                long all = Math.Max(1, AsLong(row[2]));
+                return ((double)cacheRead / total, (double)burners / all, AsLong(row[2]));
+            }
+
+            return (0, 0, 0);
+        }
+
+        (double cacheThis, double burnerThis, _) = Window(now.AddDays(-7));
+        (double cachePrev, _, _) = Window(now.AddDays(-14));
+        return (cacheThis, cachePrev, burnerThis);
     }
 
     private static List<MetricDelta> WeekOverWeek(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> touchedSessions, DateTimeOffset now)

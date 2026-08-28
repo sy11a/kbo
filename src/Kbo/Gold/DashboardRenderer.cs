@@ -62,6 +62,8 @@ public static class DashboardRenderer
               .tile.ok .status { color: #008300; }
               .tile.red .status { color: #c22e2d; }
               .tile.red { border-color: #e34948; background: #fdf3f3; }
+              .tile.amber .status { color: #a06b00; }
+              .tile.amber { border-color: #d9a441; background: #fdf8ef; }
               .chart { margin: 2rem 0; }
               .chart h2 { font-size: 1.1rem; }
               figure { margin: 0; }
@@ -87,6 +89,8 @@ public static class DashboardRenderer
 
         html.AppendLine(CultureInfo.InvariantCulture,
             $"""<p class="generated-at">generated at <strong>{Timestamp(gold.GeneratedAt)}</strong> on <strong>{Html(gold.Machine)}</strong> — a stale dashboard must look stale</p>""");
+
+        AppendPracticeMirror(html, gold.Mirror);
 
         html.AppendLine(CultureInfo.InvariantCulture,
             $"<h2>Dead-man health — red past the job's cadence threshold (daily {gold.DeadManThresholdDays}d, weekly {gold.WeeklyDeadManThresholdDays}d)</h2>");
@@ -145,6 +149,37 @@ public static class DashboardRenderer
         html.AppendLine("</body>");
         html.AppendLine("</html>");
         return html.ToString();
+    }
+
+    private static void AppendPracticeMirror(StringBuilder html, PracticeMirrorGold? mirror)
+    {
+        if (mirror is null || mirror.Tiles.Count == 0)
+        {
+            return;
+        }
+
+        html.AppendLine("<h2>Practice mirror — six numbers, three micro-decisions</h2>");
+        AppendDescription(html,
+            "Первый экран. Каждая плитка питает одно микро-решение: «сегодня чищу это», «сегодня меняю режим» — или «ничего не делать, я в потоке». Зелёный = норма, янтарный = присмотрись, красный = действуй. Остальные секции ниже — детали по каждому числу.");
+        html.AppendLine("""<div class="tiles">""");
+        foreach (MirrorTile tile in mirror.Tiles)
+        {
+            string statusClass = tile.Status switch
+            {
+                "ok" => "ok",
+                "amber" => "amber",
+                _ => "red",
+            };
+            html.AppendLine(CultureInfo.InvariantCulture, $"""
+                <div class="tile {statusClass}">
+                  <div class="name">{Html(tile.Label)}</div>
+                  <div class="meta">{Html(tile.Value)} · {Html(tile.Trend)}</div>
+                  <div class="meta">{Html(tile.Hint)}</div>
+                </div>
+                """);
+        }
+
+        html.AppendLine("</div>");
     }
 
     private static void AppendTile(StringBuilder html, string status, string name, string scope, string lastLine, double daysSilent)
