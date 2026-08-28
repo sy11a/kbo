@@ -13,6 +13,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 
 | Term | Meaning in this codebase |
 |------|--------------------------|
+| canon | The three-repo division of labor: the legislator writes laws · kbl keeps the knowledge fund · kbo audits practice; kbo is a measuring instrument — mirror, dead-man, registry owner — and never stores knowledge or writes laws (ADR-0042) |
 | bronze | Append-only NDJSON event files (`bronze/<machine>/<agent>/<YYYY-MM>.ndjsonl`) in the private `kb-events` repo; immutable, raw agent payload preserved |
 | silver | DuckDB tables derived from bronze by `kbo rebuild` (`~/.local/share/kbo/silver.duckdb`); disposable by definition — if rebuild breaks, principle P3 is broken. Shape: `events` + `events_preferred`/`sessions` views (ADR-0008) |
 | gold | Report-ready facts computed exactly once per `kbo report` run; emitted as JSON + rendered views; renderers contain zero computation |

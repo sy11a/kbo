@@ -8,6 +8,30 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-28 — Dashboard decluttered to the mirror questions (BL-035)
+
+[dashboard.md](dashboard.md): sections now follow mirror-tile order (mirror → dead-man
+strip → last-seen details → SDD → reuse + never-read themes → loop → failed-search +
+zero-hit → tokens → recent sessions); dead-man collapsed to a single strip line when
+healthy (a red job restores its tile); last-seen moved into `<details>`; the ADR-0039
+service-sessions disclosure survives as one line. Cut from render AND gold (dead
+computations per the constitution): week-over-week, reads-by-layer, reads-by-content-type,
+theme-reads series, top-skills, sessions-by-repo, kb-touch chart, fleet panel (stdout
+summary + gold json stay). Three chart specs deleted. Why: ADR-0042's practice-first rule —
+every section must feed a mirror tile or system trust; ad-hoc analysis of cut series lives
+in silver.
+
+## 2026-08-28 — kbo's side of the canon fixed (ADR-0042)
+
+Added [ADR-0006's kbo counterpart](../adr/0042-kbo-canon-practice-first-dashboard.md): the canon
+line, registry ownership as a tenant model, bronze's single writer, the practice-first
+dashboard rule, and the canary as dead-man duty without crossing ADR-0003's NOT-list.
+[dashboard.md](dashboard.md) now states the practice-first rule in its intro;
+[registry.md](registry.md) states tenant-model ownership; the glossary gained a `canon` row.
+Why: kbl's Wave-0 work builds against these wordings — they had to be fixed before the
+registry entry and ingest job exist. Cross-repo: one link line added to kbl's
+`docs/okf/architecture.md`.
+
 ## 2026-08-28 — Practice mirror calibrated (BL-033)
 
 [dashboard.md](dashboard.md): added the practice-mirror section (it had shipped in code on

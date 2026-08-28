@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Kbo.Jobs;
 
 namespace Kbo.Gold;
 
@@ -77,11 +78,11 @@ public static class DashboardRenderer
               .repos td.path { font-family: ui-monospace, monospace; word-break: break-all; }
               .repos td.good { color: #008300; font-weight: 600; }
               .repos td.bad { color: #c22e2d; font-weight: 600; }
-              .wow { list-style: none; padding-left: 0; margin: 0.5rem 0 2rem; }
-              .wow li { margin: 5px 0; }
-              .wow .good { color: #008300; font-weight: 600; }
-              .wow .bad { color: #c22e2d; font-weight: 600; }
-              .wow .muted { color: #5f5e56; font-size: 0.9em; }
+              .healthline { font-weight: 600; margin: 0.5rem 0 1rem; }
+              .healthline.ok { color: #008300; }
+              .healthline.red { color: #c22e2d; }
+              details { margin: 1rem 0 2rem; }
+              details summary { cursor: pointer; font-weight: 600; color: #1a1a19; }
             </style>
             </head>
             <body>
@@ -91,54 +92,18 @@ public static class DashboardRenderer
         html.AppendLine(CultureInfo.InvariantCulture,
             $"""<p class="generated-at">generated at <strong>{Timestamp(gold.GeneratedAt)}</strong> on <strong>{Html(gold.Machine)}</strong> — a stale dashboard must look stale</p>""");
 
+        AppendServiceDisclosure(html, gold.ServiceSessions);
+
         AppendPracticeMirror(html, gold.Mirror);
 
-        html.AppendLine(CultureInfo.InvariantCulture,
-            $"<h2>Dead-man health — red past the job's cadence threshold (daily {gold.DeadManThresholdDays}d, weekly {gold.WeeklyDeadManThresholdDays}d)</h2>");
-        AppendDescription(html, FormattableString.Invariant(
-            $"Здоровье фоновых задач: плитка становится красной, если задача молчит дольше порога своей каденции — {gold.DeadManThresholdDays} дн. для ежедневных, {gold.WeeklyDeadManThresholdDays} дн. для еженедельных (report, audit). Если плитка красная — смотрите журнал: journalctl --user -u kbo-pulse.service."));
-        html.AppendLine("""<div class="tiles">""");
-        foreach (JobHealthTile tile in gold.JobHealth)
-        {
-            AppendTile(html, tile.Status, tile.Job, $"{tile.Machine} · {tile.Agent}",
-                $"last completed {Timestamp(tile.LastCompleted)}", tile.DaysSilent);
-        }
-        html.AppendLine("</div>");
+        AppendDeadMan(html, gold);
 
-        html.AppendLine("<h2>Last seen in bronze — per machine × agent</h2>");
-        AppendDescription(html,
-            "Когда каждый агент последний раз записывал события. Если задачи выше зелёные, а агент давно молчит — сломан захват событий (хук или плагин этого агента).");
-        html.AppendLine("""<div class="tiles">""");
-        foreach (LastSeenTile tile in gold.LastSeen)
-        {
-            AppendTile(html, tile.Status, tile.Agent, tile.Machine,
-                $"last event {Timestamp(tile.LastEvent)}", tile.DaysSilent);
-        }
-        html.AppendLine("</div>");
+        AppendLastSeen(html, gold.LastSeen);
 
-        AppendConstitutionFleet(html, gold.ConstitutionFleet);
-        AppendServiceSessions(html, gold.ServiceSessions);
         AppendSddPanel(html, gold.SddPanel);
-        AppendWeekOverWeek(html, gold.WeekOverWeek);
-        AppendSessionsByRepo(html, gold.SessionsByRepo);
-        AppendRecentSessions(html, gold.RecentSessions);
-        AppendRankedList(html, FormattableString.Invariant($"Top skills used — last {DashboardComputer.ThemeWindowDays} days"),
-            "Какие навыки (skills) агенты вызывали чаще всего за окно — из событий skill.invoked, добытых из транскриптов.",
-            gold.TopSkills, "За окно не зафиксировано ни одного вызова навыка.", monospace: false);
-
-        AppendChart(html, "reads-over-time", "Knowledge reads per day, by layer",
-            chartSpecs["reads-over-time.vl.json"], gold.ReadsByLayerDaily);
-        AppendRankedList(html, FormattableString.Invariant($"Reads by content type — last {DashboardComputer.ThemeWindowDays} days"),
-            "Из чего состоят «чтения знаний»: knowledge — настоящие заметки (.md и т.п.), code/config — исходники и конфиги, попавшие под регистрацию целых репозиториев. Важно: остальные метрики (KB-touch, повторное использование, темы) считают ВСЕ зарегистрированные чтения, включая код — эта разбивка показывает, какая доля из них действительно про знания.",
-            gold.ReadsByContentType, "За окно не было зарегистрированных чтений.", monospace: false);
-        AppendChart(html, "reads-by-theme",
-            FormattableString.Invariant($"Most-read knowledge themes — last {DashboardComputer.ThemeWindowDays} days"),
-            chartSpecs["reads-by-theme.vl.json"], gold.ThemeReads);
-        AppendUnusedThemes(html, gold.UnusedThemes);
         AppendReuse(html, gold.TopReusedNotes, gold.Reuse);
+        AppendUnusedThemes(html, gold.UnusedThemes);
         AppendWriteReadLoop(html, gold.TopWriteReadNotes, gold.WriteReadLoop);
-        AppendChart(html, "kb-touch-rate", "Share of sessions touching registered knowledge",
-            chartSpecs["kb-touch-rate.vl.json"], gold.KbTouchDaily);
         AppendChart(html, "failed-search-rate", "Zero-hit share of knowledge searches",
             chartSpecs["failed-search-rate.vl.json"], gold.FailedSearchDaily);
         AppendRankedList(html, FormattableString.Invariant($"Top zero-hit searches — last {DashboardComputer.ThemeWindowDays} days"),
@@ -146,10 +111,90 @@ public static class DashboardRenderer
             gold.TopFailedSearches, "За окно не было поисков без результата. ✓", monospace: true);
         AppendChart(html, "tokens-trend", "Cache-read vs fresh input tokens per day",
             chartSpecs["tokens-trend.vl.json"], gold.TokensDaily);
+        AppendRecentSessions(html, gold.RecentSessions);
 
         html.AppendLine("</body>");
         html.AppendLine("</html>");
         return html.ToString();
+    }
+
+    /// <summary>Dead-man (ADR-0042 §5, ADR-0037): one strip line when every job
+    /// is inside its cadence; a red job restores its full tile — silence is the
+    /// signal, green tiles are wallpaper (BL-035 Q3).</summary>
+    private static void AppendDeadMan(StringBuilder html, DashboardGold gold)
+    {
+        html.AppendLine(CultureInfo.InvariantCulture,
+            $"<h2>Dead-man health — red past the job's cadence threshold (daily {gold.DeadManThresholdDays}d, weekly {gold.WeeklyDeadManThresholdDays}d)</h2>");
+        AppendDescription(html, FormattableString.Invariant(
+            $"Здоровье фоновых задач: работа становится красной, если молчит дольше порога своей каденции — {gold.DeadManThresholdDays} дн. для ежедневных, {gold.WeeklyDeadManThresholdDays} дн. для еженедельных (report, audit). Если работа красная — смотрите журнал: journalctl --user -u kbo-pulse.service."));
+        if (gold.JobHealth.Count == 0)
+        {
+            AppendDescription(html, "Ни одной завершённой работы (job.completed) в бронзе пока нет.");
+            return;
+        }
+        int okCount = gold.JobHealth.Count(tile => tile.Status == "ok");
+        string tone = okCount == gold.JobHealth.Count ? "ok" : "red";
+        JobHealthTile oldest = OldestJob(gold.JobHealth);
+        html.AppendLine(CultureInfo.InvariantCulture,
+            $"""<p class="healthline {tone}">Dead-man: {okCount}/{gold.JobHealth.Count} ok · oldest {Html(oldest.Job)} {oldest.DaysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d / limit {JobDeadMan.ThresholdDays(oldest.Job).ToString("0.#", CultureInfo.InvariantCulture)}d</p>""");
+        List<JobHealthTile> red = gold.JobHealth.Where(tile => tile.Status != "ok").ToList();
+        if (red.Count > 0)
+        {
+            html.AppendLine("""<div class="tiles">""");
+            foreach (JobHealthTile tile in red)
+            {
+                AppendTile(html, tile.Status, tile.Job, $"{tile.Machine} · {tile.Agent}",
+                    $"last completed {Timestamp(tile.LastCompleted)}", tile.DaysSilent);
+            }
+            html.AppendLine("</div>");
+        }
+    }
+
+    private static JobHealthTile OldestJob(IReadOnlyList<JobHealthTile> tiles)
+    {
+        JobHealthTile oldest = tiles[0];
+        foreach (JobHealthTile tile in tiles)
+        {
+            if (tile.DaysSilent > oldest.DaysSilent)
+            {
+                oldest = tile;
+            }
+        }
+        return oldest;
+    }
+
+    /// <summary>Last-seen tiles collapsed into a details element (BL-035):
+    /// provenance detail, not a mirror question — one summary line when closed.</summary>
+    private static void AppendLastSeen(StringBuilder html, IReadOnlyList<LastSeenTile> lastSeen)
+    {
+        if (lastSeen.Count == 0)
+        {
+            return;
+        }
+        double newest = lastSeen.Min(tile => tile.DaysSilent);
+        html.AppendLine(CultureInfo.InvariantCulture,
+            $"""<details><summary>Last seen in bronze — {lastSeen.Count} agent(s) · newest {newest.ToString("0.#", CultureInfo.InvariantCulture)}d ago</summary>""");
+        AppendDescription(html,
+            "Когда каждый агент последний раз записывал события. Если работы выше зелёные, а агент давно молчит — сломан захват событий (хук или плагин этого агента).");
+        html.AppendLine("""<div class="tiles">""");
+        foreach (LastSeenTile tile in lastSeen)
+        {
+            AppendTile(html, tile.Status, tile.Agent, tile.Machine,
+                $"last event {Timestamp(tile.LastEvent)}", tile.DaysSilent);
+        }
+        html.AppendLine("</div></details>");
+    }
+
+    /// <summary>The ADR-0039 disclosure: a note, not a section (BL-035 Q5) —
+    /// no-silent-caps requires the excluded count to stay visible.</summary>
+    private static void AppendServiceDisclosure(StringBuilder html, ServiceSessionsSummary service)
+    {
+        if (service.Sessions == 0)
+        {
+            return;
+        }
+        AppendDescription(html, FormattableString.Invariant(
+            $"Служебные сессии: {service.Sessions} за последние {DashboardComputer.ThemeWindowDays} дней ({service.Agents}) исключены из метрик практики ниже (ADR-0039). Dead-man и last-seen видят их как обычно."));
     }
 
     private static void AppendPracticeMirror(StringBuilder html, PracticeMirrorGold? mirror)
@@ -202,44 +247,19 @@ public static class DashboardRenderer
             """);
     }
 
-    private static void AppendConstitutionFleet(StringBuilder html, ConstitutionFleetGold? fleet)
+    private static string RatePercent(double rate)
     {
-        if (fleet is null)
-        {
-            return;
-        }
-        html.AppendLine(CultureInfo.InvariantCulture,
-            $"<h2>Constitution fleet — skill v{fleet.CurrentVersion}</h2>");
-        string summary = fleet.Behind == 0
-            ? "все на текущей версии. ✓"
-            : FormattableString.Invariant($"отстаёт {fleet.Behind} из {fleet.Repos.Count} — запустите tools/fleet.sh upgrade из репозитория legislator.");
-        AppendDescription(html, FormattableString.Invariant(
-            $"Легислированные репозитории (скан docs/ai/manifest.json) против текущей версии конституции: {summary}"));
-        if (fleet.Repos.Count == 0)
-        {
-            AppendDescription(html, "Ни одного легислированного репозитория не найдено в настроенных scanRoots.");
-            return;
-        }
-        html.AppendLine("""<table class="repos"><thead><tr><th>repository</th><th>constitution</th></tr></thead><tbody>""");
-        foreach (FleetRepoTile repo in fleet.Repos)
-        {
-            string state = repo.Status == "ok"
-                ? $"""<td class="good">✓ v{Html(repo.Version)}</td>"""
-                : $"""<td class="bad">✗ v{Html(repo.Version)} — behind</td>""";
-            html.AppendLine(CultureInfo.InvariantCulture,
-                $"<tr><td class=\"path\">{Html(repo.Repo)}</td>{state}</tr>");
-        }
-        html.AppendLine("</tbody></table>");
+        return FormattableString.Invariant($"{rate * 100:F0}%");
     }
 
-    private static void AppendServiceSessions(StringBuilder html, ServiceSessionsSummary service)
+    private static string Html(string value)
     {
-        if (service.Sessions == 0)
-        {
-            return;
-        }
-        AppendDescription(html, FormattableString.Invariant(
-            $"Служебные сессии: {service.Sessions} за последние {DashboardComputer.ThemeWindowDays} дней ({service.Agents}) исключены из практико-метрик ниже (ADR-0039). Dead-man, last-seen и таблицы сессий видят их как обычно."));
+        return WebUtility.HtmlEncode(value);
+    }
+
+    private static void AppendDescription(StringBuilder html, string text)
+    {
+        html.AppendLine(CultureInfo.InvariantCulture, $"""<p class="desc">{Html(text)}</p>""");
     }
 
     private static void AppendSddPanel(StringBuilder html, SddPanelGold panel)
@@ -301,57 +321,6 @@ public static class DashboardRenderer
         }
     }
 
-    private static string RatePercent(double rate)
-    {
-        return FormattableString.Invariant($"{rate * 100:F0}%");
-    }
-
-    private static string Html(string value)
-    {
-        return WebUtility.HtmlEncode(value);
-    }
-
-    private static void AppendDescription(StringBuilder html, string text)
-    {
-        html.AppendLine(CultureInfo.InvariantCulture, $"""<p class="desc">{Html(text)}</p>""");
-    }
-
-    private static void AppendWeekOverWeek(StringBuilder html, IReadOnlyList<MetricDelta> metrics)
-    {
-        html.AppendLine("<h2>This week vs last week</h2>");
-        AppendDescription(html,
-            "Изменение ключевых метрик за последние 7 дней относительно предыдущих 7. Зелёное — практика улучшается, красное — ухудшается; pp — процентные пункты.");
-        html.AppendLine("""<ul class="wow">""");
-        foreach (MetricDelta metric in metrics)
-        {
-            double delta = metric.Current - metric.Previous;
-            bool equal = Math.Abs(delta) < 1e-9;
-            bool improved = !equal && (metric.HigherIsBetter ? delta > 0 : delta < 0);
-            string arrow = equal ? "→" : (metric.Current > metric.Previous ? "↑" : "↓");
-            string cssClass = equal ? "muted" : (improved ? "good" : "bad");
-            bool percent = metric.Format == "percent";
-            string current = percent ? Percent(metric.Current) : ((long)metric.Current).ToString("N0", CultureInfo.InvariantCulture);
-            string previous = percent ? Percent(metric.Previous) : ((long)metric.Previous).ToString("N0", CultureInfo.InvariantCulture);
-            string change = percent
-                ? Signed(delta * 100) + "pp"
-                : Signed(delta);
-            html.AppendLine(CultureInfo.InvariantCulture,
-                $"""<li>{Html(metric.Label)}: <strong>{current}</strong> <span class="{cssClass}">{arrow} {change}</span> <span class="muted">(было {previous})</span></li>""");
-        }
-        html.AppendLine("</ul>");
-    }
-
-    private static string Signed(double value)
-    {
-        string formatted = value.ToString("0.#", CultureInfo.InvariantCulture);
-        return value >= 0 ? "+" + formatted : formatted;
-    }
-
-    private static string Percent(double rate)
-    {
-        return (rate * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
-    }
-
     private static void AppendRecentSessions(StringBuilder html, IReadOnlyList<RecentSessionRow> sessions)
     {
         html.AppendLine(CultureInfo.InvariantCulture,
@@ -379,26 +348,6 @@ public static class DashboardRenderer
         string trimmed = repo.TrimEnd('/');
         int slash = trimmed.LastIndexOf('/');
         return slash >= 0 && slash < trimmed.Length - 1 ? trimmed[(slash + 1)..] : trimmed;
-    }
-
-    private static void AppendSessionsByRepo(StringBuilder html, IReadOnlyList<RepoSessionsRow> sessionsByRepo)
-    {
-        html.AppendLine(CultureInfo.InvariantCulture,
-            $"<h2>Sessions by repository — last {DashboardComputer.ThemeWindowDays} days</h2>");
-        AppendDescription(html, FormattableString.Invariant(
-            $"Источник данных: рабочие папки (репозитории), из которых агенты запускали сессии за последние {DashboardComputer.ThemeWindowDays} дней — полный путь, число сессий, агенты и дата последней сессии. Куда смотреть: это карта того, где вы реально работаете; папка с множеством сессий, но без чтения знаний (см. графики ниже) — кандидат на регистрацию в реестре."));
-        if (sessionsByRepo.Count == 0)
-        {
-            AppendDescription(html, "За это окно не найдено ни одной сессии.");
-            return;
-        }
-        html.AppendLine("""<table class="repos"><thead><tr><th>repository / folder</th><th>sessions</th><th>agents</th><th>last session</th></tr></thead><tbody>""");
-        foreach (RepoSessionsRow row in sessionsByRepo)
-        {
-            html.AppendLine(CultureInfo.InvariantCulture,
-                $"<tr><td class=\"path\">{Html(row.Repo)}</td><td>{row.Sessions}</td><td>{Html(row.Agents)}</td><td>{Timestamp(row.LastStarted)}</td></tr>");
-        }
-        html.AppendLine("</tbody></table>");
     }
 
     private static void AppendWriteReadLoop(StringBuilder html, IReadOnlyList<WriteReadRow> topWriteRead, WriteReadSummary loop)

@@ -12,7 +12,6 @@ public static class DashboardComputer
 {
     public const int DeadManThresholdDays = 3;
     public const int ThemeWindowDays = 60;
-    public const int ThemeChartLimit = 20;
     public const int RepoListCap = 50;
     public const int RecentSessionCap = 30;
     public const int TopListCap = 15;
@@ -25,11 +24,10 @@ public static class DashboardComputer
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
 
         HashSet<string> touchedSessions = TouchedSessions(connection, registry);
-        (List<ThemeReadsRow> themeReads, List<ThemeReadsRow> unusedThemes) = ReadsByTheme(connection, registry, now);
+        List<ThemeReadsRow> unusedThemes = ReadsByTheme(connection, registry, now);
         (List<ReuseRow> topReused, ReuseSummary reuseSummary) = NoteReuse(connection, registry, now);
         (List<WriteReadRow> topWriteRead, WriteReadSummary writeReadSummary) = WriteReadLoop(connection, registry, now);
         SddPanelGold sddPanel = SddPanel(connection, registry, now);
-        List<MetricDelta> weekOverWeek = WeekOverWeek(connection, registry, touchedSessions, now);
         return new DashboardGold(
             now,
             registry.Machine,
@@ -40,22 +38,15 @@ public static class DashboardComputer
             constitutionFleet,
             ServiceSessions(connection, now),
             sddPanel,
-            ReadsByLayer(connection, registry),
             FailedSearches(connection),
-            KbTouch(connection, touchedSessions),
             Tokens(connection),
-            themeReads,
             unusedThemes,
-            SessionsByRepo(connection, now),
             RecentSessions(connection, touchedSessions),
-            TopSkills(connection, now),
             TopFailedSearches(connection, now),
-            ReadsByContentType(connection, registry, now),
             topReused,
             reuseSummary,
             topWriteRead,
             writeReadSummary,
-            weekOverWeek,
             PracticeMirror(connection, registry, now));
     }
 
@@ -351,68 +342,6 @@ public static class DashboardComputer
         }
     }
 
-    private static List<MetricDelta> WeekOverWeek(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> touchedSessions, DateTimeOffset now)
-    {
-        DateTime thisStart = now.AddDays(-7).UtcDateTime;
-        DateTime lastStart = now.AddDays(-14).UtcDateTime;
-        int Window(DateTime time) => time >= thisStart ? 0 : 1;
-
-        long[] sessions = new long[2];
-        long[] touched = new long[2];
-        foreach (object?[] row in Query(connection, """
-            SELECT started_at, session FROM sessions
-            WHERE started_at >= $cutoff
-              AND session NOT IN (SELECT session FROM service_sessions)
-            """, ("cutoff", lastStart)))
-        {
-            int window = Window((DateTime)row[0]!);
-            sessions[window]++;
-            if (touchedSessions.Contains((string)row[1]!))
-            {
-                touched[window]++;
-            }
-        }
-
-        long[] searches = new long[2];
-        long[] zeroHits = new long[2];
-        foreach (object?[] row in Query(connection, """
-            SELECT time, TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) AS hits
-            FROM practice_events
-            WHERE type = 'knowledge.searched' AND time >= $cutoff
-              AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) IS NOT NULL
-            """, ("cutoff", lastStart)))
-        {
-            int window = Window((DateTime)row[0]!);
-            searches[window]++;
-            if (AsLong(row[1]) == 0)
-            {
-                zeroHits[window]++;
-            }
-        }
-
-        long[] noteReads = new long[2];
-        foreach (object?[] row in Query(connection, """
-            SELECT time, subject FROM practice_events
-            WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
-            """, ("cutoff", lastStart)))
-        {
-            string subject = (string)row[1]!;
-            if (registry.Resolve(subject) is null || ContentKind.Of(subject) != ContentKind.Knowledge)
-            {
-                continue;
-            }
-            noteReads[Window((DateTime)row[0]!)]++;
-        }
-
-        double Rate(long numerator, long denominator) => denominator == 0 ? 0 : (double)numerator / denominator;
-        return new List<MetricDelta>
-        {
-            new("KB-touch rate", Rate(touched[0], sessions[0]), Rate(touched[1], sessions[1]), "percent", true),
-            new("Failed-search rate", Rate(zeroHits[0], searches[0]), Rate(zeroHits[1], searches[1]), "percent", false),
-            new("Knowledge reads", noteReads[0], noteReads[1], "count", true),
-        };
-    }
-
     /// <summary>
     /// SDD-practice panel (ADR-0040). Spec activity = subjects under the
     /// fleet spec homes (/docs/superpowers/, /docs/cases/); code write =
@@ -425,7 +354,7 @@ public static class DashboardComputer
         DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
 
         // Session → repo (sessions view; '(unknown)' when absent —
-        // SessionsByRepo precedent).
+        // same coalesce convention silver's sessions view uses).
         Dictionary<string, string> repoBySession = new();
         foreach (object?[] row in Query(connection, """
             SELECT session, coalesce(repo, '(unknown)') AS repo
@@ -651,49 +580,6 @@ public static class DashboardComputer
         return (top, new ReuseSummary(notes.Count, singleUse, notes.Count == 0 ? 0 : (double)singleUse / notes.Count));
     }
 
-    private static List<DayCount> ReadsByContentType(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
-    {
-        Dictionary<string, long> byKind = new();
-        foreach (object?[] row in Query(connection, """
-            SELECT subject, count(*)
-            FROM practice_events
-            WHERE type IN ('knowledge.read', 'context.loaded') AND subject IS NOT NULL AND time >= $cutoff
-            GROUP BY subject
-            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
-        {
-            string subject = (string)row[0]!;
-            if (registry.Resolve(subject) is null)
-            {
-                continue;
-            }
-            string kind = ContentKind.Of(subject);
-            byKind[kind] = byKind.GetValueOrDefault(kind) + AsLong(row[1]);
-        }
-        return byKind
-            .OrderByDescending(entry => entry.Value)
-            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-            .Select(entry => new DayCount(entry.Key, entry.Value))
-            .ToList();
-    }
-
-    private static List<DayCount> TopSkills(DuckDBConnection connection, DateTimeOffset now)
-    {
-        List<DayCount> rows = new();
-        foreach (object?[] row in Query(connection, $"""
-            SELECT json_extract_string(data, '$.skill') AS skill, count(*)
-            FROM events_preferred
-            WHERE type = 'skill.invoked' AND time >= $cutoff
-              AND json_extract_string(data, '$.skill') IS NOT NULL
-            GROUP BY skill
-            ORDER BY count(*) DESC, skill
-            LIMIT {TopListCap}
-            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
-        {
-            rows.Add(new DayCount((string)row[0]!, AsLong(row[1])));
-        }
-        return rows;
-    }
-
     private static List<DayCount> TopFailedSearches(DuckDBConnection connection, DateTimeOffset now)
     {
         List<DayCount> rows = new();
@@ -787,26 +673,6 @@ public static class DashboardComputer
         return rows;
     }
 
-    private static List<RepoSessionsRow> SessionsByRepo(DuckDBConnection connection, DateTimeOffset now)
-    {
-        List<RepoSessionsRow> rows = new();
-        foreach (object?[] row in Query(connection, $"""
-            SELECT coalesce(repo, '(unknown)') AS repo,
-                   count(*) AS sessions,
-                   string_agg(DISTINCT agent, ', ' ORDER BY agent) AS agents,
-                   max(started_at) AS last_started
-            FROM sessions
-            WHERE started_at >= $cutoff
-            GROUP BY repo
-            ORDER BY sessions DESC, repo
-            LIMIT {RepoListCap}
-            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
-        {
-            rows.Add(new RepoSessionsRow((string)row[0]!, AsLong(row[1]), (string)row[2]!, AsUtc(row[3])));
-        }
-        return rows;
-    }
-
     private static List<JobHealthTile> JobHealth(DuckDBConnection connection, DateTimeOffset now)
     {
         List<JobHealthTile> tiles = new();
@@ -869,35 +735,6 @@ public static class DashboardComputer
         return new ServiceSessionsSummary(0, "");
     }
 
-    private static List<ReadsByLayerRow> ReadsByLayer(DuckDBConnection connection, KnowledgeRegistry registry)
-    {
-        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
-
-        Dictionary<(string Date, string Layer), long> reads = new();
-        foreach (object?[] row in Query(connection, """
-            SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day, subject, count(*)
-            FROM practice_events
-            WHERE type IN ('knowledge.read', 'context.loaded') AND subject IS NOT NULL
-            GROUP BY day, subject
-            """))
-        {
-            string? sourceId = registry.Resolve((string)row[1]!);
-            if (sourceId is null)
-            {
-                continue;
-            }
-            string layer = sourcesById[sourceId].Layer.ToString().ToLowerInvariant();
-            (string, string) key = ((string)row[0]!, layer);
-            reads[key] = reads.GetValueOrDefault(key) + AsLong(row[2]);
-        }
-
-        return reads
-            .OrderBy(entry => entry.Key.Date, StringComparer.Ordinal)
-            .ThenBy(entry => entry.Key.Layer, StringComparer.Ordinal)
-            .Select(entry => new ReadsByLayerRow(entry.Key.Date, entry.Key.Layer, entry.Value))
-            .ToList();
-    }
-
     private static List<FailedSearchRow> FailedSearches(DuckDBConnection connection)
     {
         List<FailedSearchRow> rows = new();
@@ -919,26 +756,6 @@ public static class DashboardComputer
         return rows;
     }
 
-    private static List<KbTouchRow> KbTouch(DuckDBConnection connection, HashSet<string> touchedSessions)
-    {
-        List<KbTouchRow> rows = new();
-        foreach (object?[] row in Query(connection, """
-            SELECT strftime(date_trunc('day', started_at), '%Y-%m-%d') AS day,
-                   list(session) AS sessions
-            FROM sessions
-            WHERE session NOT IN (SELECT session FROM service_sessions)
-            GROUP BY day
-            ORDER BY day
-            """))
-        {
-            List<string> daySessions = ((IEnumerable<object>)row[1]!).Cast<string>().ToList();
-            long sessions = daySessions.Count;
-            long touched = daySessions.Count(touchedSessions.Contains);
-            rows.Add(new KbTouchRow((string)row[0]!, sessions, touched, sessions == 0 ? 0 : (double)touched / sessions));
-        }
-        return rows;
-    }
-
     private static List<TokensRow> Tokens(DuckDBConnection connection)
     {
         List<TokensRow> rows = new();
@@ -956,7 +773,7 @@ public static class DashboardComputer
         return rows;
     }
 
-    private static (List<ThemeReadsRow> Read, List<ThemeReadsRow> Unused) ReadsByTheme(
+    private static List<ThemeReadsRow> ReadsByTheme(
         DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
     {
         Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
@@ -995,13 +812,9 @@ public static class DashboardComputer
                 reads.GetValueOrDefault(key),
                 notes.GetValueOrDefault(key)))
             .ToList();
-        return (
-            rows.Where(row => row.Reads > 0)
-                .OrderByDescending(row => row.Reads).ThenBy(row => row.Theme, StringComparer.Ordinal)
-                .Take(ThemeChartLimit).ToList(),
-            rows.Where(row => row.Reads == 0)
-                .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal)
-                .ToList());
+        return rows.Where(row => row.Reads == 0)
+            .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static string ThemeOf(KnowledgeSource source, string path)
