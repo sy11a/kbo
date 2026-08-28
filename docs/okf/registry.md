@@ -9,7 +9,7 @@ status: implemented
 
 # Registry (Corpus)
 
-The typed, hand-maintained map of knowledge on a machine: which directories are knowledge sources, and what layer each belongs to. Spec: `~/Agent/Practice Observability/07 - Feature Specs.md` §Registry; decisions G2-1, G2-9, G2-10; implementation decisions [ADR-0005](../adr/0005-typed-registry-implementation.md).
+The typed, hand-maintained map of knowledge on a machine: which directories are knowledge sources, and what layer each belongs to. Spec: `~/Agent/Practice Observability/07 - Feature Specs.md` §Registry; decisions G2-1, G2-9, G2-10; implementation decisions [ADR-0005](../adr/0005-typed-registry-implementation.md). Ownership is a tenant model (ADR-0042): kbo owns the format, schema, validation, and tooling; each repo owns and maintains its own rows; the file is machine-local — kbo owns the shape, the operator owns the file.
 
 ## Shape
 

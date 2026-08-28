@@ -9,7 +9,7 @@ status: implemented
 
 # Dashboard (`kbo report` → `_generated/kbo-dashboard.html`)
 
-The *see* surface (Q7): trends and health tiles; never worklists (the report owns *act*). All numbers come from gold (`kbo-dashboard.gold.json`) — the HTML renderer injects them into charts and tiles, zero computation (P2). Implementation decisions: ADR-0012.
+The *see* surface (Q7): trends and health tiles; never worklists (the report owns *act*). All numbers come from gold (`kbo-dashboard.gold.json`) — the HTML renderer injects them into charts and tiles, zero computation (P2). Implementation decisions: ADR-0012. Practice-first (ADR-0042): every section feeds a mirror tile or system trust — a section that answers no mirror question is cut from RENDER.
 
 ## Health panel (P5)
 
