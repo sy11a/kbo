@@ -17,6 +17,11 @@ sources:
   - id: knowledge
     layer: global
     root: /home/user/Knowledge
+    # Optional: absolute path to a sibling repo's corpus-aggregate export
+    # artifact (NDJSON of graph.metrics/1 data payloads); the daily
+    # ingest-graph-metrics job reads it (kbl ADR-0006 touchpoint 4, BL-037).
+    # Not allowed on a glob root. Unset = no ingest for this source.
+    # metricsArtifact: /home/user/Repository/kbl/_generated/graph-metrics.ndjson
   - id: cc-skills
     layer: skills
     root: /home/user/.claude/skills

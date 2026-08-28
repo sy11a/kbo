@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `metricsArtifact` optional registry field (absolute path on a non-glob
+  source) pointing at a sibling repo's corpus-aggregate export, and the
+  daily `ingest-graph-metrics` pulse job that pulls it into bronze as
+  `graph.metrics/1` events — idempotent by date+source, quiet skip while
+  the artifact is absent, loud all-or-nothing failure when it is invalid
+  (BL-037, kbl ADR-0006 pull contract).
+
 ### Removed
 
 - Dashboard declutter (BL-035, practice-first per ADR-0042): the

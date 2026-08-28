@@ -14,6 +14,7 @@ public static class EventTypes
     public const string SessionStarted = "session.started";
     public const string JobCompleted = "job.completed";
     public const string JobFailed = "job.failed";
+    public const string GraphMetrics = "graph.metrics";
 
     public static string V1SchemaRef(string type)
     {

@@ -62,6 +62,10 @@ public static class RegistryCommand
         foreach (KnowledgeSource source in registry.Sources)
         {
             output.WriteLine($"  {source.Id}  [{source.Layer.ToString().ToLowerInvariant()}]  {source.Root}");
+            if (source.MetricsArtifact is not null)
+            {
+                output.WriteLine($"      metrics artifact: {source.MetricsArtifact}");
+            }
         }
         return 0;
     }

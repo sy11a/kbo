@@ -266,4 +266,50 @@ public class BronzeStoreTests : IDisposable
         Assert.Equal(2, File.ReadAllLines(august).Length);
         Assert.Single(File.ReadAllLines(september));
     }
+
+    private static JsonObject GraphMetricsEvent(string date, string source)
+    {
+        return new JsonObject
+        {
+            ["id"] = "01J2ZK8Q000000000000000902",
+            ["type"] = "graph.metrics",
+            ["time"] = "2026-08-28T06:00:00Z",
+            ["machine"] = "test-machine",
+            ["agent"] = "kbo",
+            ["subject"] = source,
+            ["data"] = new JsonObject
+            {
+                ["origin"] = "job",
+                ["date"] = date,
+                ["source"] = source,
+                ["notes"] = 100,
+                ["orphans"] = 10,
+                ["links"] = 200,
+                ["linkrot"] = 5,
+                ["indegree"] = new JsonObject { ["0"] = 10 },
+                ["new_links_7d"] = 3,
+                ["contract_version"] = 1,
+            },
+        };
+    }
+
+    [Fact]
+    public void GraphMetricsKeys_ReturnsDateSourcePairsOfIngestedSnapshots()
+    {
+        // per R-007 — the dedup fence: date+source keys of what bronze holds.
+        BronzeStore store = new(eventsRepo);
+        store.Append(new[]
+        {
+            GraphMetricsEvent("2026-08-27", "knowledge"),
+            GraphMetricsEvent("2026-08-28", "knowledge"),
+            GraphMetricsEvent("2026-08-28", "other-source"),
+            Event("2026-08-28T07:00:00Z"),
+        });
+
+        IReadOnlySet<string> keys = store.GraphMetricsKeys();
+
+        Assert.Equal(
+            new HashSet<string> { "2026-08-27|knowledge", "2026-08-28|knowledge", "2026-08-28|other-source" },
+            keys);
+    }
 }
