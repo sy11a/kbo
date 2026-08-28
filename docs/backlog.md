@@ -41,11 +41,34 @@ report'а или отдать legislator-репо свою сводку? (3) в�
 
 + одна строка-ссылка на ADR-0042 в kbl/docs/okf/architecture.md (та же сессия).
 
+## kbl contract (BL-001 в kbl) — обязательства стороны kbo
+
+Закреплено ADR-0006 и единым документом закона kbl (`~/Repository/kbl/docs/okf/kbo-contract.md`):
+**kbo — единственный писатель bronze**; kbl публикует экспорт-артефакт, kbo инжестит (pull).
+Порядок критичен: схема + golden fixture + потребитель едут релизом kbo **до** первого эмитта
+kb-graph — capture молча дропает незарегистрированные schemaref'ы в fail-safe лог.
+
+- [ ] **`graph.metrics/1` схема + golden fixture** — событие корпусных агрегатов (рабочее
+  имя; состав полей — в совместной Wave-0 спеке): orphans, link-rot, in-degree distribution,
+  new-links-per-week; `origin: job`; дедуп-ключ date+source (идемпотентный ре-ингест).
+- [ ] **Ingest-job (pulse-style)** — читает экспорт-артефакт kbl по указателю из записи
+  реестра, валидирует через `EventValidator`, аппендит в bronze внутренним путём; под
+  dead-man покрытием.
+- [ ] **Запись реестра для card-graph (kbo-source)** — source-строка с указателем пути
+  артефакта (расширение формата записи — возможно, grill).
+- [ ] **`knowledge.written/2`** — поле `linkcount` (out-links записанной заметки; живой хук
+  считает), эволюция схемы по пути ADR-0002.
+- [ ] **Gold-плитки корпусных метрик** — orphan/link-rot/density тренды из `graph.metrics`;
+  влить в должный брейншторм «mirror v0.1 final metric set».
+- [ ] **ADR-0042 (draft)** — дополнить инвариантом «bronze пишет только kbo; sibling-репо
+  публикуют артефакты» + cross-ref на kbl `docs/okf/kbo-contract.md`.
+
 ## Register
 
 | Case | What | Home |
 |------|------|------|
 | BL-033 | Mirror calibration v1 — emoji state model, p25–p75 corridors in gold json, trust-tiles, ⏳ placeholders (design session 2026-08-27; decisions + data checks inside) | [docs/cases/BL-033-mirror-calibration-v1/spec.md](cases/BL-033-mirror-calibration-v1/spec.md) |
+| BL-001 (kbl) | kb-graph placement + kbo metrics pull-contract (ADR-0006 в kbl); kbo-обязательства — секция выше | `~/Repository/kbl/docs/cases/BL-001/readme.md` (кейс живёт в kbl) |
 
 ## Deferred
 
