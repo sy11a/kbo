@@ -17,17 +17,11 @@ public sealed record LastSeenTile(
 
 public sealed record ServiceSessionsSummary(long Sessions, string Agents);
 
-public sealed record ReadsByLayerRow(string Date, string Layer, long Reads);
-
 public sealed record FailedSearchRow(string Date, long Searches, long ZeroHits, double Rate);
-
-public sealed record KbTouchRow(string Date, long Sessions, long Touched, double Rate);
 
 public sealed record TokensRow(string Date, long InputTokens, long CacheReadTokens);
 
 public sealed record ThemeReadsRow(string Theme, string Source, long Reads, long Notes);
-
-public sealed record RepoSessionsRow(string Repo, long Sessions, string Agents, DateTimeOffset LastStarted);
 
 public sealed record ReuseRow(string Path, long Sessions, long Reads);
 
@@ -56,9 +50,6 @@ public sealed record SddPanelGold(
     long MachineManagedWrites,
     IReadOnlyList<SddSkillRateRow> SkillRate,
     bool SkillConfigured);
-
-/// <summary>One metric's this-week vs last-week values. Format is "percent" or "count".</summary>
-public sealed record MetricDelta(string Label, double Current, double Previous, string Format, bool HigherIsBetter);
 
 /// <summary>Practice mirror (2026-08-27 design session, calibrated in BL-033): the
 /// first screen — six tiles, each judged against its own history corridor and a goal.
@@ -105,20 +96,13 @@ public sealed record DashboardGold(
     ConstitutionFleetGold? ConstitutionFleet,
     ServiceSessionsSummary ServiceSessions,
     SddPanelGold SddPanel,
-    IReadOnlyList<ReadsByLayerRow> ReadsByLayerDaily,
     IReadOnlyList<FailedSearchRow> FailedSearchDaily,
-    IReadOnlyList<KbTouchRow> KbTouchDaily,
     IReadOnlyList<TokensRow> TokensDaily,
-    IReadOnlyList<ThemeReadsRow> ThemeReads,
     IReadOnlyList<ThemeReadsRow> UnusedThemes,
-    IReadOnlyList<RepoSessionsRow> SessionsByRepo,
     IReadOnlyList<RecentSessionRow> RecentSessions,
-    IReadOnlyList<DayCount> TopSkills,
     IReadOnlyList<DayCount> TopFailedSearches,
-    IReadOnlyList<DayCount> ReadsByContentType,
     IReadOnlyList<ReuseRow> TopReusedNotes,
     ReuseSummary Reuse,
     IReadOnlyList<WriteReadRow> TopWriteReadNotes,
     WriteReadSummary WriteReadLoop,
-    IReadOnlyList<MetricDelta> WeekOverWeek,
     PracticeMirrorGold? Mirror = null);

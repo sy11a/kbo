@@ -4,29 +4,6 @@ Tasks pending implementation. **Rule: update the relevant `docs/okf/` document f
 
 ---
 
-## Dashboard declutter — answer only the mirror questions (2026-08-27 design session)
-
-Rule: every section must feed a mirror tile or system trust. Session grill first (questions below).
-
-**Cut from RENDER (8):** Week over week (duplicates the mirror's trends; KEEP the computation —
-SearchTile feeds on it) · Reads-over-time by layer · Reads by content type · Reads by theme
-chart (keep the query — UnusedThemes comes from it) · Top skills · Sessions by repo ·
-Constitution fleet (the summary stays as a report line + gold json) · Service sessions.
-
-**Cut from COMPUTER + DashboardGold + tests (dead computations, constitution "a field exists
-only if a question requires it"):** ReadsByLayer · ReadsByContentType · TopSkills ·
-SessionsByRepo · ServiceSessions.
-
-**Keep & reorder to mirror-tile order:** Practice mirror → Dead-man (compact) →
-Last seen collapsed into <details> → SDD panel → Reuse + Unused themes → Write→read loop →
-Failed-search chart + Top zero-hit → Tokens-trend → Recent sessions.
-
-**Grill before editing:** (1) amber-tile thresholds against 2 weeks of data — rebuild the
-ranges? (2) WeekOverWeek section — reinstate as someone's drill-down, or dead forever?
-(3) Dead-man — tile grid or a single strip line? (4) gold json: keep computing the cut
-series for ad-hoc, or cut them per the constitution? (5) Report line: add the cut content
-there (fleet is already there)?
-
 ## kbl contract (BL-001 in kbl) — kbo-side obligations
 
 Fixed by kbl's ADR-0006 and its single law document (`~/Repository/kbl/docs/okf/kbo-contract.md`):
@@ -56,6 +33,7 @@ first emit — capture silently drops unregistered schemarefs into the fail-safe
 | Case | What | Home |
 |------|------|------|
 | BL-033 | Mirror calibration v1 — emoji state model, p25–p75 corridors in gold json, trust-tiles, ⏳ placeholders (design session 2026-08-27; decisions + data checks inside) | [docs/cases/BL-033-mirror-calibration-v1/spec.md](cases/BL-033-mirror-calibration-v1/spec.md) |
+| BL-035 | ADR-0042 (kbo's side of the canon) + dashboard declutter to the mirror questions — grill answers, cut list, strip/details/disclosure semantics | [docs/cases/BL-035-adr0042-declutter/spec.md](cases/BL-035-adr0042-declutter/spec.md) |
 | BL-001 (kbl) | kb-graph placement + kbo metrics pull-contract (kbl's ADR-0006); kbo-side obligations — the section above | `~/Repository/kbl/docs/cases/BL-001/readme.md` (case lives in kbl) |
 
 ## Deferred

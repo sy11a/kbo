@@ -6,7 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- Dashboard declutter (BL-035, practice-first per ADR-0042): the
+  week-over-week section, reads-by-layer chart, reads-by-content-type
+  list, reads-by-theme chart, top-skills list, sessions-by-repository
+  table, kb-touch chart, and constitution-fleet panel are gone from the
+  dashboard; the same series left the dashboard gold json (ad-hoc
+  analysis lives in silver). The fleet summary stays on the report line
+  and in gold json; the ADR-0039 service-sessions note survives as a
+  one-line disclosure.
+
+### Changed
+
+- Dead-man health collapsed to a single strip line when every job is
+  inside cadence ("N/N ok · oldest job Xd / limit Yd"); a red job
+  restores its full tile. Last-seen tiles moved into a collapsed
+  `<details>`. Sections reordered to mirror-tile order.
+
 ### Added
+
+- ADR-0042: kbo's side of the canon — registry ownership is a tenant
+  model (kbo owns format/validation/tooling, each repo its rows), kbo is
+  the only writer of bronze (siblings publish artifacts, kbo ingests),
+  the dashboard is practice-first, and the canary counts as dead-man
+  duty without entering the binary.
 
 - Mirror calibration v1 (BL-033): practice-mirror tiles are now judged
   against their own weekly-snapshot history instead of a-priori

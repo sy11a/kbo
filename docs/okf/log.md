@@ -8,6 +8,19 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-28 — Dashboard decluttered to the mirror questions (BL-035)
+
+[dashboard.md](dashboard.md): sections now follow mirror-tile order (mirror → dead-man
+strip → last-seen details → SDD → reuse + never-read themes → loop → failed-search +
+zero-hit → tokens → recent sessions); dead-man collapsed to a single strip line when
+healthy (a red job restores its tile); last-seen moved into `<details>`; the ADR-0039
+service-sessions disclosure survives as one line. Cut from render AND gold (dead
+computations per the constitution): week-over-week, reads-by-layer, reads-by-content-type,
+theme-reads series, top-skills, sessions-by-repo, kb-touch chart, fleet panel (stdout
+summary + gold json stay). Three chart specs deleted. Why: ADR-0042's practice-first rule —
+every section must feed a mirror tile or system trust; ad-hoc analysis of cut series lives
+in silver.
+
 ## 2026-08-28 — kbo's side of the canon fixed (ADR-0042)
 
 Added [ADR-0006's kbo counterpart](../adr/0042-kbo-canon-practice-first-dashboard.md): the canon
