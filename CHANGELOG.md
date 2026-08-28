@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Mirror calibration v1 (BL-033): practice-mirror tiles are now judged
+  against their own weekly-snapshot history instead of a-priori
+  thresholds. State is an emoji — 🟢 stable-good, 🔴 stable-sick (chronic:
+  goal gap on the tile, no alarm styling), 📈/📉 sustained drift, ⚠️ the
+  only amber (acute break at robust z > 2), ⏳ placeholder below 6 weeks
+  of history. Corridors (p25–p75), medians, slopes and goal lines are
+  computed into the gold json; the renderer reads them and holds no
+  thresholds. Cache-discipline and burner became trust tiles (no goal,
+  acute-only alarm). Windows changed: tokens/search 7d → 14d,
+  loop/single-use/SDD 60d → 42d (mirror only).
+
 - SDD practice panel (ADR-0040): a dashboard section measuring
   spec-driven-development practice — the before/after instrument for the
   legislator's SDD law. Three metrics over 60 days, practice sessions

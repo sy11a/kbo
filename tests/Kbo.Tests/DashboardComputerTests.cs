@@ -606,4 +606,81 @@ public class DashboardComputerTests : IDisposable
         Assert.False(gold.SddPanel.SkillConfigured);
         Assert.Empty(gold.SddPanel.SkillRate);
     }
+
+    private static List<JsonObject> WeeklySearches(string idPrefix, int[] zeroHitsPerWeek, int currentWeekZero, int currentWeekTotal)
+    {
+        // Weeks start Mondays 2026-06-22..2026-08-03 (10 searches each), then the
+        // live week 2026-08-10..12 with its own totals (report time: 08-12T22:00Z).
+        List<JsonObject> events = new();
+        int sequence = 0;
+        DateTime weekStart = new(2026, 6, 22, 10, 0, 0, DateTimeKind.Utc);
+        for (int week = 0; week < zeroHitsPerWeek.Length; week++)
+        {
+            for (int search = 0; search < 10; search++)
+            {
+                bool zero = search < zeroHitsPerWeek[week];
+                events.Add(SearchEvent($"{idPrefix}{sequence++:D4}", weekStart.AddDays(week * 7).AddHours(search), zero));
+            }
+        }
+        for (int search = 0; search < currentWeekTotal; search++)
+        {
+            bool zero = search < currentWeekZero;
+            events.Add(SearchEvent($"{idPrefix}{sequence++:D4}", new DateTime(2026, 8, 10, 10, 0, 0, DateTimeKind.Utc).AddHours(search), zero));
+        }
+        return events;
+    }
+
+    private static JsonObject SearchEvent(string id, DateTime time, bool zero)
+    {
+        return Event(id, "knowledge.searched", time.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+            subject: $"query {id[^4..]}", session: "sess-search",
+            data: new JsonObject { ["query"] = "q", ["hits"] = zero ? 0 : 3 });
+    }
+
+    [Fact]
+    public void Mirror_FailedSearchChronicOutsideGoal_StableSickWithGap()
+    {
+        // Hurting case (BL-033): failed-search oscillating far above the goal must
+        // read 🔴 with a gap line — never a permanent amber.
+        DashboardGold gold = Compute(
+        [.. WeeklySearches("01F000000000000000000000E", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 7, currentWeekTotal: 25)]);
+
+        MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search"));
+        Assert.Equal("🔴", tile.State);
+        Assert.Equal("sick", tile.Status);
+        Assert.StartsWith("цель ≤15%", tile.Goal);
+        Assert.Contains("до цели −", tile.Goal);
+        Assert.Equal(6, tile.HistoryWeeks);
+        Assert.Equal(0.2625, tile.CorridorLow!.Value, 4);
+        Assert.Equal(0.30, tile.CorridorHigh!.Value, 4);
+        Assert.Equal(0.30, tile.Median!.Value, 4);
+        Assert.Equal(0.025, tile.Mad!.Value, 4);
+        Assert.Contains("в коридоре", tile.Trend);
+    }
+
+    [Fact]
+    public void Mirror_FailedSearchAcuteSpike_OnlyStateThatAlarms()
+    {
+        DashboardGold gold = Compute(
+        [.. WeeklySearches("01F000000000000000000000F", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 24, currentWeekTotal: 25)]);
+
+        MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search"));
+        Assert.Equal("⚠️", tile.State);
+        Assert.Equal("acute", tile.Status);
+        Assert.Contains("острый выход", tile.Trend);
+    }
+
+    [Fact]
+    public void Mirror_TooLittleHistory_WaitsWithPlaceholder()
+    {
+        DashboardGold gold = Compute(
+        [.. WeeklySearches("01F000000000000000000000G", [], currentWeekZero: 7, currentWeekTotal: 25)]);
+
+        MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search"));
+        Assert.Equal("⏳", tile.State);
+        Assert.Equal("wait", tile.Status);
+        Assert.Equal(0, tile.HistoryWeeks);
+        Assert.Contains("0/6", tile.Trend);
+        Assert.Null(tile.Goal);
+    }
 }

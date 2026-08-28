@@ -1,9 +1,9 @@
 ---
 type: Component
-title: Dashboard — health panel + Vega-Lite charts (the see surface)
-description: kbo report renders a static HTML dashboard from gold — dead-man health tiles (cadence-aware thresholds), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, a reads-by-theme breakdown with a never-read list, and the SDD practice panel (spec-before-code, writes balance, SDD-skill rate).
-tags: [component, dashboard, health, vega-lite, gold, sdd]
-timestamp: 2026-08-20T00:00:00Z
+title: Dashboard — mirror + health panel + Vega-Lite charts (the see surface)
+description: kbo report renders a static HTML dashboard from gold — the calibrated practice mirror (six emoji-state tiles judged against their own history corridors, BL-033), dead-man health tiles (cadence-aware thresholds), a sessions-by-repository provenance table, owner-editable .vl.json charts with Russian descriptions and green/red zones, a reads-by-theme breakdown with a never-read list, and the SDD practice panel (spec-before-code, writes balance, SDD-skill rate).
+tags: [component, dashboard, health, vega-lite, gold, sdd, mirror]
+timestamp: 2026-08-28T00:00:00Z
 status: implemented
 ---
 
@@ -13,6 +13,7 @@ The *see* surface (Q7): trends and health tiles; never worklists (the report own
 
 ## Health panel (P5)
 
+- **Practice mirror** (2026-08-27 design session, calibrated in BL-033): the first screen — six tiles, each judged against its **own** weekly-snapshot history, not a-priori thresholds. State is an emoji, never a bare color: 🟢 stable-good (inside the corridor and the corridor inside the goal) · 🔴 stable-sick (corridor outside the goal — chronic, a backlog item, no alarm styling) · 📈/📉 sustained drift (OLS slope > 2×MAD of weekly first differences, ≥0.5pp/week) · ⚠️ acute — the **only** amber — when the live value breaks its norm at robust z > 2 (saturated series: >2pp absolute) · ⏳ placeholder while history < 6 weeks. Corridors are p25–p75 of the tile's history: weekly Monday-UTC snapshots of the same windowed metric (14d for cache/burner/failed-search, 42d for loop/single-use/SDD) over the trailing 8 completed weeks, recomputed by every report into gold. Cache-discipline and burner are **trust tiles** (no goal, trend suppressed — only an acute break alarms). Goal lines are static in v1 («цель ≤15% · до цели −14пп»); the ratchet is a deferred backlog item. Tiles: `CacheAt`/`BurnerAt`/`FailedAt`/`LoopAt`/`SingleUseAt`/`SddAt` windowed queries + `MirrorCalibration` (pure math: percentiles, MAD, robust z, OLS slope, the state machine) in `src/Kbo/Gold/`.
 - **Practice vs service:** every usage lens counts *practice* sessions only; sessions launched as `opencode --agent service-*` are filtered via silver's `practice_events` view and disclosed as a "Служебные сессии: N исключено" note (ADR-0039). Dead-man, last-seen, sessions tables see them as usual.
 - **Dead-man tiles** per machine × agent × job: last `job.completed`, days silent, status `ok`/`red` at the job's cadence threshold (3d daily, 9.5d weekly — ADR-0037 refining G2-12). Status ships as text + symbol, never color alone.
 - **Last-seen tiles** per machine × agent: newest bronze event of any type.
@@ -52,6 +53,7 @@ The *see* surface (Q7): trends and health tiles; never worklists (the report own
 
 - `charts/*.vl.json` — the owner-editable specs (embedded like schemas; edit → republish)
 - `src/Kbo/Gold/DashboardComputer.cs` + `DashboardGold` — every number born here
+- `src/Kbo/Gold/MirrorCalibration.cs` — the mirror's calibration math + state machine (BL-033)
 - `src/Kbo/Gold/DashboardRenderer.cs` — HTML, zero computation
 - Rendered by `kbo report` alongside the worklists (architecture: report computes gold once, renders Markdown + dashboard)
 

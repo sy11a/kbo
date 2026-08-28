@@ -60,10 +60,25 @@ public sealed record SddPanelGold(
 /// <summary>One metric's this-week vs last-week values. Format is "percent" or "count".</summary>
 public sealed record MetricDelta(string Label, double Current, double Previous, string Format, bool HigherIsBetter);
 
-/// <summary>Practice mirror (2026-08-27 design session): the first screen — six numbers,
-/// each feeding one micro-decision ("clean this today" / "change mode today" / "nothing, in flow").
-/// Status: ok | amber | red. Hint names the micro-decision.</summary>
-public sealed record MirrorTile(string Label, string Value, string Trend, string Hint, string Status);
+/// <summary>Practice mirror (2026-08-27 design session, calibrated in BL-033): the
+/// first screen — six tiles, each judged against its own history corridor and a goal.
+/// <paramref name="State"/> is the emoji, <paramref name="StatusClass"/> the CSS class
+/// (ok | sick | trend | acute | wait — "acute" is the only amber). <paramref name="Goal"/>
+/// is the pre-rendered goal line; corridors and thresholds live here, never in the
+/// renderer (zero computation, P2).</summary>
+public sealed record MirrorTile(
+    string Label,
+    string Value,
+    string Trend,
+    string Hint,
+    string Status,
+    string State = "",
+    string? Goal = null,
+    double? CorridorLow = null,
+    double? CorridorHigh = null,
+    double? Median = null,
+    double? Mad = null,
+    int HistoryWeeks = 0);
 
 public sealed record PracticeMirrorGold(IReadOnlyList<MirrorTile> Tiles);
 

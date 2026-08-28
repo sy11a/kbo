@@ -16,6 +16,7 @@ public static class DashboardComputer
     public const int RepoListCap = 50;
     public const int RecentSessionCap = 30;
     public const int TopListCap = 15;
+    public const int MirrorSnapshotWeeks = 8;
 
     public static DashboardGold Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock,
         ConstitutionFleetGold? constitutionFleet = null)
@@ -55,136 +56,299 @@ public static class DashboardComputer
             topWriteRead,
             writeReadSummary,
             weekOverWeek,
-            PracticeMirror(connection, now, reuseSummary, writeReadSummary, sddPanel, weekOverWeek));
+            PracticeMirror(connection, registry, now));
     }
 
-    /// <summary>Practice mirror v0.1 (2026-08-27): six micro-decision tiles from existing
-    /// aggregates plus one fresh sessions query (cache discipline / burner share).</summary>
+    /// <summary>Practice mirror, calibrated (BL-033): six tiles judged against their own
+    /// weekly-snapshot history — corridor p25–p75, robust-z acute breaks, OLS drift —
+    /// with static goals. State is an emoji; only the acute ⚠️ may color amber.</summary>
     private static PracticeMirrorGold PracticeMirror(
         DuckDBConnection connection,
-        DateTimeOffset now,
-        ReuseSummary reuse,
-        WriteReadSummary writeReadLoop,
-        SddPanelGold sdd,
-        IReadOnlyList<MetricDelta> weekOverWeek)
+        KnowledgeRegistry registry,
+        DateTimeOffset now)
     {
-        (double cacheThis, double cachePrev, double burnerThis) = TokenDiscipline(connection, now);
+        DateTime nowUtc = now.UtcDateTime;
+        DateTime currentWeekStart = StartOfIsoWeek(nowUtc);
+        List<DateTime> grid = Enumerable.Range(1, MirrorSnapshotWeeks)
+            .Select(weeksBack => currentWeekStart.AddDays(-7 * weeksBack))
+            .OrderBy(snapshot => snapshot)
+            .ToList();
 
-        MirrorTile CacheTile() => new(
-            "Cache discipline · 7d",
-            Pct(cacheThis),
-            Trend(cacheThis, cachePrev),
-            cacheThis >= 0.85
-                ? "контекст переиспользуется — норма"
-                : cacheThis >= 0.70
-                    ? "присмотрись: часть прогрева уходит впустую"
-                    : "контекст перепрогревается — реже стартуй сессии заново",
-            cacheThis >= 0.85 ? "ok" : cacheThis >= 0.70 ? "amber" : "red");
-
-        MirrorTile BurnerTile() => new(
-            "Burner sessions · 7d",
-            Pct(burnerThis),
-            "доля сессий на свежем контексте",
-            burnerThis <= 0.15
-                ? "одноразовых задач мало — норма"
-                : burnerThis <= 0.30
-                    ? "часть задач жжёт свежий контекст"
-                    : "группируй одноразовые задачи или бери дешёвую модель",
-            burnerThis <= 0.15 ? "ok" : burnerThis <= 0.30 ? "amber" : "red");
-
-        double loop = writeReadLoop.Written == 0 ? 0 : (double)writeReadLoop.Reused / writeReadLoop.Written;
-        MirrorTile LoopTile() => new(
-            "Write→read loop",
-            Pct(loop),
-            $"{writeReadLoop.Reused}/{writeReadLoop.Written} записей прочитаны снова",
-            loop >= 0.30
-                ? "записи окупаются — норма"
-                : loop >= 0.15
-                    ? "часть записей в пустую"
-                    : "пиши короче, ссылочнее и в читаемый корень",
-            loop >= 0.30 ? "ok" : loop >= 0.15 ? "amber" : "red");
-
-        MirrorTile SingleUseTile() => new(
-            "Single-use notes",
-            Pct(reuse.SingleUseRate),
-            $"{reuse.SingleUse} из {reuse.Notes} читаны один раз",
-            reuse.SingleUseRate <= 0.55
-                ? "фонд здоров — норма"
-                : reuse.SingleUseRate <= 0.70
-                    ? "зреет хвост единично читанных"
-                    : "кандидаты на weeding — очередь предложений",
-            reuse.SingleUseRate <= 0.55 ? "ok" : reuse.SingleUseRate <= 0.70 ? "amber" : "red");
-
-        MetricDelta? failed = weekOverWeek.FirstOrDefault(m => m.Label == "Failed-search rate");
-        double failedRate = failed?.Current ?? 0;
-        MirrorTile SearchTile() => new(
-            "Failed-search rate · 7d",
-            Pct(failedRate),
-            failed is null ? "нет данных" : Trend(failedRate, failed.Previous),
-            failedRate <= 0.15
-                ? "знание находится — норма"
-                : failedRate <= 0.30
-                    ? "часть поиска мимо"
-                    : "линкуй заметки от слов, которыми ищешь",
-            failedRate <= 0.15 ? "ok" : failedRate <= 0.30 ? "amber" : "red");
-
-        double sddRate = sdd.OrderingSummary.CodeSessions == 0
-            ? 0
-            : (double)sdd.OrderingSummary.SpecFirstSessions / sdd.OrderingSummary.CodeSessions;
-        MirrorTile SddTile() => new(
-            "Spec-before-code",
-            sdd.OrderingSummary.CodeSessions == 0 ? "нет данных" : Pct(sddRate),
-            $"{sdd.OrderingSummary.SpecFirstSessions}/{sdd.OrderingSummary.CodeSessions} сессий",
-            sdd.OrderingSummary.CodeSessions == 0
-                ? "кодовых сессий в окне нет"
-                : sddRate >= 0.50
-                    ? "спека идёт перед кодом — норма"
-                    : sddRate >= 0.25
-                        ? "спека иногда после кода"
-                        : "сначала код — включи спека-скиллы в практику",
-            sdd.OrderingSummary.CodeSessions == 0 || sddRate >= 0.50 ? "ok" : sddRate >= 0.25 ? "amber" : "red");
-
-        return new PracticeMirrorGold([CacheTile(), BurnerTile(), LoopTile(), SingleUseTile(), SearchTile(), SddTile()]);
-
-        static string Pct(double v) => v.ToString("0%", CultureInfo.InvariantCulture);
-        static string Trend(double current, double previous) => Math.Abs(current - previous) < 0.005
-            ? "→ без изменений"
-            : (current > previous ? "↑ +" : "↓ −") +
-              Math.Abs(current - previous).ToString("0.#%", CultureInfo.InvariantCulture) + " к прошлой неделе";
-    }
-
-    /// <summary>Cache discipline (cache_read share) for the last 7d and previous 7d,
-    /// plus this-week burner share (sessions dominated by fresh input).</summary>
-    private static (double CacheThis, double CachePrev, double BurnerThis) TokenDiscipline(
-        DuckDBConnection connection, DateTimeOffset now)
-    {
-        (double cache, double burner, long sessions) Window(DateTimeOffset cutoff)
+        double? CacheAt(DateTime start, DateTime end)
         {
             foreach (object?[] row in Query(connection, """
                 SELECT coalesce(sum(cache_read_tokens), 0),
-                       coalesce(sum(input_tokens), 0),
-                       count(*),
-                       count_if(input_tokens > cache_read_tokens AND input_tokens > 100000)
+                       coalesce(sum(input_tokens), 0)
                 FROM sessions
-                WHERE started_at >= $cutoff
+                WHERE started_at >= $start AND started_at < $end
                   AND session NOT IN (SELECT session FROM service_sessions)
-                """, ("cutoff", cutoff.UtcDateTime))
-            )
+                """, ("start", start), ("end", end)))
             {
                 long cacheRead = AsLong(row[0]);
-                long freshInput = AsLong(row[1]);
-                long total = Math.Max(1, cacheRead + freshInput);
-                long burners = AsLong(row[3]);
-                long all = Math.Max(1, AsLong(row[2]));
-                return ((double)cacheRead / total, (double)burners / all, AsLong(row[2]));
+                long total = cacheRead + AsLong(row[1]);
+                return total == 0 ? null : (double)cacheRead / total;
             }
-
-            return (0, 0, 0);
+            return null;
         }
 
-        (double cacheThis, double burnerThis, _) = Window(now.AddDays(-7));
-        (double cachePrev, _, _) = Window(now.AddDays(-14));
-        return (cacheThis, cachePrev, burnerThis);
+        double? BurnerAt(DateTime start, DateTime end)
+        {
+            foreach (object?[] row in Query(connection, """
+                SELECT count(*),
+                       count_if(input_tokens > cache_read_tokens AND input_tokens > 100000)
+                FROM sessions
+                WHERE started_at >= $start AND started_at < $end
+                  AND session NOT IN (SELECT session FROM service_sessions)
+                """, ("start", start), ("end", end)))
+            {
+                long sessions = AsLong(row[0]);
+                return sessions == 0 ? null : (double)AsLong(row[1]) / sessions;
+            }
+            return null;
+        }
+
+        double? FailedAt(DateTime start, DateTime end)
+        {
+            foreach (object?[] row in Query(connection, """
+                SELECT count(TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT)),
+                       count_if(TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0)
+                FROM practice_events
+                WHERE type = 'knowledge.searched' AND time >= $start AND time < $end
+                """, ("start", start), ("end", end)))
+            {
+                long searches = AsLong(row[0]);
+                return searches == 0 ? null : (double)AsLong(row[1]) / searches;
+            }
+            return null;
+        }
+
+        double? LoopAt(DateTime start, DateTime end)
+        {
+            Dictionary<string, DateTime> firstWrite = new();
+            foreach (object?[] row in Query(connection, """
+                SELECT subject, min(time) AS first_write
+                FROM practice_events
+                WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $start AND time < $end
+                GROUP BY subject
+                """, ("start", start), ("end", end)))
+            {
+                string subject = (string)row[0]!;
+                if (registry.Resolve(subject) is null || ContentKind.Of(subject) != ContentKind.Knowledge)
+                {
+                    continue;
+                }
+                firstWrite[subject] = (DateTime)row[1]!;
+            }
+
+            if (firstWrite.Count == 0)
+            {
+                return null;
+            }
+
+            int written = firstWrite.Count;
+            int reused = 0;
+            foreach (object?[] row in Query(connection, """
+                SELECT subject, time
+                FROM practice_events
+                WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $start AND time < $end
+                """, ("start", start), ("end", end)))
+            {
+                string subject = (string)row[0]!;
+                if (firstWrite.TryGetValue(subject, out DateTime writtenAt) && (DateTime)row[1]! > writtenAt)
+                {
+                    reused++;
+                    firstWrite.Remove(subject);
+                }
+            }
+            return (double)reused / written;
+        }
+
+        double? SingleUseAt(DateTime start, DateTime end)
+        {
+            long notes = 0;
+            long singleUse = 0;
+            foreach (object?[] row in Query(connection, """
+                SELECT subject, count(DISTINCT session) AS sessions
+                FROM practice_events
+                WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $start AND time < $end
+                GROUP BY subject
+                """, ("start", start), ("end", end)))
+            {
+                string subject = (string)row[0]!;
+                if (registry.Resolve(subject) is null || ContentKind.Of(subject) != ContentKind.Knowledge)
+                {
+                    continue;
+                }
+                notes++;
+                if (AsLong(row[1]) <= 1)
+                {
+                    singleUse++;
+                }
+            }
+            return notes == 0 ? null : (double)singleUse / notes;
+        }
+
+        double? SddAt(DateTime start, DateTime end)
+        {
+            Dictionary<string, DateTime> firstSpec = new();
+            foreach (object?[] row in Query(connection, """
+                SELECT session, min(time) AS first_spec
+                FROM practice_events
+                WHERE session IS NOT NULL AND subject IS NOT NULL
+                  AND type IN ('knowledge.read', 'knowledge.written')
+                  AND (contains(subject, '/docs/superpowers/') OR contains(subject, '/docs/cases/'))
+                  AND time >= $start AND time < $end
+                GROUP BY session
+                """, ("start", start), ("end", end)))
+            {
+                firstSpec[(string)row[0]!] = (DateTime)row[1]!;
+            }
+
+            Dictionary<string, DateTime> firstCode = new();
+            foreach (object?[] row in Query(connection, """
+                SELECT session, subject, time
+                FROM practice_events
+                WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $start AND time < $end
+                """, ("start", start), ("end", end)))
+            {
+                if (ContentKind.Of((string)row[1]!) != ContentKind.Code)
+                {
+                    continue;
+                }
+                string session = (string)row[0]!;
+                DateTime time = (DateTime)row[2]!;
+                if (!firstCode.TryGetValue(session, out DateTime existing) || time < existing)
+                {
+                    firstCode[session] = time;
+                }
+            }
+
+            if (firstCode.Count == 0)
+            {
+                return null;
+            }
+
+            long specFirst = firstCode.Count(entry =>
+                firstSpec.TryGetValue(entry.Key, out DateTime spec) && spec < entry.Value);
+            return (double)specFirst / firstCode.Count;
+        }
+
+        MirrorTile Tile(
+            string label,
+            Func<DateTime, DateTime, double?> valueAt,
+            int windowDays,
+            MirrorGoal? goal,
+            bool trust,
+            string stableHint,
+            string chronicHint)
+        {
+            double? current = valueAt(nowUtc.AddDays(-windowDays), nowUtc);
+            List<double> history = new();
+            foreach (DateTime snapshotEnd in grid)
+            {
+                double? value = valueAt(snapshotEnd.AddDays(-windowDays), snapshotEnd);
+                if (value.HasValue)
+                {
+                    history.Add(value.Value);
+                }
+            }
+
+            if (current is null)
+            {
+                return new MirrorTile(label, "нет данных", "нет данных в окне", "нечего измерять — окно пустое",
+                    MirrorCalibration.ClassWait, MirrorCalibration.StateWaiting, HistoryWeeks: history.Count);
+            }
+
+            MirrorVerdict calibration = MirrorCalibration.Evaluate(history, current.Value, goal, trust);
+            return new MirrorTile(
+                label,
+                Pct(current.Value),
+                TrendLine(calibration),
+                HintFor(calibration, stableHint, chronicHint),
+                calibration.StatusClass,
+                calibration.State,
+                GoalLine(calibration, goal, current.Value),
+                calibration.CorridorLow,
+                calibration.CorridorHigh,
+                calibration.Median,
+                calibration.Mad,
+                calibration.HistoryWeeks);
+        }
+
+        return new PracticeMirrorGold(
+        [
+            Tile("Cache discipline · 14д", CacheAt, 14, goal: null, trust: true,
+                "контекст переиспользуется — норма", ""),
+            Tile("Burner sessions · 14д", BurnerAt, 14, goal: null, trust: true,
+                "одноразовых задач мало — норма", ""),
+            Tile("Write→read loop · 6 нед", LoopAt, 42,
+                new MirrorGoal(0.30, MirrorDirection.UpIsBetter), trust: false,
+                "записи окупаются — норма", "пиши короче, ссылочнее и в читаемый корень"),
+            Tile("Single-use notes · 6 нед", SingleUseAt, 42,
+                new MirrorGoal(0.55, MirrorDirection.DownIsBetter), trust: false,
+                "фонд здоров — норма", "кандидаты на weeding — очередь предложений"),
+            Tile("Failed-search · 14д", FailedAt, 14,
+                new MirrorGoal(0.15, MirrorDirection.DownIsBetter), trust: false,
+                "знание находится — норма", "линкуй заметки от слов, которыми ищешь"),
+            Tile("Spec-before-code · 6 нед", SddAt, 42,
+                new MirrorGoal(0.50, MirrorDirection.UpIsBetter), trust: false,
+                "спека идёт перед кодом — норма", "сначала код — включи спека-скиллы в практику"),
+        ]);
+
+        static string Pct(double v) => v.ToString("0%", CultureInfo.InvariantCulture);
+
+        static string TrendLine(MirrorVerdict calibration)
+        {
+            if (calibration.StatusClass == MirrorCalibration.ClassWait)
+            {
+                return FormattableString.Invariant(
+                    $"история {calibration.HistoryWeeks}/{MirrorCalibration.RequiredHistoryWeeks} нед");
+            }
+            if (calibration.StatusClass == MirrorCalibration.ClassAcute)
+            {
+                return calibration.RobustZ.HasValue
+                    ? FormattableString.Invariant($"острый выход: z = {calibration.RobustZ.Value:0.0}")
+                    : "вне насыщенной нормы";
+            }
+            if (calibration.StatusClass == MirrorCalibration.ClassTrend && calibration.SlopePerWeek.HasValue)
+            {
+                double ppPerWeek = calibration.SlopePerWeek.Value * 100;
+                string sign = ppPerWeek > 0 ? "+" : "−";
+                return FormattableString.Invariant($"наклон {sign}{Math.Abs(ppPerWeek):0.0}пп/нед");
+            }
+            string low = calibration.CorridorLow?.ToString("0%", CultureInfo.InvariantCulture) ?? "—";
+            string high = calibration.CorridorHigh?.ToString("0%", CultureInfo.InvariantCulture) ?? "—";
+            return $"в коридоре {low}–{high}";
+        }
+
+        static string HintFor(MirrorVerdict calibration, string stableHint, string chronicHint)
+        {
+            return calibration.StatusClass switch
+            {
+                MirrorCalibration.ClassWait => "плитка ждёт достаточно своей истории",
+                MirrorCalibration.ClassAcute => "требует внимания сейчас — острый слом против своей нормы",
+                MirrorCalibration.ClassTrend => "устойчивый сдвиг — найди, что изменилось в практике",
+                MirrorCalibration.ClassSick => chronicHint + " (хроника — кандидат в бэклог)",
+                _ => stableHint,
+            };
+        }
+
+        static string? GoalLine(MirrorVerdict calibration, MirrorGoal? goal, double current)
+        {
+            if (goal is null || calibration.StatusClass == MirrorCalibration.ClassWait)
+            {
+                return null;
+            }
+            string target = goal.Direction == MirrorDirection.UpIsBetter
+                ? FormattableString.Invariant($"цель ≥{goal.Value:0%}")
+                : FormattableString.Invariant($"цель ≤{goal.Value:0%}");
+            double gapPp = goal.Direction == MirrorDirection.UpIsBetter
+                ? (goal.Value - current) * 100
+                : (current - goal.Value) * 100;
+            return gapPp <= 0
+                ? target + " · достигнута"
+                : FormattableString.Invariant($"{target} · до цели −{gapPp:0}пп");
+        }
     }
 
     private static List<MetricDelta> WeekOverWeek(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> touchedSessions, DateTimeOffset now)
@@ -882,6 +1046,14 @@ public static class DashboardComputer
     {
         int daysFromMonday = ((int)date.DayOfWeek + 6) % 7;
         return date.AddDays(3 - daysFromMonday).Year;
+    }
+
+    /// <summary>Monday 00:00 of the week the date falls in — the mirror's
+    /// snapshot grid anchor (BL-033).</summary>
+    private static DateTime StartOfIsoWeek(DateTime date)
+    {
+        int daysFromMonday = ((int)date.DayOfWeek + 6) % 7;
+        return date.Date.AddDays(-daysFromMonday);
     }
 
     private static DateTimeOffset AsUtc(object? value)
