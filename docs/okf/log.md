@@ -8,6 +8,18 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-28 — Practice mirror calibrated (BL-033)
+
+[dashboard.md](dashboard.md): added the practice-mirror section (it had shipped in code on
+2026-08-27 without its OKF doc — that gap closed with this entry), documenting the emoji
+state model, corridor computation (weekly Monday-UTC snapshots of windowed metrics, p25–p75
+into gold), trust tiles, the static-goal decision, and the new `src/Kbo/Gold/MirrorCalibration.cs`
+implementation file. Glossary rows added: `practice mirror`, `corridor`, `trust tile`,
+`acute break`. Why: the mirror's a-priori thresholds produced a permanently-amber
+failed-search tile (alarm fatigue); calibration v1 judges each tile against its own history
+so amber means *now*, and chronic sickness routes to the backlog instead of the color
+palette. Spec: `docs/cases/BL-033-mirror-calibration-v1/`.
+
 ## 2026-08-20 — SDD practice panel (spec-before-code, writes balance, SDD-skill rate)
 
 [dashboard.md](dashboard.md): new panel section — the before/after instrument for the legislator's SDD law (edition v17): per-session spec-before-code ordering (subjects under `/docs/superpowers/` or `/docs/cases/` strictly before the first code write) per repo × ISO week; writes by content kind with machine-managed writes (`/docs/ai/`) excluded and disclosed (no-silent-caps); SDD-skill rate from the registry's optional `sdd: { skills }` block (absent block = stated, not silent — ADR-0031 pattern). Glossary row: SDD panel. Why: rolling out the SDD law without a baseline makes the improvement claim unfalsifiable; the recipe (legislator research spec 2026-08-19) verified all inputs already flow into bronze — the gaps were gold-side and additive. See ADR-0040.

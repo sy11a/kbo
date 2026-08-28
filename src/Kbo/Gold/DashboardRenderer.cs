@@ -64,6 +64,7 @@ public static class DashboardRenderer
               .tile.red { border-color: #e34948; background: #fdf3f3; }
               .tile.amber .status { color: #a06b00; }
               .tile.amber { border-color: #d9a441; background: #fdf8ef; }
+              .tile.wait { opacity: 0.65; }
               .chart { margin: 2rem 0; }
               .chart h2 { font-size: 1.1rem; }
               figure { margin: 0; }
@@ -160,20 +161,25 @@ public static class DashboardRenderer
 
         html.AppendLine("<h2>Practice mirror — six numbers, three micro-decisions</h2>");
         AppendDescription(html,
-            "Первый экран. Каждая плитка питает одно микро-решение: «сегодня чищу это», «сегодня меняю режим» — или «ничего не делать, я в потоке». Зелёный = норма, янтарный = присмотрись, красный = действуй. Остальные секции ниже — детали по каждому числу.");
+            "Первый экран. Состояние = эмодзи, не цвет: 🟢 стабильно в норме · 🔴 хроника (путь — бэклог, не тревога) · 📈📉 устойчивый тренд · ⚠️ требует внимания сейчас — единственный янтарь · ⏳ мало истории. Каждая плитка сравнивается со своим коридором (p25–p75 собственной истории) и целью — пороги приезжают из gold json, рендер их не хранит (BL-033).");
         html.AppendLine("""<div class="tiles">""");
         foreach (MirrorTile tile in mirror.Tiles)
         {
             string statusClass = tile.Status switch
             {
                 "ok" => "ok",
-                "amber" => "amber",
-                _ => "red",
+                "acute" => "amber",
+                "wait" => "wait",
+                "sick" => "sick",
+                "trend" => "trend",
+                _ => "",
             };
+            string tileClass = statusClass.Length == 0 ? "tile" : $"tile {statusClass}";
             html.AppendLine(CultureInfo.InvariantCulture, $"""
-                <div class="tile {statusClass}">
-                  <div class="name">{Html(tile.Label)}</div>
+                <div class="{tileClass}">
+                  <div class="name">{Html(tile.State)} {Html(tile.Label)}</div>
                   <div class="meta">{Html(tile.Value)} · {Html(tile.Trend)}</div>
+                  <div class="meta">{Html(tile.Goal ?? "")}</div>
                   <div class="meta">{Html(tile.Hint)}</div>
                 </div>
                 """);

@@ -3,7 +3,7 @@ type: System
 title: kb-observability — Domain Glossary
 description: Domain terms mapped to their meaning in this codebase.
 tags: [system, glossary, domain]
-timestamp: 2026-08-16T00:00:00Z
+timestamp: 2026-08-28T00:00:00Z
 status: implemented
 ---
 
@@ -49,3 +49,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | glob exclude | `exclude: [dirname, ...]` on a glob registry source; listed `*`-matched directories are skipped at expansion so archives never enter the inventory (ADR-0034) |
 | machine-managed | `NoteRole` for tool-owned files (`/docs/ai/`, `/adr/template.md`): overwritten by tooling, never on the dead worklist, reported as per-source counts (ADR-0036) |
 | excludePaths | Per-source registry list of relative subtrees the note inventory skips (tool fixtures, benchmarks); resolution/kbroot unaffected (ADR-0036) |
+| practice mirror | First dashboard screen: six tiles judged against their own history, each feeding one micro-decision (BL-033) |
+| corridor | p25–p75 of a mirror tile's own weekly-snapshot history — «my normal»; a value inside it is stable, outside-and-z>2 is acute (BL-033) |
+| trust tile | Mirror tile believed healthy unless it acute-breaks: no goal, no trend state, ⚠️ only (cache discipline, burner share — BL-033) |
+| acute break | The mirror's only amber (⚠️): live value breaking its norm at robust z > 2 (saturated series: >2pp absolute); chronic sickness is 🔴 without alarm styling (BL-033) |

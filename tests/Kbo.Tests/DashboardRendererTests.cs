@@ -67,9 +67,16 @@ public class DashboardRendererTests
             ],
             Mirror: new PracticeMirrorGold(
             [
-                new MirrorTile("Cache discipline · 7d", "93%", "↑ +1% к прошлой неделе",
-                    "контекст переиспользуется — норма", "ok"),
-                new MirrorTile("Write→read loop", "12%", "→ без изменений", "пиши короче, ссылочнее", "red"),
+                new MirrorTile("Cache discipline · 14д", "93%", "в коридоре 90–98%", "контекст переиспользуется — норма", "ok",
+                    "🟢", Goal: null, CorridorLow: 0.90, CorridorHigh: 0.98, HistoryWeeks: 8),
+                new MirrorTile("Failed-search · 14д", "28%", "в коридоре 20–32%",
+                    "линкуй заметки от слов, которыми ищешь (хроника — кандидат в бэклог)", "sick",
+                    "🔴", Goal: "цель ≤15% · до цели −13пп", CorridorLow: 0.20, CorridorHigh: 0.32, HistoryWeeks: 8),
+                new MirrorTile("Write→read loop · 6 нед", "12%", "история 2/6 нед",
+                    "плитка ждёт достаточно своей истории", "wait", "⏳", HistoryWeeks: 2),
+                new MirrorTile("Spec-before-code · 6 нед", "41%", "острый выход: z = 2.3",
+                    "требует внимания сейчас — острый слом против своей нормы", "acute", "⚠️",
+                    Goal: "цель ≥50% · до цели −9пп", CorridorLow: 0.35, CorridorHigh: 0.55, HistoryWeeks: 8),
             ]));
     }
 
@@ -96,6 +103,49 @@ public class DashboardRendererTests
         Assert.Contains("Cache discipline", html);
         Assert.Contains("Write", html);
         Assert.Contains("tile red", html);
+    }
+
+    [Fact]
+    public void Render_PracticeMirror_ShowsEmojiStatesGoalLinesAndPlaceholder()
+    {
+        string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Contains(Enc("🟢 Cache discipline · 14д"), html);
+        Assert.Contains(Enc("🔴 Failed-search · 14д"), html);
+        Assert.Contains(Enc("цель ≤15% · до цели −13пп"), html);
+        Assert.Contains(Enc("⚠️ Spec-before-code"), html);
+        Assert.Contains("острый выход: z = 2.3", html);
+        Assert.Contains(Enc("⏳ Write→read loop · 6 нед"), html);
+        Assert.Contains("история 2/6 нед", html);
+        Assert.Contains(Enc("в коридоре 20–32%"), html);
+        Assert.Contains("tile sick", html);
+        Assert.Contains("tile wait", html);
+        Assert.Contains("Состояние = эмодзи, не цвет", html);
+    }
+
+    [Fact]
+    public void Render_PracticeMirror_AmberClassOnlyOnAcuteTiles()
+    {
+        string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
+
+        Assert.Equal(1, CountOccurrences(html, "tile amber"));
+        Assert.Equal(1, CountOccurrences(html, Enc("⚠️ Spec-before-code")));
+        // 🔴 is a state, not an alarm: the sick tile carries no warning styling
+        Assert.DoesNotContain("tile red", html[..html.IndexOf(Enc("🔴"), StringComparison.Ordinal)]);
+    }
+
+    private static string Enc(string value) => System.Net.WebUtility.HtmlEncode(value);
+
+    private static int CountOccurrences(string text, string fragment)
+    {
+        int count = 0;
+        int index = 0;
+        while ((index = text.IndexOf(fragment, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += fragment.Length;
+        }
+        return count;
     }
 
     [Fact]
