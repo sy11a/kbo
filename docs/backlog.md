@@ -63,6 +63,16 @@ kb-graph — capture молча дропает незарегистрирова�
 - [ ] **ADR-0042 (draft)** — дополнить инвариантом «bronze пишет только kbo; sibling-репо
   публикуют артефакты» + cross-ref на kbl `docs/okf/kbo-contract.md`.
 
+## sdd-lint: привести старые ADR к closed-set форме статусов
+
+Legislator v23 привёз shape-lint статусов ADR (closed set: proposed / accepted / deprecated /
+superseded by NNNN), но 25 ADR писались до него — `python3 docs/ai/engine.py sdd-lint` падает:
+18 (0001–0015, 0020, 0022, 0031) несут пояснение прямо в строке статуса («accepted (owner
+decision …)»), ещё 7 (0034–0040) вовсе без секции `## Status` — однострочный «Status: accepted ·
+Date: …». Фикс механический, смысл сохраняется дословно: статус — один токен из набора,
+пояснение/дата — строкой ниже; для 0034–0040 — развернуть в секцию. Критерий готовности:
+`sdd-lint` rc=0; меняется только форма заголовка, содержание решений не трогается.
+
 ## Register
 
 | Case | What | Home |
