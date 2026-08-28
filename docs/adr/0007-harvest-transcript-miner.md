@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within Q4/G2-6; plan step 1.5; owner-confirmed items marked)
+accepted
+
+(executor decisions within Q4/G2-6; plan step 1.5; owner-confirmed items marked)
 
 ## Context
 

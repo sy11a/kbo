@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within `07 - Feature Specs` §Dashboard, Q7, G2-12, P2/P5; plan step 2.4; owner-confirmed items marked)
+accepted
+
+(executor decisions within `07 - Feature Specs` §Dashboard, Q7, G2-12, P2/P5; plan step 2.4; owner-confirmed items marked)
 
 ## Context
 

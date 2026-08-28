@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner decision 2026-08-12; refines ADR-0010 §2/§7)
+accepted
+
+(owner decision 2026-08-12; refines ADR-0010 §2/§7)
 
 ## Context
 

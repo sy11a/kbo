@@ -1,6 +1,10 @@
 # 0038 — Constitution-fleet panel from a manifest scan, not a registry
 
-Status: accepted · Date: 2026-08-16
+## Status
+
+accepted
+
+Date: 2026-08-16
 
 ## Context
 

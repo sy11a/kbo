@@ -1,6 +1,10 @@
 # 0035 — Source activity is usage, not writes
 
-Status: accepted · Date: 2026-08-15
+## Status
+
+accepted
+
+Date: 2026-08-15
 
 ## Context
 

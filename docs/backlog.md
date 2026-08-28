@@ -63,17 +63,6 @@ first emit — capture silently drops unregistered schemarefs into the fail-safe
 - [ ] **ADR-0042 (draft)** — add the invariant "kbo is the only writer of bronze; sibling
   repos publish artifacts" + a cross-ref to kbl's `docs/okf/kbo-contract.md`.
 
-## sdd-lint: bring the old ADRs to closed-set status shape
-
-Legislator v23 introduced the ADR status shape-lint (closed set: proposed / accepted /
-deprecated / superseded by NNNN), but 25 ADRs predate it — `python3 docs/ai/engine.py sdd-lint`
-fails: 18 (0001–0015, 0020, 0022, 0031) carry the annotation inside the status line itself
-("accepted (owner decision …)"), and 7 more (0034–0040) have no `## Status` section at all —
-a one-line "Status: accepted · Date: …". Mechanical fix, meaning preserved verbatim: the
-status is a single token from the set, annotation/date move to a line below; for 0034–0040,
-expand into the section. Done when `sdd-lint` exits 0; only the header shape changes, the
-content of the decisions is untouched.
-
 ## Register
 
 | Case | What | Home |

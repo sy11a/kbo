@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner request 2026-08-12: "add auto check and notify me — I'm afraid I will forget")
+accepted
+
+(owner request 2026-08-12: "add auto check and notify me — I'm afraid I will forget")
 
 ## Context
 

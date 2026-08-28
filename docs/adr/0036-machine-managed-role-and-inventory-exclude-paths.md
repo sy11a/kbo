@@ -1,6 +1,10 @@
 # 0036 — Machine-managed note role and per-source inventory excludePaths
 
-Status: accepted · Date: 2026-08-16
+## Status
+
+accepted
+
+Date: 2026-08-16
 
 ## Context
 

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decisions within the adapter contract and plan step 2.3; session-store format verified on this machine, opencode 1.18.16)
+accepted
+
+(executor decisions within the adapter contract and plan step 2.3; session-store format verified on this machine, opencode 1.18.16)
 
 ## Context
 

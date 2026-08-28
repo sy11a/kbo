@@ -1,6 +1,10 @@
 # 0034 — Type-aware death conditions and dormant sources
 
-Status: accepted · Date: 2026-08-15
+## Status
+
+accepted
+
+Date: 2026-08-15
 
 ## Context
 

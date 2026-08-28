@@ -1,6 +1,10 @@
 # 0040 — SDD practice panel: convention-detected metrics, config-declared skill set, machine-managed writes excluded
 
-Status: accepted · Date: 2026-08-20
+## Status
+
+accepted
+
+Date: 2026-08-20
 
 ## Context
 

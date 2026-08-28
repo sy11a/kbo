@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decision within the §Registry spec and G2-1/G2-9/G2-10; plan step 1.3)
+accepted
+
+(executor decision within the §Registry spec and G2-1/G2-9/G2-10; plan step 1.3)
 
 ## Context
 

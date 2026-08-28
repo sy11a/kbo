@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (executor decision within ADR-0001/0002; plan step 1.2)
+accepted
+
+(executor decision within ADR-0001/0002; plan step 1.2)
 
 ## Context
 

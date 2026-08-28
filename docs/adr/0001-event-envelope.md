@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (owner decision, requirements `04 - Event Schema`; clarified by `09 - Decision Record` G2-1/G2-4/G2-5)
+accepted
+
+(owner decision, requirements `04 - Event Schema`; clarified by `09 - Decision Record` G2-1/G2-4/G2-5)
 
 ## Context
 
