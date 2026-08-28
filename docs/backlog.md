@@ -27,20 +27,6 @@ ranges? (2) WeekOverWeek section — reinstate as someone's drill-down, or dead 
 series for ad-hoc, or cut them per the constitution? (5) Report line: add the cut content
 there (fleet is already there)?
 
-## ADR-0042 — practice-first dashboard + kbo's place in the canon
-
-Canon: **the legislator writes laws · kbl keeps the knowledge fund · kbo audits practice.**
-kbo is a measuring instrument: (a) the mirror of six questions, (b) the system dead-man
-(jobs + canary), (c) owner of the source registry — kbl registers in it as a source and
-reads silver/gold strictly read-only. kbo never stores knowledge and never writes laws;
-there is one measurement surface (kbl has no dashboard — its projections live in Obsidian).
-
-**Grill:** (1) the exact wording of registry ownership; (2) fleet panel — just a report
-line, or give the legislator repo its own summary? (3) include the canary in the ADR as
-part of kbo's dead-man duty?
-
-+ one link line to ADR-0042 in kbl/docs/okf/architecture.md (same session).
-
 ## kbl contract (BL-001 in kbl) — kbo-side obligations
 
 Fixed by kbl's ADR-0006 and its single law document (`~/Repository/kbl/docs/okf/kbo-contract.md`):
@@ -60,8 +46,10 @@ first emit — capture silently drops unregistered schemarefs into the fail-safe
   hook computes it), schema evolution along the ADR-0002 path.
 - [ ] **Gold mirror tiles** — orphan/link-rot/density trends from `graph.metrics`; fold into
   the owed "mirror v0.1 final metric set" brainstorm.
-- [ ] **ADR-0042 (draft)** — add the invariant "kbo is the only writer of bronze; sibling
-  repos publish artifacts" + a cross-ref to kbl's `docs/okf/kbo-contract.md`.
+- [x] **ADR-0042** — the invariant "kbo is the only writer of bronze; sibling
+  repos publish artifacts" + a cross-ref to kbl's `docs/okf/kbo-contract.md`
+  ([ADR-0042](../adr/0042-kbo-canon-practice-first-dashboard.md), accepted 2026-08-28;
+  link line landed in kbl's `docs/okf/architecture.md`).
 
 ## Register
 
