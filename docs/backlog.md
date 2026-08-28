@@ -11,9 +11,10 @@ Fixed by kbl's ADR-0006 and its single law document (`~/Repository/kbl/docs/okf/
 Order is critical: schema + golden fixture + consumer ride a kbo release **before** kb-graph's
 first emit — capture silently drops unregistered schemarefs into the fail-safe log.
 
-- [ ] **`graph.metrics/1` schema + golden fixture** — the corpus-aggregate event (working
+- [x] **`graph.metrics/1` schema + golden fixture** — the corpus-aggregate event (working
   name; field set belongs to the joint Wave-0 spec): orphans, link-rot, in-degree distribution,
   new-links-per-week; `origin: job`; dedup key date+source (idempotent re-ingest).
+  ([BL-036](cases/BL-036-graph-metrics-schema/spec.md), converged 2026-08-28).
 - [ ] **Ingest job (pulse-style)** — reads kbl's export artifact via the registry-entry
   pointer, validates through `EventValidator`, appends to bronze through the internal path;
   under dead-man coverage.

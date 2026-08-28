@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kb-observability/schemas/graph.metrics/1",
+  "title": "graph.metrics v1 — corpus-aggregate snapshot from the card-graph export artifact (kbl pull contract, ADR-0042)",
+  "$ref": "https://kb-observability/schemas/envelope/1",
+  "type": "object",
+  "properties": {
+    "type": { "const": "graph.metrics" },
+    "schemaref": { "const": "graph.metrics/1" },
+    "data": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "const": "job",
+          "description": "Appended by the kbo ingest job pulling kbl's export artifact"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Snapshot date of the aggregate; dedup key part 1 (idempotent re-ingest)"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Registry source id of the aggregated card graph; dedup key part 2"
+        },
+        "notes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Notes in scope; orphan-rate denominator"
+        },
+        "orphans": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Island notes: zero in-links AND zero out-links (BL-036 R-003)"
+        },
+        "links": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total edges; link-rot-rate denominator"
+        },
+        "linkrot": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Broken edges (target note missing)"
+        },
+        "indegree": {
+          "type": "object",
+          "patternProperties": {
+            "^[0-9]+$": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false,
+          "description": "In-degree histogram: in-degree -> number of notes"
+        },
+        "new_links_7d": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Links created in the trailing 7 days"
+        },
+        "contract_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Mirrors the export artifact's contract-version field so skew is visible in bronze"
+        }
+      },
+      "required": [
+        "origin",
+        "date",
+        "source",
+        "notes",
+        "orphans",
+        "links",
+        "linkrot",
+        "indegree",
+        "new_links_7d",
+        "contract_version"
+      ],
+      "description": "Corpus-aggregate snapshot appended by the kbo ingest job — the event is kbo-native, so no raw field"
+    }
+  }
+}

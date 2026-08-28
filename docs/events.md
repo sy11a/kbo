@@ -10,6 +10,7 @@ Rule (`04 - Event Schema`): a type or field exists only if a report question dem
 | `context.loaded` | Capture | which implicit context (CLAUDE.md/AGENTS.md/memory) was in play, at which version | path, `contenthash` | v1 |
 | `session.started` | Capture | session inventory; denominators | agent, model, repo, raw git branch; usage totals incl. `cache_read` vs fresh input tokens | v1 |
 | `job.completed` / `job.failed` | Capture (self) | dead-man health panel | job name, duration, error | v1 |
+| `graph.metrics` | Corpus | orphan/link-rot/density mirror tiles (kbl pull contract — ADR-0042, kbl ADR-0006; field contract fixed in BL-036) | date + source (dedup key), notes/orphans (islands), links/linkrot, indegree histogram, new_links_7d, contract_version; origin `job`, no raw | v1 (schema + golden shipped; first emit pending kbl kb-graph) |
 | `skill.invoked` | Discoverability | dead/overused skills | skill name, args | reserved in v1; backfillable from transcript archive |
 | `web.searched` / `web.fetched` | Coverage | recurring-web-topic → note candidates | full query text / URL (owner decision: full fidelity, private storage) | reserved in v1; backfillable |
 
