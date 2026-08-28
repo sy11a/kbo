@@ -60,6 +60,13 @@ public sealed record SddPanelGold(
 /// <summary>One metric's this-week vs last-week values. Format is "percent" or "count".</summary>
 public sealed record MetricDelta(string Label, double Current, double Previous, string Format, bool HigherIsBetter);
 
+/// <summary>Practice mirror (2026-08-27 design session): the first screen — six numbers,
+/// each feeding one micro-decision ("clean this today" / "change mode today" / "nothing, in flow").
+/// Status: ok | amber | red. Hint names the micro-decision.</summary>
+public sealed record MirrorTile(string Label, string Value, string Trend, string Hint, string Status);
+
+public sealed record PracticeMirrorGold(IReadOnlyList<MirrorTile> Tiles);
+
 public sealed record RecentSessionRow(
     string Date,
     string Time,
@@ -98,4 +105,5 @@ public sealed record DashboardGold(
     ReuseSummary Reuse,
     IReadOnlyList<WriteReadRow> TopWriteReadNotes,
     WriteReadSummary WriteReadLoop,
-    IReadOnlyList<MetricDelta> WeekOverWeek);
+    IReadOnlyList<MetricDelta> WeekOverWeek,
+    PracticeMirrorGold? Mirror = null);
