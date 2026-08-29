@@ -29,6 +29,7 @@ public class GoldenCorpusTests
     [MemberData(nameof(GoldenEvents))]
     public void Every_golden_event_validates(string file, int lineNumber, string eventJson)
     {
+        // per R-008 — old-version golden lines stay valid after every bump.
         EventValidationResult result = Validator.Validate(eventJson);
 
         Assert.True(result.IsValid, $"{file}:{lineNumber} failed validation: {string.Join("; ", result.Errors)}");
@@ -37,6 +38,7 @@ public class GoldenCorpusTests
     [Fact]
     public void Every_schema_version_has_golden_coverage()
     {
+        // per R-006 — a new schema version without golden coverage fails here.
         HashSet<string> coveredRefs = GoldenEvents()
             .Select(row => Path.GetFileNameWithoutExtension((string)row[0]))
             .Select(name => name[..name.LastIndexOf('.')] + "/" + name[(name.LastIndexOf('.') + 1)..])

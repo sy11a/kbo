@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using Kbo.Gold;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -69,13 +70,14 @@ public static class ClaudeCodeAdapter
                 string? kbroot = registry.Resolve(filePath);
                 JsonObject data = new() { [EventDataFields.Path] = filePath };
                 AddContentHash(data, filePath, kbroot);
+                AddLinkcount(data, filePath, kbroot);
                 JsonObject raw = RawPayload(payload);
                 if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
                 {
                     StripWrittenContent(rawToolInput);
                 }
                 data[EventDataFields.Raw] = raw;
-                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random);
+                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
             }
             default:
                 return null;
@@ -205,6 +207,23 @@ public static class ClaudeCodeAdapter
         }
     }
 
+    // Bronze never embeds written content — path+hash+size is sufficient, and small
+    // lines keep concurrent appends intact (ADR-0030). Linkcount rides the same
+    // size cap: a note too big to hash is too big to count links in (BL-038).
+    private static void AddLinkcount(JsonObject data, string filePath, string? kbroot)
+    {
+        data[EventDataFields.Linkcount] = null;
+        if (kbroot is null || !File.Exists(filePath) || new FileInfo(filePath).Length > HashSizeCapBytes)
+        {
+            return;
+        }
+        if (ContentKind.Of(filePath) != ContentKind.Knowledge)
+        {
+            return;
+        }
+        data[EventDataFields.Linkcount] = Wikilinks.CountDistinct(File.ReadAllText(filePath));
+    }
+
     private static JsonObject RawPayload(JsonObject payload)
     {
         JsonObject raw = (JsonObject)payload.DeepClone();
@@ -234,7 +253,8 @@ public static class ClaudeCodeAdapter
         GitContext git,
         KnowledgeRegistry registry,
         TimeProvider clock,
-        Random random)
+        Random random,
+        string? schemaRef = null)
     {
         data[EventDataFields.Origin] = EventDataFields.OriginHook;
 
@@ -250,6 +270,7 @@ public static class ClaudeCodeAdapter
             task: git.Task,
             model: null,
             time: clock.GetUtcNow(),
-            random: random);
+            random: random,
+            schemaRef: schemaRef);
     }
 }

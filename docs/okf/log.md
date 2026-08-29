@@ -8,6 +8,17 @@ timestamp: 2026-08-16T00:00:00Z
 
 # OKF Bundle Changelog
 
+## 2026-08-29 — `knowledge.written/2`: first schema version bump, `linkcount` ships (BL-038)
+
+The registry performed its first version bump (ADR-0002 additive path): `knowledge.written/2`
+adds the optional nullable `data.linkcount` — distinct normalized wikilink targets of the
+written note (alias/anchor stripped, dedup, embeds counted). Live hooks (both adapters)
+compute it under the knowledge gating (kbroot + knowledge content kind + ≤ 5 MB); harvest
+miners stamp v2 with null. No upcaster: v1 lines stay valid as v1 forever. Why: kbl's
+discipline metric (out-links of a written card) must be capturable at write time — bronze
+cannot recompute it later. Adapter + harvest docs and the taxonomy row updated; glossary
+gains `linkcount`.
+
 ## 2026-08-28 — Metrics-artifact ingest ships (BL-037)
 
 The pull leg of the kbl contract went live: `registry.md` and `pulse.md` gained the optional `metricsArtifact` source pointer (absolute path, forbidden on glob roots) and the daily `ingest-graph-metrics` job (envelope built by kbo, dedup by date+source at ingress, absent artifact = quiet skip, present-but-invalid = loud all-or-nothing failure). Glossary row `metrics artifact` added. Why: kbl's kb-graph first emit (Wave 0) is unblocked only after this consumer rides a kbo release — kbl ADR-0006 invariant 3.

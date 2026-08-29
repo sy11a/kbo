@@ -157,12 +157,12 @@ public static class OpencodeMiner
             mapped.Data[EventDataFields.Transcript] = sessionId;
             events.Add(EventEnvelope.Create(
                 mapped.Type, mapped.Subject, mapped.Kbroot, mapped.Data,
-                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, time, random));
+                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, time, random, mapped.SchemaRef));
         }
         return events;
     }
 
-    private sealed record MappedTool(string Type, string? Subject, string? Kbroot, JsonObject Data);
+    private sealed record MappedTool(string Type, string? Subject, string? Kbroot, JsonObject Data, string? SchemaRef = null);
 
     private static MappedTool? MapRead(JsonObject input, string? directory, JsonObject raw, KnowledgeRegistry registry)
     {
@@ -219,8 +219,9 @@ public static class OpencodeMiner
         return new MappedTool(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), new JsonObject
         {
             [EventDataFields.Path] = filePath,
+            [EventDataFields.Linkcount] = null,
             [EventDataFields.Raw] = raw,
-        });
+        }, EventTypes.KnowledgeWrittenV2);
     }
 
     private static MappedTool? MapSkill(JsonObject input, JsonObject raw)

@@ -174,6 +174,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
         AssertValid(mapped);
         Assert.Null(mapped["kbroot"]);
         Assert.Null(mapped["data"]!["contenthash"]);
+        Assert.Null(mapped["data"]!["linkcount"]);
         JsonObject rawInput = (JsonObject)mapped["data"]!["raw"]!["tool_input"]!;
         Assert.False(rawInput.ContainsKey("content"));
         Assert.Equal(4, (int?)rawInput["content_size"]);
@@ -195,5 +196,38 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
         Assert.Equal(notePath, (string?)mapped["subject"]);
         Assert.Equal("vault", (string?)mapped["kbroot"]);
         Assert.Equal(notePath, (string?)mapped["data"]!["path"]);
+    }
+
+    [Fact]
+    public void Write_CountsDistinctNormalizedWikilinksAsLinkcount()
+    {
+        // per R-002 + R-004 — the hurting case: alias, anchor, and embed
+        // variants collapse to distinct targets; the event rides v2.
+        string notePath = Path.Combine(vaultRoot, "linked-note.md");
+        File.WriteAllText(notePath, "[[Alpha]] [[Alpha|shown differently]] [[Beta#section]] ![[Gamma]]\n");
+
+        JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = notePath, ["content"] = "body" });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        Assert.Equal("knowledge.written/2", (string?)mapped["schemaref"]);
+        Assert.Equal(3, (int?)mapped["data"]!["linkcount"]);
+    }
+
+    [Fact]
+    public void Write_ToCodeFileUnderKbroot_HasNullLinkcount()
+    {
+        // per R-003 — content kind gates the count, not just the root.
+        string codePath = Path.Combine(vaultRoot, "script.cs");
+        File.WriteAllText(codePath, "// [[not a wikilink target]]\n");
+
+        JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = codePath, ["content"] = "code" });
+
+        Assert.NotNull(mapped);
+        AssertValid(mapped);
+        Assert.Equal("vault", (string?)mapped["kbroot"]);
+        Assert.Equal("knowledge.written/2", (string?)mapped["schemaref"]);
+        Assert.Null(mapped["data"]!["linkcount"]);
+        Assert.NotNull(mapped["data"]!["contenthash"]);
     }
 }

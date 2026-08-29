@@ -3,7 +3,7 @@ type: Component
 title: Claude Code adapter — live capture into bronze
 description: PostToolUse/SessionStart hook mapping Claude Code tool activity to envelope events, kbroot-tagged, appended to the kb-events bronze store.
 tags: [component, adapter, capture, bronze, claude-code]
-timestamp: 2026-08-14T00:00:00Z
+timestamp: 2026-08-29T00:00:00Z
 status: implemented
 ---
 
@@ -26,7 +26,7 @@ Claude Code ──PostToolUse/SessionStart hook (bash, async)──▶ kbo captu
 |---|---|---|---|
 | PostToolUse Read | `knowledge.read` | file path | contenthash when kbroot != null and ≤ 5 MB, else size (G2-5) |
 | PostToolUse Grep/Glob | `knowledge.searched` | pattern | root = `tool_input.path` else cwd; hits best-effort from tool_response (G2-6) |
-| PostToolUse Write/Edit/NotebookEdit | `knowledge.written` | file path | Edit/NotebookEdit are writes (owner-confirmed 2026-08-11); written content is never embedded — `contenthash`/`size` from the on-disk file per G2-5, stripped `tool_input` fields replaced by `<field>_size` (ADR-0030) |
+| PostToolUse Write/Edit/NotebookEdit | `knowledge.written` (v2) | file path | Edit/NotebookEdit are writes (owner-confirmed 2026-08-11); written content is never embedded — `contenthash`/`size` from the on-disk file per G2-5, stripped `tool_input` fields replaced by `<field>_size` (ADR-0030); `linkcount` = distinct normalized wikilink targets, computed when kbroot + knowledge content kind + ≤ 5 MB, else null (BL-038) |
 | Skill (harvest only) | `skill.invoked` | skill name | mined from transcripts, not the live hook (Skill isn't in the hook matcher); `data.skill` = the invoked skill (ADR-0024) |
 | SessionStart | `session.started` + `context.loaded` per implicit file | session id / path | implicit files: global CLAUDE.md, project CLAUDE.md, `.claude/rules/*.md`, auto-memory MEMORY.md |
 | other tools | none | — | capture stays file-tool scoped in v1 |

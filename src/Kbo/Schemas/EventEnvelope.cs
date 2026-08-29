@@ -22,7 +22,8 @@ public static class EventEnvelope
         string? task,
         string? model,
         DateTimeOffset time,
-        Random random)
+        Random random,
+        string? schemaRef = null)
     {
         return new JsonObject
         {
@@ -40,7 +41,7 @@ public static class EventEnvelope
             [EnvelopeFields.Task] = task,
             [EnvelopeFields.Model] = model,
             [EnvelopeFields.Kbroot] = kbroot,
-            [EnvelopeFields.SchemaRef] = EventTypes.V1SchemaRef(type),
+            [EnvelopeFields.SchemaRef] = schemaRef ?? EventTypes.V1SchemaRef(type),
         };
     }
 }

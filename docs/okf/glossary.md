@@ -3,7 +3,7 @@ type: System
 title: kb-observability — Domain Glossary
 description: Domain terms mapped to their meaning in this codebase.
 tags: [system, glossary, domain]
-timestamp: 2026-08-28T00:00:00Z
+timestamp: 2026-08-29T00:00:00Z
 status: implemented
 ---
 
@@ -57,3 +57,4 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | acute break | The mirror's only amber (⚠️): live value breaking its norm at robust z > 2 (saturated series: >2pp absolute); chronic sickness is 🔴 without alarm styling (BL-033) |
 | graph.metrics | Corpus-aggregate event (job-origin, no raw) appended by the kbo ingest job from kbl's card-graph export artifact; dedup key `date`+`source`; field contract fixed by the Wave-0 spec in BL-036 (ADR-0042, kbl ADR-0006) |
 | corpus aggregate | Metrics snapshot over a registered card-graph source at a snapshot date — notes/orphans (islands), links/linkrot, in-degree histogram, new-links-per-week; idempotent under re-ingest |
+| linkcount | Out-links of a written note at write time: distinct normalized wikilink targets (alias/anchor stripped, embeds counted) in `knowledge.written/2` `data.linkcount`; live hooks compute it under the knowledge gating, harvest writes carry null (BL-038, kbl's discipline metric) |

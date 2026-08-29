@@ -23,8 +23,9 @@ first emit — capture silently drops unregistered schemarefs into the fail-safe
   Resolved by BL-037's grill: the optional `metricsArtifact` field on the existing
   aggregated source row; the machine-local registry gains the pointer when kbl's
   emit approaches (operator act, not code).
-- [ ] **`knowledge.written/2`** — `linkcount` field (out-links of the written note; the live
+- [x] **`knowledge.written/2`** — `linkcount` field (out-links of the written note; the live
   hook computes it), schema evolution along the ADR-0002 path.
+  ([BL-038](cases/BL-038-knowledge-written-2-linkcount/spec.md), converged 2026-08-29).
 - [ ] **Gold mirror tiles** — orphan/link-rot/density trends from `graph.metrics`; fold into
   the owed "mirror v0.1 final metric set" brainstorm.
 - [x] **ADR-0042** — the invariant "kbo is the only writer of bronze; sibling
@@ -39,6 +40,7 @@ first emit — capture silently drops unregistered schemarefs into the fail-safe
 | BL-033 | Mirror calibration v1 — emoji state model, p25–p75 corridors in gold json, trust-tiles, ⏳ placeholders (design session 2026-08-27; decisions + data checks inside) | [docs/cases/BL-033-mirror-calibration-v1/spec.md](cases/BL-033-mirror-calibration-v1/spec.md) |
 | BL-035 | ADR-0042 (kbo's side of the canon) + dashboard declutter to the mirror questions — grill answers, cut list, strip/details/disclosure semantics | [docs/cases/BL-035-adr0042-declutter/spec.md](cases/BL-035-adr0042-declutter/spec.md) |
 | BL-037 | graph-metrics ingest — registry `metricsArtifact` pointer on the aggregated source row + daily `ingest-graph-metrics` pulse job (dedup at ingress, quiet skip on absent artifact) | [docs/cases/BL-037-graph-metrics-ingest/spec.md](cases/BL-037-graph-metrics-ingest/spec.md) |
+| BL-038 | `knowledge.written/2` — additive `linkcount` (distinct normalized wikilinks, live hooks only, harvest null); the registry's first version bump | [docs/cases/BL-038-knowledge-written-2-linkcount/spec.md](cases/BL-038-knowledge-written-2-linkcount/spec.md) |
 | BL-001 (kbl) | kb-graph placement + kbo metrics pull-contract (kbl's ADR-0006); kbo-side obligations — the section above | `~/Repository/kbl/docs/cases/BL-001/readme.md` (case lives in kbl) |
 
 ## Deferred

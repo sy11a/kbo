@@ -107,7 +107,24 @@ public class OpencodeAdapterTests : IDisposable
 
         Assert.Equal("knowledge.written", (string?)written!["type"]);
         Assert.Equal("knowledge.written", (string?)edited!["type"]);
+        Assert.Equal("knowledge.written/2", (string?)written!["schemaref"]);
+        Assert.Null(written!["data"]!["linkcount"]);
         Assert.True(new EventValidator().Validate(written.ToJsonString()).IsValid);
+    }
+
+    [Fact]
+    public void Write_ToExistingLinkedNote_CountsLinkcount()
+    {
+        // per R-002 — the opencode live path computes the same distinct-target
+        // count as the Claude Code adapter, through the shared counter.
+        string notePath = Path.Combine(vaultRoot, "linked.md");
+        File.WriteAllText(notePath, "[[Alpha]] [[Alpha|alias]] [[Beta#x]] ![[Gamma]] [[Delta]]\n");
+
+        JsonObject? mapped = MapTool("write", new JsonObject { ["filePath"] = notePath });
+
+        Assert.NotNull(mapped);
+        Assert.Equal("knowledge.written/2", (string?)mapped!["schemaref"]);
+        Assert.Equal(4, (int?)mapped["data"]!["linkcount"]);
     }
 
     [Fact]
