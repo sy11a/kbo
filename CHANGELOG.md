@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/backlog.md` — the queue moved to Architector's idea and pre-release backlogs (Architector ADR 0009, case BL-011, 2026-09-08): the gold mirror tiles as Architector #37, the four deferred calibration follow-ups as #59, the context-cleanliness axis as #46; this file keeps the running release's tasks (none) and the case register.
+
 ### Added
 
 - `knowledge.written/2` — the schema registry's first version bump
