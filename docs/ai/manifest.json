@@ -1,9 +1,8 @@
 {
-  "legislatorVersion": 23,
+  "legislatorVersion": 27,
   "stacks": ["dotnet"],
   "keep": [],
   "ownedFiles": [
-    "docs/ai/engine.py",
     "docs/ai/rules/core/adr.md",
     "docs/ai/rules/core/artifact-lifecycle.md",
     "docs/ai/rules/core/changelog.md",
