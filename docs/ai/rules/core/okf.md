@@ -14,7 +14,7 @@ See this project's `docs/okf/index.md` for the category-to-file mapping table sp
 - [ ] `timestamp` field updated to today's date (ISO 8601)
 - [ ] New cross-links added where relevant (`[text](../path/to/doc.md)`)
 - [ ] New or renamed domain terms have a row in `docs/okf/glossary.md`; meanings of changed terms updated
-- [ ] `docs/okf/log.md` has a new entry describing what changed and why
+- [ ] `docs/okf/log.md` — **owed only where a concept document's meaning changed and no case summary records it.** Inside a case the record is `docs/cases/<case>/summary.md` and nothing is owed here; a concept change made outside any case is written straight into `docs/okf/log.md`, because nothing else holds it. Where it is owed inside a case, it goes through the change fragment (`docs/changes/<case>.md` `## okf-log` section) — a branch never edits `docs/okf/log.md` directly; `legislator render` assembles it. The file is kept as history and never rewritten; what was dropped is the per-task duty, not the log.
 
 ### When to update
 
@@ -58,10 +58,10 @@ whether the identifier still exists, not whether its declaration kept its
 shape, and a dotted anchor asks only about the type it names — the member
 half is prose.
 
-- **`python3 docs/ai/engine.py anchors` is the executing arm of this rule** —
+- **`legislator anchors` is the executing arm of this rule** —
   it writes nothing and reports every anchor that no longer resolves.
   `core/verification.md` carries the rung that requires it before "done".
-- **`python3 docs/ai/engine.py okf-debt`** names anchored documents whose
+- **`legislator okf-debt`** names anchored documents whose
   sources moved on without them: an anchored source file with a commit more
   than 30 days newer than the document's own newest commit. A path-anchor
   naming a directory is not a source for this purpose — a directory's history
