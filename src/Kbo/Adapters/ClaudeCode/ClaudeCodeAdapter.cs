@@ -167,11 +167,11 @@ internal static class ClaudeCodeAdapter
                 return hits;
             }
         }
-        if (response["filenames"] is JsonArray filenames)
+        if (response["filenames"] is not JsonArray filenames)
         {
-            return filenames.Count;
+            return null;
         }
-        return null;
+        return filenames.Count;
     }
 
     private static void AddContentHash(JsonObject data, string filePath, string? kbroot)

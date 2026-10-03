@@ -97,7 +97,7 @@ internal static class AuditComputer
         return sessions;
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "SQL is a constant query authored in this file; only parameter values are bound, no string concatenation of external input.")]
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Constant query; the only interpolation is the const UnregisteredSourceCap, no external input.")]
     private static List<UnregisteredSourceFinding> QueryUnregisteredSources(string silverPath, KnowledgeRegistry registry)
     {
         List<UnregisteredSourceFinding> findings = [];

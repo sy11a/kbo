@@ -31,7 +31,7 @@ internal static class ConstitutionFleet
 
         string current = currentVersion.ToString(CultureInfo.InvariantCulture);
         List<FleetRepoTile> repos = [];
-        foreach (string root in config.ScanRoots.Where(root => Directory.Exists(root)))
+        foreach (string root in config.ScanRoots.Where(scanRoot => Directory.Exists(scanRoot)))
         {
             foreach (string repo in Directory.EnumerateDirectories(root))
             {

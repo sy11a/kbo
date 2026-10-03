@@ -155,10 +155,11 @@ internal static class OpencodeAdapter
             yield break;
         }
         string projectAgents = Path.Combine(directory, "AGENTS.md");
-        if (File.Exists(projectAgents))
+        if (!File.Exists(projectAgents))
         {
-            yield return (projectAgents, "project-instructions");
+            yield break;
         }
+        yield return (projectAgents, "project-instructions");
     }
 
     private static void AddContentHash(JsonObject data, string filePath, string? kbroot)

@@ -319,7 +319,7 @@ internal sealed class KnowledgeRegistry
 
         foreach ((string path, List<string> matched) in candidates.Where(candidate => Directory.Exists(candidate.Path)))
         {
-            if (matched.Exists(matchedItem => exclude.Contains(matchedItem)))
+            if (matched.Exists(matchedItem => exclude.Contains(matchedItem, StringComparer.Ordinal)))
             {
                 continue;
             }
