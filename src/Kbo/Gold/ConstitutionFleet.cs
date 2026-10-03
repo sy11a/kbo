@@ -4,10 +4,6 @@ using Kbo.Registry;
 
 namespace Kbo.Gold;
 
-internal sealed record FleetRepoTile(string Repo, string Version, string Status);
-
-internal sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<FleetRepoTile> Repos, int Behind);
-
 /// <summary>
 /// Legislated-repo fleet vs the current constitution version. There is no
 /// fleet registry to maintain: the repos' docs/ai/manifest.json files ARE the

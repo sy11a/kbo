@@ -1,27 +1,5 @@
 namespace Kbo.Gold;
 
-internal enum MirrorDirection
-{
-    UpIsBetter,
-    DownIsBetter,
-}
-
-/// <summary>The tile's declared target: a value and which side of it is healthy.</summary>
-internal sealed record MirrorGoal(double Value, MirrorDirection Direction);
-
-/// <summary>Calibration verdict for one mirror tile (BL-033). State is the emoji the
-/// renderer prints; StatusClass is the CSS class. Amber ("acute") is the only alarm.</summary>
-internal sealed record MirrorVerdict(
-    string State,
-    string StatusClass,
-    double? CorridorLow,
-    double? CorridorHigh,
-    double? Median,
-    double? Mad,
-    double? SlopePerWeek,
-    double? RobustZ,
-    int HistoryWeeks);
-
 /// <summary>Mirror calibration v1 (BL-033, design session 2026-08-27): state = emoji,
 /// not color. A tile is judged against its own history (weekly snapshots): the p25–p75
 /// corridor is "my normal", the robust z-score catches acute breaks, and the OLS slope

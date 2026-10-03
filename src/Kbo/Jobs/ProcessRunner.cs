@@ -2,13 +2,6 @@ using System.Diagnostics;
 
 namespace Kbo.Jobs;
 
-internal sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
-
-internal interface IProcessRunner
-{
-    public ProcessResult Run(string fileName, IReadOnlyList<string> arguments);
-}
-
 internal sealed class ProcessRunner : IProcessRunner
 {
     public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)

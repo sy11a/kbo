@@ -1,19 +1,5 @@
 namespace Kbo.Gold;
 
-internal sealed record DayCount(string Label, long Count);
-
-internal sealed record DaySession(
-    string Time,
-    string Agent,
-    string Repo,
-    long Reads,
-    long Searches,
-    long Skills,
-    long Writes,
-    bool TouchedKb,
-    long InputTokens,
-    long CacheReadTokens);
-
 /// <summary>
 /// One day's activity digest, computed once from silver (P2). Knowledge is
 /// classified registry-now (ADR-0021): subjects resolved through the current

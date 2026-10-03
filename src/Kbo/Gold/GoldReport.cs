@@ -1,31 +1,5 @@
 namespace Kbo.Gold;
 
-internal sealed record DeadNote(
-    string Path,
-    string SourceId,
-    string Layer,
-    int DaysSinceModified,
-    DateTimeOffset? LastRead,
-    IReadOnlyList<string> SuggestedActions);
-
-internal sealed record HotNote(
-    string Path,
-    string SourceId,
-    long ReadsInWindow,
-    long ReadsTotal,
-    DateTimeOffset LastRead);
-
-internal sealed record StaleNote(
-    string Path,
-    string SourceId,
-    long ReadsInWindow,
-    int DaysSinceModified);
-
-internal sealed record DormantSource(
-    string SourceId,
-    DateTimeOffset? LastActivity,
-    int WithheldDeadNotes);
-
 internal sealed record GoldReport(
     DateTimeOffset GeneratedAt,
     string Machine,

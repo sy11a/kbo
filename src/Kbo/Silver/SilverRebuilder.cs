@@ -6,8 +6,6 @@ using Kbo.Schemas;
 
 namespace Kbo.Silver;
 
-internal sealed record RebuildResult(long EventCount, long SessionCount, long SkippedLines);
-
 internal static class SilverRebuilder
 {
     private const string CreateEventsTable = """
