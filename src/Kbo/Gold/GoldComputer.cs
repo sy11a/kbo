@@ -18,12 +18,51 @@ internal static class GoldComputer
 
     private sealed record ReadStats(long ReadsInWindow, long ReadsTotal, DateTimeOffset LastRead);
 
+    private sealed record NoteClassifications(
+        Dictionary<string, int> InventoryCounts,
+        Dictionary<string, int> LifecycleCounts,
+        Dictionary<string, int> MachineManagedCounts,
+        List<DeadNote> DeadNotes,
+        List<StaleNote> StaleNotes);
+
     public static GoldReport Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
     {
         DateTimeOffset now = clock.GetUtcNow();
         Dictionary<string, ReadStats> statsByPath = QueryReadStats(silverPath, now.AddDays(-ReadWindowDays));
         List<InventoryNote> inventory = NoteInventory.Scan(registry);
 
+        NoteClassifications classifications = ClassifyNotes(inventory, statsByPath, now);
+
+        List<HotNote> hotNotes = PickHotNotes(statsByPath, inventory);
+
+        Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
+        (List<DormantSource> dormantSources, HashSet<string> dormantSourceIds) =
+            FindDormantSources(classifications.InventoryCounts, activityBySource, classifications.DeadNotes, now);
+
+        List<DeadNote> deadNotes = [.. classifications.DeadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId))];
+
+        return new GoldReport(
+            now,
+            registry.Machine,
+            MinInventoryAgeDays,
+            ReadWindowDays,
+            StaleMinReads,
+            StaleUnmodifiedDays,
+            DormantAfterDays,
+            classifications.InventoryCounts,
+            classifications.LifecycleCounts,
+            classifications.MachineManagedCounts,
+            dormantSources,
+            deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
+            hotNotes,
+            classifications.StaleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+    }
+
+    private static NoteClassifications ClassifyNotes(
+        List<InventoryNote> inventory,
+        Dictionary<string, ReadStats> statsByPath,
+        DateTimeOffset now)
+    {
         Dictionary<string, int> inventoryCounts = inventory
             .GroupBy(note => note.SourceId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
@@ -60,8 +99,13 @@ internal static class GoldComputer
             }
         }
 
+        return new NoteClassifications(inventoryCounts, lifecycleCounts, machineManagedCounts, deadNotes, staleNotes);
+    }
+
+    private static List<HotNote> PickHotNotes(Dictionary<string, ReadStats> statsByPath, List<InventoryNote> inventory)
+    {
         Dictionary<string, InventoryNote> inventoryByPath = inventory.ToDictionary(note => note.Path, StringComparer.Ordinal);
-        List<HotNote> hotNotes = [.. statsByPath
+        return [.. statsByPath
             .Where(entry => entry.Value.ReadsInWindow > 0 && inventoryByPath.ContainsKey(entry.Key))
             .OrderByDescending(entry => entry.Value.ReadsInWindow)
             .ThenByDescending(entry => entry.Value.ReadsTotal)
@@ -73,35 +117,23 @@ internal static class GoldComputer
                 entry.Value.ReadsInWindow,
                 entry.Value.ReadsTotal,
                 entry.Value.LastRead)),];
+    }
 
-        Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
+    private static (List<DormantSource> dormantSources, HashSet<string> dormantSourceIds) FindDormantSources(
+        Dictionary<string, int> inventoryCounts,
+        Dictionary<string, DateTimeOffset> activityBySource,
+        List<DeadNote> deadNotes,
+        DateTimeOffset now)
+    {
         DateTimeOffset dormantCutoff = now.AddDays(-DormantAfterDays);
         HashSet<string> dormantSourceIds = [.. inventoryCounts.Keys.Where(id => !activityBySource.TryGetValue(id, out DateTimeOffset last) || last < dormantCutoff)];
-
         List<DormantSource> dormantSources = [.. dormantSourceIds
             .Order(StringComparer.Ordinal)
             .Select(id => new DormantSource(
                 id,
                 activityBySource.TryGetValue(id, out DateTimeOffset last) ? last : null,
                 deadNotes.Count(note => note.SourceId == id))),];
-
-        deadNotes = [.. deadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId))];
-
-        return new GoldReport(
-            now,
-            registry.Machine,
-            MinInventoryAgeDays,
-            ReadWindowDays,
-            StaleMinReads,
-            StaleUnmodifiedDays,
-            DormantAfterDays,
-            inventoryCounts,
-            lifecycleCounts,
-            machineManagedCounts,
-            dormantSources,
-            deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
-            hotNotes,
-            staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+        return (dormantSources, dormantSourceIds);
     }
 
     /// <summary>
