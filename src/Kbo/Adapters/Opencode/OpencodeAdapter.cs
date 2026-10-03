@@ -52,61 +52,65 @@ internal static class OpencodeAdapter
         }
 
         string? directory = (string?)payload[Payload.Directory];
-        switch (tool)
+        DateTimeOffset time = clock.GetUtcNow();
+        return tool switch
         {
-            case Tools.Read:
-                {
-                    string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
-                    if (filePath is null)
-                    {
-                        return null;
-                    }
-                    string? kbroot = registry.Resolve(filePath);
-                    JsonObject data = new() { [EventDataFields.Path] = filePath };
-                    AddContentHash(data, filePath, kbroot);
-                    data[EventDataFields.Raw] = payload.DeepClone();
-                    return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random);
-                }
-            case Tools.Grep:
-            case Tools.Glob:
-                {
-                    string? pattern = (string?)args[Payload.Pattern];
-                    if (pattern is null)
-                    {
-                        return null;
-                    }
-                    string? root = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.Path], directory)
-                        ?? ClaudeCodeAdapter.AbsolutePath(directory, cwd: null);
-                    JsonObject data = new()
-                    {
-                        [EventDataFields.Pattern] = pattern,
-                        [EventDataFields.Root] = root,
-                        [EventDataFields.Hits] = null,
-                        [EventDataFields.Raw] = payload.DeepClone(),
-                    };
-                    string? kbroot = root is null ? null : registry.Resolve(root);
-                    return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), random);
-                }
-            case Tools.Write:
-            case Tools.Edit:
-                {
-                    string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
-                    if (filePath is null)
-                    {
-                        return null;
-                    }
-                    string? kbroot = registry.Resolve(filePath);
-                    JsonObject data = new()
-                    {
-                        [EventDataFields.Path] = filePath,
-                        [EventDataFields.Raw] = payload.DeepClone(),
-                    };
-                    AddLinkcount(data, filePath, kbroot);
-                    return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
-                }
-            default:
-                return null;
+            Tools.Read => MapReadTool(payload, args, directory, registry, time, random),
+            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, time, random),
+            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, time, random),
+            _ => null,
+        };
+    }
+
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    {
+        string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
+        if (filePath is null)
+        {
+            return null;
         }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new() { [EventDataFields.Path] = filePath };
+        AddContentHash(data, filePath, kbroot);
+        data[EventDataFields.Raw] = payload.DeepClone();
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, time, random);
+    }
+
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    {
+        string? pattern = (string?)args[Payload.Pattern];
+        if (pattern is null)
+        {
+            return null;
+        }
+        string? root = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.Path], directory)
+            ?? ClaudeCodeAdapter.AbsolutePath(directory, cwd: null);
+        JsonObject data = new()
+        {
+            [EventDataFields.Pattern] = pattern,
+            [EventDataFields.Root] = root,
+            [EventDataFields.Hits] = null,
+            [EventDataFields.Raw] = payload.DeepClone(),
+        };
+        string? kbroot = root is null ? null : registry.Resolve(root);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, time, random);
+    }
+
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    {
+        string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
+        if (filePath is null)
+        {
+            return null;
+        }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new()
+        {
+            [EventDataFields.Path] = filePath,
+            [EventDataFields.Raw] = payload.DeepClone(),
+        };
+        AddLinkcount(data, filePath, kbroot);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, time, random, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(

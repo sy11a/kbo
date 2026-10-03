@@ -22,65 +22,67 @@ internal static class ClaudeCodeAdapter
 
         string? cwd = (string?)payload[HookPayload.Cwd];
         GitContext git = GitContext.Discover(cwd, registry.TaskPattern);
-        switch (toolName)
+        return toolName switch
         {
-            case HookPayload.Tools.Read:
-                {
-                    string? filePath = AbsolutePath((string?)toolInput[HookPayload.FilePath], cwd);
-                    if (filePath is null)
-                    {
-                        return null;
-                    }
-                    string? kbroot = registry.Resolve(filePath);
-                    JsonObject data = new() { [EventDataFields.Path] = filePath };
-                    AddContentHash(data, filePath, kbroot);
-                    data[EventDataFields.Raw] = RawPayload(payload);
-                    return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
-                }
-            case HookPayload.Tools.Grep:
-            case HookPayload.Tools.Glob:
-                {
-                    string? pattern = (string?)toolInput[HookPayload.Pattern];
-                    if (pattern is null)
-                    {
-                        return null;
-                    }
-                    string? root = AbsolutePath((string?)toolInput[HookPayload.Path], cwd) ?? AbsolutePath(cwd, cwd: null);
-                    string? kbroot = root is null ? null : registry.Resolve(root);
-                    JsonObject data = new()
-                    {
-                        [EventDataFields.Pattern] = pattern,
-                        [EventDataFields.Root] = root,
-                        [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
-                        [EventDataFields.Raw] = RawPayload(payload),
-                    };
-                    return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
-                }
-            case HookPayload.Tools.Write:
-            case HookPayload.Tools.Edit:
-            case HookPayload.Tools.NotebookEdit:
-                {
-                    string? filePath = AbsolutePath(
-                        (string?)toolInput[HookPayload.FilePath] ?? (string?)toolInput[HookPayload.NotebookPath], cwd);
-                    if (filePath is null)
-                    {
-                        return null;
-                    }
-                    string? kbroot = registry.Resolve(filePath);
-                    JsonObject data = new() { [EventDataFields.Path] = filePath };
-                    AddContentHash(data, filePath, kbroot);
-                    AddLinkcount(data, filePath, kbroot);
-                    JsonObject raw = RawPayload(payload);
-                    if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
-                    {
-                        StripWrittenContent(rawToolInput);
-                    }
-                    data[EventDataFields.Raw] = raw;
-                    return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
-                }
-            default:
-                return null;
+            HookPayload.Tools.Read => MapReadTool(payload, toolInput, cwd, git, registry, clock, random),
+            HookPayload.Tools.Grep or HookPayload.Tools.Glob => MapSearchTool(payload, toolInput, cwd, git, registry, clock, random),
+            HookPayload.Tools.Write or HookPayload.Tools.Edit or HookPayload.Tools.NotebookEdit => MapWriteTool(payload, toolInput, cwd, git, registry, clock, random),
+            _ => null,
+        };
+    }
+
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? filePath = AbsolutePath((string?)toolInput[HookPayload.FilePath], cwd);
+        if (filePath is null)
+        {
+            return null;
         }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new() { [EventDataFields.Path] = filePath };
+        AddContentHash(data, filePath, kbroot);
+        data[EventDataFields.Raw] = RawPayload(payload);
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
+    }
+
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? pattern = (string?)toolInput[HookPayload.Pattern];
+        if (pattern is null)
+        {
+            return null;
+        }
+        string? root = AbsolutePath((string?)toolInput[HookPayload.Path], cwd) ?? AbsolutePath(cwd, cwd: null);
+        string? kbroot = root is null ? null : registry.Resolve(root);
+        JsonObject data = new()
+        {
+            [EventDataFields.Pattern] = pattern,
+            [EventDataFields.Root] = root,
+            [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
+            [EventDataFields.Raw] = RawPayload(payload),
+        };
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
+    }
+
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? filePath = AbsolutePath(
+            (string?)toolInput[HookPayload.FilePath] ?? (string?)toolInput[HookPayload.NotebookPath], cwd);
+        if (filePath is null)
+        {
+            return null;
+        }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new() { [EventDataFields.Path] = filePath };
+        AddContentHash(data, filePath, kbroot);
+        AddLinkcount(data, filePath, kbroot);
+        JsonObject raw = RawPayload(payload);
+        if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
+        {
+            StripWrittenContent(rawToolInput);
+        }
+        data[EventDataFields.Raw] = raw;
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(
