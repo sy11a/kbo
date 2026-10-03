@@ -52,17 +52,16 @@ internal static class OpencodeAdapter
         }
 
         string? directory = (string?)payload[Payload.Directory];
-        DateTimeOffset time = clock.GetUtcNow();
         return tool switch
         {
-            Tools.Read => MapReadTool(payload, args, directory, registry, time, random),
-            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, time, random),
-            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, time, random),
+            Tools.Read => MapReadTool(payload, args, directory, registry, clock, random),
+            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, clock, random),
+            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, clock, random),
             _ => null,
         };
     }
 
-    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
         if (filePath is null)
@@ -73,10 +72,10 @@ internal static class OpencodeAdapter
         JsonObject data = new() { [EventDataFields.Path] = filePath };
         AddContentHash(data, filePath, kbroot);
         data[EventDataFields.Raw] = payload.DeepClone();
-        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, time, random);
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random);
     }
 
-    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
     {
         string? pattern = (string?)args[Payload.Pattern];
         if (pattern is null)
@@ -93,10 +92,10 @@ internal static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         string? kbroot = root is null ? null : registry.Resolve(root);
-        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, time, random);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), random);
     }
 
-    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, DateTimeOffset time, Random random)
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
         if (filePath is null)
@@ -110,7 +109,7 @@ internal static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         AddLinkcount(data, filePath, kbroot);
-        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, time, random, EventTypes.KnowledgeWrittenV2);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(

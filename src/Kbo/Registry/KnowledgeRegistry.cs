@@ -112,23 +112,26 @@ internal sealed class KnowledgeRegistry
 
     private static void ValidateDocument(RegistryDocument? document, List<string> errors)
     {
-        ReportIf(errors, "'machine' is missing", string.IsNullOrWhiteSpace(document?.Machine));
-        ReportIf(errors, "'sources' is missing or empty", document?.Sources is null or { Count: 0 });
-    }
-
-    private static void ReportIf(List<string> errors, string message, bool condition)
-    {
-        if (!condition)
+        if (string.IsNullOrWhiteSpace(document?.Machine))
+        {
+            errors.Add("'machine' is missing");
+        }
+        if (document?.Sources is not null and { Count: > 0 })
         {
             return;
         }
-        errors.Add(message);
+        errors.Add("'sources' is missing or empty");
     }
 
     private static void ValidateSource(SourceEntry entry, List<string> errors, List<KnowledgeSource> sources,
         HashSet<string> seenIds)
     {
         if (!CheckSourceIdentity(entry, errors, seenIds, out KnowledgeLayer layer, out string normalizedRoot))
+        {
+            return;
+        }
+
+        if (!CheckExcludeRequiresGlob(entry, normalizedRoot, errors))
         {
             return;
         }
@@ -197,6 +200,11 @@ internal sealed class KnowledgeRegistry
             return false;
         }
         normalizedRoot = entry.Root.Length > 1 ? entry.Root.TrimEnd('/') : entry.Root;
+        return true;
+    }
+
+    private static bool CheckExcludeRequiresGlob(SourceEntry entry, string normalizedRoot, List<string> errors)
+    {
         bool hasExclude = entry.Exclude is { Count: > 0 };
         if (!hasExclude || normalizedRoot.Contains('*', StringComparison.Ordinal))
         {

@@ -80,7 +80,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile CacheDisciplineTile(
-        DuckDBConnection connection, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Cache discipline · 14д",
@@ -90,7 +90,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile BurnerSessionsTile(
-        DuckDBConnection connection, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Burner sessions · 14д",
@@ -100,7 +100,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile WriteReadLoopTile(
-        DuckDBConnection connection, KnowledgeRegistry registry, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, KnowledgeRegistry registry, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Write→read loop · 6 нед",
@@ -112,7 +112,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile SingleUseNotesTile(
-        DuckDBConnection connection, KnowledgeRegistry registry, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, KnowledgeRegistry registry, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Single-use notes · 6 нед",
@@ -124,7 +124,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile FailedSearchTile(
-        DuckDBConnection connection, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Failed-search · 14д",
@@ -136,7 +136,7 @@ internal static class DashboardComputer
     }
 
     private static MirrorTile SpecBeforeCodeTile(
-        DuckDBConnection connection, DateTime nowUtc, List<DateTime> grid)
+        DuckDBConnection connection, DateTime nowUtc, IReadOnlyList<DateTime> grid)
     {
         return BuildTile(nowUtc, grid,
             "Spec-before-code · 6 нед",

@@ -130,7 +130,7 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
                 string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}"));
         }
 
-        string dedupKey = (string?)payload[EventDataFields.Date] + "|" + (string?)payload[EventDataFields.Source];
+        string dedupKey = (string?)payload[EventDataFields.Date] + "|" + source.Id;
         if (!seenKeys.Add(dedupKey))
         {
             skipped++;

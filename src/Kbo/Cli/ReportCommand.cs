@@ -52,12 +52,11 @@ internal static class ReportCommand
             return 1;
         }
 
-        string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
         GoldReport report = GoldComputer.Compute(silverPath, registry, TimeProvider.System);
         DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
         IReadOnlyList<DayDigest> digests = DailyDigestComputer.Compute(silverPath, registry, TimeProvider.System);
+        string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
         WriteOutputFiles(outputDirectory, report, dashboard, vault.Root);
-
         WriteDailyDigests(outputDirectory, digests);
 
         output.WriteLine(Summarize(outputDirectory, report, dashboard, fleet, digests));

@@ -35,8 +35,9 @@ internal static class DoctorCommand
         List<string> problems = [];
         CheckPulseTimer(processRunner, output, problems);
 
+        Dictionary<string, DateTimeOffset> lastCompleted = LoadLastCompleted(environment, homeDirectory);
         DateTimeOffset now = clock.GetUtcNow();
-        AnalyzeJobs(LoadLastCompleted(environment, homeDirectory), now, output, problems);
+        AnalyzeJobs(lastCompleted, now, output, problems);
         ReportCaptureDrops(homeDirectory, now, output, problems);
 
         if (problems.Count is 0)
