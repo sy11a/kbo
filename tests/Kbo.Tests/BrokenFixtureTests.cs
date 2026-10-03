@@ -9,7 +9,7 @@ namespace Kbo.Tests;
 /// </summary>
 public class BrokenFixtureTests
 {
-    private static readonly EventValidator Validator = new();
+    private static readonly EventValidator _validator = new();
 
     private static string BrokenDirectory => Path.Combine(AppContext.BaseDirectory, "fixtures", "broken");
 
@@ -37,7 +37,7 @@ public class BrokenFixtureTests
     [MemberData(nameof(BrokenEvents))]
     public void Every_broken_fixture_fails_validation(string file, int lineNumber, string eventJson)
     {
-        EventValidationResult result = Validator.Validate(eventJson);
+        EventValidationResult result = _validator.Validate(eventJson);
 
         Assert.False(result.IsValid, string.Create(CultureInfo.InvariantCulture, $"{file}:{lineNumber} validated but is deliberately broken — the gate is not working."));
         Assert.NotEmpty(result.Errors);

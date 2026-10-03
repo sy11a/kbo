@@ -4,13 +4,13 @@ using Kbo.Bronze;
 
 namespace Kbo.Tests;
 
-public class BronzeStoreTests : IDisposable
+public sealed class BronzeStoreTests : IDisposable
 {
-    private readonly string eventsRepo;
+    private readonly string _eventsRepo;
 
-    public BronzeStoreTests() => eventsRepo = Path.Combine(Directory.CreateTempSubdirectory("kbo-bronze-tests").FullName, "kb-events");
+    public BronzeStoreTests() => _eventsRepo = Path.Combine(Directory.CreateTempSubdirectory("kbo-bronze-tests").FullName, "kb-events");
 
-    public void Dispose() => Directory.Delete(Path.GetDirectoryName(eventsRepo)!, recursive: true);
+    public void Dispose() => Directory.Delete(Path.GetDirectoryName(_eventsRepo)!, recursive: true);
 
     private static JsonObject Event(
         string time,
@@ -34,12 +34,12 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_CreatesRepoWithGitAndMonthFile()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[] { Event("2026-08-11T15:00:00Z") });
 
-        string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
+        string monthFile = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         Assert.True(File.Exists(monthFile));
-        Assert.True(Directory.Exists(Path.Combine(eventsRepo, ".git")));
+        Assert.True(Directory.Exists(Path.Combine(_eventsRepo, ".git")));
 
         string[] lines = File.ReadAllLines(monthFile);
         _ = Assert.Single(lines);
@@ -49,7 +49,7 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void HarvestedTranscripts_ReturnsOnlyTranscriptsWithHarvestOriginEvents()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[]
         {
             Event("2026-08-11T15:00:00Z", origin: "hook"),
@@ -64,12 +64,12 @@ public class BronzeStoreTests : IDisposable
     }
 
     [Fact]
-    public void HarvestedTranscripts_EmptyOrMissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).HarvestedTranscripts());
+    public void HarvestedTranscripts_EmptyOrMissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(_eventsRepo).HarvestedTranscripts());
 
     [Fact]
     public void SeenTranscripts_CoversHarvestStampsAndHookTranscriptPaths()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         JsonObject hookEvent = Event("2026-08-11T15:00:00Z", origin: "hook");
         hookEvent["data"]!["raw"] = new JsonObject
         {
@@ -89,7 +89,7 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void TranscriptsWithType_ReturnsOnlyTranscriptsCarryingThatEventType()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[]
         {
             Event("2026-07-01T10:00:00Z", transcript: "read-file", type: "knowledge.read"),
@@ -104,12 +104,12 @@ public class BronzeStoreTests : IDisposable
     }
 
     [Fact]
-    public void TranscriptsWithType_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).TranscriptsWithType("skill.invoked"));
+    public void TranscriptsWithType_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(_eventsRepo).TranscriptsWithType("skill.invoked"));
 
     [Fact]
     public void LastCompletedJobs_KeepsLatestCompletionPerJob()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[]
         {
             Event("2026-08-11T09:00:00Z", type: "job.completed", subject: "pulse"),
@@ -127,18 +127,18 @@ public class BronzeStoreTests : IDisposable
     }
 
     [Fact]
-    public void LastCompletedJobs_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).LastCompletedJobs());
+    public void LastCompletedJobs_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(_eventsRepo).LastCompletedJobs());
 
     [Fact]
     public void Scanners_SkipMalformedLines()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[]
         {
             Event("2026-08-11T15:00:00Z", origin: "harvest", transcript: "good-file"),
             Event("2026-08-11T16:00:00Z", type: "job.completed", subject: "pulse"),
         });
-        string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
+        string monthFile = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         File.AppendAllText(monthFile, "{truncated by a crashed writer\n[42]\n");
 
         Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "good-file" }, store.HarvestedTranscripts());
@@ -150,9 +150,9 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_WhileAnotherAppenderHoldsTheMonthFile_BothLinesLandIntact()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[] { Event("2026-08-11T15:00:00Z") });
-        string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
+        string monthFile = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
 
         using (FileStream concurrentAppender = new(monthFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
         {
@@ -167,20 +167,20 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_ManyConcurrentAppenders_AllLinesLandIntact()
     {
-        new BronzeStore(eventsRepo).Append(new[] { Event("2026-08-11T14:00:00Z") });
+        new BronzeStore(_eventsRepo).Append(new[] { Event("2026-08-11T14:00:00Z") });
         const int writerCount = 8;
         const int eventsPerWriter = 25;
 
         _ = Parallel.For(0, writerCount, writer =>
         {
-            BronzeStore store = new(eventsRepo);
+            BronzeStore store = new(_eventsRepo);
             for (int sequence = 0; sequence < eventsPerWriter; sequence++)
             {
                 store.Append(new[] { Event(string.Create(CultureInfo.InvariantCulture, $"2026-08-11T15:{writer:00}:{sequence:00}Z")) });
             }
         });
 
-        string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
+        string monthFile = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         string[] lines = File.ReadAllLines(monthFile);
         Assert.Equal(1 + (writerCount * eventsPerWriter), lines.Length);
         Assert.All(lines, line => Assert.NotNull(JsonNode.Parse(line)));
@@ -189,9 +189,9 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_WhileLockFileIsHeld_GivesUpWithIOExceptionInsteadOfInterleaving()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[] { Event("2026-08-11T15:00:00Z") });
-        string lockFile = Path.Combine(eventsRepo, ".locks", "test-machine-claude-code-2026-08.lock");
+        string lockFile = Path.Combine(_eventsRepo, ".locks", "test-machine-claude-code-2026-08.lock");
 
         using FileStream heldLock = new(lockFile, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
 
@@ -201,10 +201,10 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_IgnoresLockFilesInTheEventsRepoGit()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[] { Event("2026-08-11T15:00:00Z") });
 
-        string gitignore = Path.Combine(eventsRepo, ".gitignore");
+        string gitignore = Path.Combine(_eventsRepo, ".gitignore");
         Assert.True(File.Exists(gitignore));
         Assert.Contains("*.lock", File.ReadAllLines(gitignore), StringComparer.Ordinal);
     }
@@ -217,10 +217,11 @@ public class BronzeStoreTests : IDisposable
         BronzeStore.RetryTransientIO(() =>
         {
             attempts++;
-            if (attempts < 3)
+            if (attempts >= 3)
             {
-                throw new IOException("sharing violation");
+                return;
             }
+            throw new IOException("sharing violation");
         });
 
         Assert.Equal(3, attempts);
@@ -243,12 +244,12 @@ public class BronzeStoreTests : IDisposable
     [Fact]
     public void Append_TwiceAndAcrossMonths_AppendsAndBuckets()
     {
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[] { Event("2026-08-11T15:00:00Z"), Event("2026-08-11T15:00:01Z") });
         store.Append(new[] { Event("2026-09-01T00:00:00Z") });
 
-        string august = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
-        string september = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-09.ndjsonl");
+        string august = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
+        string september = Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code", "2026-09.ndjsonl");
         Assert.Equal(2, File.ReadAllLines(august).Length);
         _ = Assert.Single(File.ReadAllLines(september));
     }
@@ -283,7 +284,7 @@ public class BronzeStoreTests : IDisposable
     public void GraphMetricsKeys_ReturnsDateSourcePairsOfIngestedSnapshots()
     {
         // per R-007 — the dedup fence: date+source keys of what bronze holds.
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         store.Append(new[]
         {
             GraphMetricsEvent("2026-08-27", "knowledge"),

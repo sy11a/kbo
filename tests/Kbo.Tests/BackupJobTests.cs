@@ -4,6 +4,9 @@ namespace Kbo.Tests;
 
 public class BackupJobTests
 {
+    private static readonly string[] _archiveAndVaultPaths = ["/archive", "/vault"];
+    private static readonly string[] _archiveOnlyPaths = ["/archive"];
+
     private sealed class FakeRunner(int exitCode = 0, string stderr = "") : IProcessRunner
     {
         public List<(string FileName, IReadOnlyList<string> Arguments)> Invocations { get; } = [];
@@ -11,7 +14,7 @@ public class BackupJobTests
         public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
         {
             Invocations.Add((fileName, arguments));
-            return new ProcessResult(exitCode, "", stderr);
+            return new ProcessResult(exitCode, string.Empty, stderr);
         }
     }
 
@@ -19,7 +22,7 @@ public class BackupJobTests
     public void Run_InvokesResticBackupThenForget()
     {
         FakeRunner runner = new();
-        BackupJob job = new("/backups/repo", "/secrets/pw", new[] { "/archive", "/vault" }, runner);
+        BackupJob job = new("/backups/repo", "/secrets/pw", _archiveAndVaultPaths, runner);
 
         string summary = job.Run();
 
@@ -42,7 +45,7 @@ public class BackupJobTests
     public void Run_ResticFailure_ThrowsWithStderr()
     {
         FakeRunner runner = new(exitCode: 1, stderr: "repository locked");
-        BackupJob job = new("/backups/repo", "/secrets/pw", new[] { "/archive" }, runner);
+        BackupJob job = new("/backups/repo", "/secrets/pw", _archiveOnlyPaths, runner);
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => job.Run());
         Assert.Contains("repository locked", exception.Message, StringComparison.Ordinal);

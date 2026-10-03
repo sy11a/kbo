@@ -156,7 +156,7 @@ public class DashboardRendererTests
             ],
             LastSeen: [],
             ConstitutionFleet: null,
-            ServiceSessions: new ServiceSessionsSummary(0, ""),
+            ServiceSessions: new ServiceSessionsSummary(0, string.Empty),
             SddPanel: new SddPanelGold(
                 [], new SddOrderingSummary(0, 0, 0), [], 0, [], SkillConfigured: false),
             FailedSearchDaily: [],
@@ -244,7 +244,7 @@ public class DashboardRendererTests
     [Fact]
     public void Render_NoServiceSessions_OmitsTheNote()
     {
-        string html = DashboardRenderer.Render(Gold() with { ServiceSessions = new ServiceSessionsSummary(0, "") },
+        string html = DashboardRenderer.Render(Gold() with { ServiceSessions = new ServiceSessionsSummary(0, string.Empty) },
             DashboardRenderer.LoadEmbeddedChartSpecs());
 
         Assert.DoesNotContain("Служебные сессии", html, StringComparison.Ordinal);

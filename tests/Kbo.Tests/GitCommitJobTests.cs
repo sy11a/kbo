@@ -3,11 +3,11 @@ using Kbo.Jobs;
 
 namespace Kbo.Tests;
 
-public class GitCommitJobTests : IDisposable
+public sealed class GitCommitJobTests : IDisposable
 {
-    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-08-12T23:00:00Z", CultureInfo.InvariantCulture);
+    private static readonly DateTimeOffset _now = DateTimeOffset.Parse("2026-08-12T23:00:00Z", CultureInfo.InvariantCulture);
 
-    private readonly string vaultRoot;
+    private readonly string _vaultRoot;
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -16,17 +16,17 @@ public class GitCommitJobTests : IDisposable
 
     public GitCommitJobTests()
     {
-        vaultRoot = Directory.CreateTempSubdirectory("kbo-gitcommit-tests").FullName;
-        File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "# v1\n");
+        _vaultRoot = Directory.CreateTempSubdirectory("kbo-gitcommit-tests").FullName;
+        File.WriteAllText(Path.Combine(_vaultRoot, "note.md"), "# v1\n");
     }
 
-    public void Dispose() => Directory.Delete(vaultRoot, recursive: true);
+    public void Dispose() => Directory.Delete(_vaultRoot, recursive: true);
 
-    private GitCommitJob Job(string name = "vault-git") => new(name, vaultRoot, new ProcessRunner(), new FixedTimeProvider(Now));
+    private GitCommitJob Job(string name = "vault-git") => new(name, _vaultRoot, new ProcessRunner(), new FixedTimeProvider(_now));
 
     private string Git(params string[] arguments)
     {
-        ProcessResult result = new ProcessRunner().Run("git", new[] { "-C", vaultRoot }.Concat(arguments).ToList());
+        ProcessResult result = new ProcessRunner().Run("git", new[] { "-C", _vaultRoot }.Concat(arguments).ToList());
         Assert.Equal(0, result.ExitCode);
         return result.StandardOutput.Trim();
     }
@@ -43,7 +43,7 @@ public class GitCommitJobTests : IDisposable
     {
         string summary = Job().Run();
 
-        Assert.True(Directory.Exists(Path.Combine(vaultRoot, ".git")));
+        Assert.True(Directory.Exists(Path.Combine(_vaultRoot, ".git")));
         Assert.Contains("committed", summary, StringComparison.Ordinal);
         Assert.Contains("kbo auto-commit 2026-08-12", Git("log", "-1", "--format=%s"), StringComparison.Ordinal);
         Assert.Equal("note.md", Git("show", "--name-only", "--format=", "HEAD"));
@@ -66,7 +66,7 @@ public class GitCommitJobTests : IDisposable
     {
         _ = Job().Run();
         string firstCommit = Git("rev-parse", "HEAD");
-        File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "# v2 — edited\n");
+        File.WriteAllText(Path.Combine(_vaultRoot, "note.md"), "# v2 — edited\n");
 
         _ = Job().Run();
 

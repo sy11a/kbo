@@ -7,13 +7,13 @@ using Kbo.Silver;
 
 namespace Kbo.Tests;
 
-public class DashboardComputerTests : IDisposable
+public sealed class DashboardComputerTests : IDisposable
 {
-    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-08-12T22:00:00Z", CultureInfo.InvariantCulture);
+    private static readonly DateTimeOffset _now = DateTimeOffset.Parse("2026-08-12T22:00:00Z", CultureInfo.InvariantCulture);
 
-    private readonly string workspace;
-    private readonly string silverPath;
-    private readonly KnowledgeRegistry registry;
+    private readonly string _workspace;
+    private readonly string _silverPath;
+    private readonly KnowledgeRegistry _registry;
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -22,21 +22,21 @@ public class DashboardComputerTests : IDisposable
 
     public DashboardComputerTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-dashboard-tests").FullName;
-        silverPath = Path.Combine(workspace, "silver.duckdb");
-        registry = KnowledgeRegistry.Parse($"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-dashboard-tests").FullName;
+        _silverPath = Path.Combine(_workspace, "silver.duckdb");
+        _registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {Path.Combine(workspace, "Knowledge")}
+                root: {Path.Combine(_workspace, "Knowledge")}
               - id: skills
                 layer: skills
-                root: {Path.Combine(workspace, "skills")}
+                root: {Path.Combine(_workspace, "skills")}
             """);
     }
 
-    public void Dispose() => Directory.Delete(workspace, recursive: true);
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private static JsonObject Event(string id, string type, string time, string? kbroot = null, string? subject = null,
         string? session = "sess-1", string agent = "claude-code", JsonObject? data = null)
@@ -60,10 +60,10 @@ public class DashboardComputerTests : IDisposable
 
     private DashboardGold Compute(params JsonObject[] events)
     {
-        string eventsRepo = Path.Combine(workspace, "kb-events");
+        string eventsRepo = Path.Combine(_workspace, "kb-events");
         new BronzeStore(eventsRepo).Append(events);
-        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
-        return DashboardComputer.Compute(silverPath, registry, new FixedTimeProvider(Now));
+        _ = SilverRebuilder.Rebuild(eventsRepo, _silverPath);
+        return DashboardComputer.Compute(_silverPath, _registry, new FixedTimeProvider(_now));
     }
 
     [Fact]
@@ -71,12 +71,12 @@ public class DashboardComputerTests : IDisposable
     {
         DashboardGold gold = Compute(
             Event("01F00000000000000000000001", "job.completed", "2026-08-12T00:10:00Z", subject: "harvest", session: null,
-agent: "kbo", data: new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 }),
+                agent: "kbo", data: new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 }),
             Event("01F00000000000000000000002", "job.completed", "2026-08-08T00:10:00Z", subject: "backup", session: null,
-agent: "kbo", data: new JsonObject { ["job"] = "backup", ["duration_ms"] = 5 }));
+                agent: "kbo", data: new JsonObject { ["job"] = "backup", ["duration_ms"] = 5 }));
 
-        JobHealthTile harvest = gold.JobHealth.Single(tile => tile.Job == "harvest");
-        JobHealthTile backup = gold.JobHealth.Single(tile => tile.Job == "backup");
+        JobHealthTile harvest = gold.JobHealth.Single(tile => tile.Job is "harvest");
+        JobHealthTile backup = gold.JobHealth.Single(tile => tile.Job is "backup");
         Assert.Equal("ok", harvest.Status);
         Assert.Equal("red", backup.Status);
         Assert.True(backup.DaysSilent > 3);
@@ -87,12 +87,12 @@ agent: "kbo", data: new JsonObject { ["job"] = "backup", ["duration_ms"] = 5 }))
     {
         DashboardGold gold = Compute(
             Event("01F00000000000000000000090", "job.completed", "2026-08-08T22:00:00Z", subject: "audit", session: null,
-agent: "kbo", data: new JsonObject { ["job"] = "audit", ["duration_ms"] = 5 }),
+                agent: "kbo", data: new JsonObject { ["job"] = "audit", ["duration_ms"] = 5 }),
             Event("01F00000000000000000000091", "job.completed", "2026-08-02T00:00:00Z", subject: "report", session: null,
-agent: "kbo", data: new JsonObject { ["job"] = "report", ["duration_ms"] = 5 }));
+                agent: "kbo", data: new JsonObject { ["job"] = "report", ["duration_ms"] = 5 }));
 
-        JobHealthTile audit = gold.JobHealth.Single(tile => tile.Job == "audit");
-        JobHealthTile report = gold.JobHealth.Single(tile => tile.Job == "report");
+        JobHealthTile audit = gold.JobHealth.Single(tile => tile.Job is "audit");
+        JobHealthTile report = gold.JobHealth.Single(tile => tile.Job is "report");
         Assert.Equal("ok", audit.Status);
         Assert.Equal("red", report.Status);
     }
@@ -104,9 +104,9 @@ agent: "kbo", data: new JsonObject { ["job"] = "report", ["duration_ms"] = 5 }))
         // early (daily rule), never too late.
         DashboardGold gold = Compute(
             Event("01F00000000000000000000092", "job.completed", "2026-08-08T22:00:00Z", subject: "some-retired-job", session: null,
-agent: "kbo", data: new JsonObject { ["job"] = "some-retired-job", ["duration_ms"] = 5 }));
+                agent: "kbo", data: new JsonObject { ["job"] = "some-retired-job", ["duration_ms"] = 5 }));
 
-        Assert.Equal("red", gold.JobHealth.Single(tile => tile.Job == "some-retired-job").Status);
+        Assert.Equal("red", gold.JobHealth.Single(tile => tile.Job is "some-retired-job").Status);
     }
 
     [Fact]
@@ -128,16 +128,16 @@ agent: "kbo", data: new JsonObject { ["job"] = "some-retired-job", ["duration_ms
         DashboardGold gold = Compute(
             Event("01F00000000000000000000060", "session.started", "2026-08-12T09:00:00Z", session: "svc-1", agent: "opencode",
                 data: new JsonObject { ["raw"] = new JsonObject { ["agent_mode"] = "service-fleet" } }),
-            Event("01F00000000000000000000061", "knowledge.read", "2026-08-12T09:01:00Z", kbroot: "vault", subject: Path.Combine(workspace, "Knowledge", "a.md"),
-session: "svc-1", agent: "opencode"),
+            Event("01F00000000000000000000061", "knowledge.read", "2026-08-12T09:01:00Z", kbroot: "vault", subject: Path.Combine(_workspace, "Knowledge", "a.md"),
+                session: "svc-1", agent: "opencode"),
             Event("01F00000000000000000000062", "session.started", "2026-08-12T10:00:00Z", session: "prac-1",
                 data: new JsonObject { ["raw"] = new JsonObject { ["agent_mode"] = "build" } }),
             Event("01F00000000000000000000063", "knowledge.read", "2026-08-12T10:01:00Z", kbroot: "vault",
-                subject: Path.Combine(workspace, "Knowledge", "b.md"), session: "prac-1"));
+                subject: Path.Combine(_workspace, "Knowledge", "b.md"), session: "prac-1"));
 
         Assert.Equal(1, gold.ServiceSessions.Sessions);
         Assert.Equal("service-fleet", gold.ServiceSessions.Agents);
-        Assert.Contains(gold.LastSeen, tile => tile.Agent == "opencode");
+        Assert.Contains(gold.LastSeen, tile => tile.Agent is "opencode");
     }
 
     [Fact]
@@ -157,7 +157,7 @@ session: "svc-1", agent: "opencode"),
             Event("01F00000000000000000000003", "knowledge.read", "2026-08-12T10:00:00Z", subject: "/x.md"),
             Event("01F00000000000000000000004", "knowledge.read", "2026-08-01T10:00:00Z", subject: "/y.md"));
 
-        LastSeenTile claudeCode = gold.LastSeen.Single(tile => tile.Agent == "claude-code");
+        LastSeenTile claudeCode = gold.LastSeen.Single(tile => tile.Agent is "claude-code");
         Assert.Equal("test-machine", claudeCode.Machine);
         Assert.Equal("2026-08-12", claudeCode.LastEvent.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         Assert.Equal("ok", claudeCode.Status);
@@ -169,12 +169,12 @@ session: "svc-1", agent: "opencode"),
         // per R-011 — the surviving KB-touch signal is the recent-sessions
         // column; a read with a null stamp under a path registered later
         // must still mark its session as having touched knowledge.
-        string vaultRoot = Path.Combine(workspace, "Knowledge");
+        string vaultRoot = Path.Combine(_workspace, "Knowledge");
         DashboardGold gold = Compute(
             Event("01F0000000000000000000001B", "session.started", "2026-08-10T09:00:00Z", subject: "sess-late",
-session: "sess-late", data: new JsonObject { ["branch"] = null, ["usage"] = null }),
+                session: "sess-late", data: new JsonObject { ["branch"] = null, ["usage"] = null }),
             Event("01F0000000000000000000001C", "knowledge.read", "2026-08-10T09:05:00Z", kbroot: null,
-subject: Path.Combine(vaultRoot, "late.md"), session: "sess-late"));
+                subject: Path.Combine(vaultRoot, "late.md"), session: "sess-late"));
 
         RecentSessionRow row = Assert.Single(gold.RecentSessions);
         Assert.True(row.TouchedKb);
@@ -200,7 +200,7 @@ subject: Path.Combine(vaultRoot, "late.md"), session: "sess-late"));
 
     private string Note(string relativePath)
     {
-        string path = Path.Combine(workspace, "Knowledge", relativePath);
+        string path = Path.Combine(_workspace, "Knowledge", relativePath);
         _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "# note\n");
         return path;
@@ -237,7 +237,7 @@ subject: Path.Combine(vaultRoot, "late.md"), session: "sess-late"));
         DashboardGold gold = Compute(
             Event("01F00000000000000000000015", "knowledge.read", "2026-05-01T10:00:00Z", kbroot: "vault", subject: oldNote));
 
-        Assert.Contains(gold.UnusedThemes, row => row.Theme == "vault/archive" && row.Notes == 1);
+        Assert.Contains(gold.UnusedThemes, row => row.Theme is "vault/archive" && row.Notes is 1);
     }
 
     private static JsonObject Session(string id, string session, string time, string? repo)
@@ -251,12 +251,12 @@ subject: Path.Combine(vaultRoot, "late.md"), session: "sess-late"));
     [Fact]
     public void RecentSessions_NewestFirst_WithPerSessionCountsAndTouch()
     {
-        string vaultRoot = Path.Combine(workspace, "Knowledge");
+        string vaultRoot = Path.Combine(_workspace, "Knowledge");
         DashboardGold gold = Compute(
             Session("01F00000000000000000000020", "s-old", "2026-08-10T09:00:00Z", "/home/u/RepoA"),
             Session("01F00000000000000000000021", "s-new", "2026-08-12T09:00:00Z", "/home/u/RepoB"),
             Event("01F00000000000000000000022", "knowledge.read", "2026-08-12T09:05:00Z", kbroot: null,
-subject: Path.Combine(vaultRoot, "n.md"), session: "s-new"),
+                subject: Path.Combine(vaultRoot, "n.md"), session: "s-new"),
             Event("01F00000000000000000000023", "skill.invoked", "2026-08-12T09:06:00Z",
                 session: "s-new", data: new JsonObject { ["skill"] = "tdd" }));
 
@@ -272,21 +272,21 @@ subject: Path.Combine(vaultRoot, "n.md"), session: "s-new"),
     [Fact]
     public void WriteReadLoop_CountsAgentWrittenNotesLaterRead_NotesOnly()
     {
-        string vaultRoot = Path.Combine(workspace, "Knowledge");
+        string vaultRoot = Path.Combine(_workspace, "Knowledge");
         string reusedNote = Path.Combine(vaultRoot, "written-then-read.md");
         string coldNote = Path.Combine(vaultRoot, "written-never-read.md");
         DashboardGold gold = Compute(
             Event("01F00000000000000000000060", "knowledge.written", "2026-08-11T09:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-1"),
+                subject: reusedNote, session: "s-1"),
             Event("01F00000000000000000000061", "knowledge.read", "2026-08-12T09:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-2"),
+                subject: reusedNote, session: "s-2"),
             Event("01F00000000000000000000062", "knowledge.read", "2026-08-12T10:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-3"),
+                subject: reusedNote, session: "s-3"),
             Event("01F00000000000000000000063", "knowledge.written", "2026-08-11T09:00:00Z", kbroot: "vault",
-subject: coldNote, session: "s-1"),
+                subject: coldNote, session: "s-1"),
             // a read BEFORE the write must not count as a later read
             Event("01F00000000000000000000064", "knowledge.read", "2026-08-10T09:00:00Z", kbroot: "vault",
-subject: coldNote, session: "s-9"));
+                subject: coldNote, session: "s-9"));
 
         Assert.Equal(2, gold.WriteReadLoop.Written);
         Assert.Equal(1, gold.WriteReadLoop.Reused);
@@ -299,21 +299,21 @@ subject: coldNote, session: "s-9"));
     [Fact]
     public void NoteReuse_RanksNotesByDistinctSessionReach_NotesOnly_WithSingleUseRatio()
     {
-        string vaultRoot = Path.Combine(workspace, "Knowledge");
+        string vaultRoot = Path.Combine(_workspace, "Knowledge");
         string reusedNote = Path.Combine(vaultRoot, "reused.md");
         string onceNote = Path.Combine(vaultRoot, "once.md");
         string codeFile = Path.Combine(vaultRoot, "Program.cs");
         DashboardGold gold = Compute(
             Event("01F00000000000000000000050", "knowledge.read", "2026-08-12T09:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-1"),
+                subject: reusedNote, session: "s-1"),
             Event("01F00000000000000000000051", "knowledge.read", "2026-08-12T10:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-2"),
+                subject: reusedNote, session: "s-2"),
             Event("01F00000000000000000000052", "knowledge.read", "2026-08-12T11:00:00Z", kbroot: "vault",
-subject: reusedNote, session: "s-2"),
+                subject: reusedNote, session: "s-2"),
             Event("01F00000000000000000000053", "knowledge.read", "2026-08-12T12:00:00Z", kbroot: "vault",
-subject: onceNote, session: "s-1"),
+                subject: onceNote, session: "s-1"),
             Event("01F00000000000000000000054", "knowledge.read", "2026-08-12T13:00:00Z", kbroot: "vault",
-subject: codeFile, session: "s-3"));
+                subject: codeFile, session: "s-3"));
 
         ReuseRow top = gold.TopReusedNotes[0];
         Assert.Equal(reusedNote, top.Path);
@@ -330,11 +330,11 @@ subject: codeFile, session: "s-3"));
     {
         DashboardGold gold = Compute(
             Event("01F00000000000000000000033", "knowledge.searched", "2026-08-10T10:00:00Z", subject: "ghost query",
-session: "s", data: new JsonObject { ["hits"] = 0 }),
+                session: "s", data: new JsonObject { ["hits"] = 0 }),
             Event("01F00000000000000000000034", "knowledge.searched", "2026-08-10T10:01:00Z", subject: "ghost query",
-session: "s", data: new JsonObject { ["hits"] = 0 }),
+                session: "s", data: new JsonObject { ["hits"] = 0 }),
             Event("01F00000000000000000000035", "knowledge.searched", "2026-08-10T10:02:00Z", subject: "found query",
-session: "s", data: new JsonObject { ["hits"] = 3 }));
+                session: "s", data: new JsonObject { ["hits"] = 3 }));
 
         DayCount topMiss = Assert.Single(gold.TopFailedSearches);
         Assert.Equal("ghost query", topMiss.Label);
@@ -346,17 +346,17 @@ session: "s", data: new JsonObject { ["hits"] = 3 }));
     {
         DashboardGold gold = Compute(
             Event("01F0000000000000000000000F", "session.started", "2026-08-10T09:00:00Z", subject: "sess-a",
-session: "sess-a", data: new JsonObject
-{
-    ["branch"] = null,
-    ["usage"] = new JsonObject { ["input_tokens"] = 100, ["cache_read_tokens"] = 5000, ["output_tokens"] = 10 },
-}),
+                session: "sess-a", data: new JsonObject
+                {
+                    ["branch"] = null,
+                    ["usage"] = new JsonObject { ["input_tokens"] = 100, ["cache_read_tokens"] = 5000, ["output_tokens"] = 10 },
+                }),
             Event("01F00000000000000000000010", "session.started", "2026-08-10T11:00:00Z", subject: "sess-b",
-session: "sess-b", data: new JsonObject
-{
-    ["branch"] = null,
-    ["usage"] = new JsonObject { ["input_tokens"] = 50, ["cache_read_tokens"] = 2000, ["output_tokens"] = 5 },
-}));
+                session: "sess-b", data: new JsonObject
+                {
+                    ["branch"] = null,
+                    ["usage"] = new JsonObject { ["input_tokens"] = 50, ["cache_read_tokens"] = 2000, ["output_tokens"] = 5 },
+                }));
 
         TokensRow row = Assert.Single(gold.TokensDaily);
         Assert.Equal("2026-08-10", row.Date);
@@ -371,23 +371,23 @@ session: "sess-b", data: new JsonObject
             // s-spec-first: spec read 09:00 → code write 10:00 → spec-first
             Session("01F000000000000000000000A0", "s-spec-first", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
             Event("01F000000000000000000000A1", "knowledge.read", "2026-08-10T09:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/superpowers/specs/x-design.md", session: "s-spec-first"),
+                subject: "/home/u/RepoA/docs/superpowers/specs/x-design.md", session: "s-spec-first"),
             Event("01F000000000000000000000A2", "knowledge.written", "2026-08-10T10:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/src/Program.cs", session: "s-spec-first"),
+                subject: "/home/u/RepoA/src/Program.cs", session: "s-spec-first"),
             // s-code-first: code write 09:00 → spec read 10:00 → not spec-first
             Session("01F000000000000000000000A3", "s-code-first", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
             Event("01F000000000000000000000A4", "knowledge.written", "2026-08-10T09:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/src/Program.cs", session: "s-code-first"),
+                subject: "/home/u/RepoA/src/Program.cs", session: "s-code-first"),
             Event("01F000000000000000000000A5", "knowledge.read", "2026-08-10T10:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/superpowers/plans/x.md", session: "s-code-first"),
+                subject: "/home/u/RepoA/docs/superpowers/plans/x.md", session: "s-code-first"),
             // s-code-only: code writes, never a spec → denominator only
             Session("01F000000000000000000000A6", "s-code-only", "2026-08-11T08:00:00Z", "/home/u/RepoA"),
             Event("01F000000000000000000000A7", "knowledge.written", "2026-08-11T09:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/src/Other.cs", session: "s-code-only"),
+                subject: "/home/u/RepoA/src/Other.cs", session: "s-code-only"),
             // s-spec-only: spec activity, no code write → outside the denominator
             Session("01F000000000000000000000A8", "s-spec-only", "2026-08-11T08:00:00Z", "/home/u/RepoA"),
             Event("01F000000000000000000000A9", "knowledge.read", "2026-08-11T09:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/superpowers/specs/y.md", session: "s-spec-only"));
+                subject: "/home/u/RepoA/docs/superpowers/specs/y.md", session: "s-spec-only"));
 
         SddOrderingSummary summary = gold.SddPanel.OrderingSummary;
         Assert.Equal(3, summary.CodeSessions);
@@ -407,17 +407,17 @@ subject: "/home/u/RepoA/docs/superpowers/specs/y.md", session: "s-spec-only"));
         DashboardGold gold = Compute(
             Session("01F000000000000000000000B0", "s-1", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
             Event("01F000000000000000000000B1", "knowledge.written", "2026-08-10T09:00:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/superpowers/specs/x.md", session: "s-1"),
+                subject: "/home/u/RepoA/docs/superpowers/specs/x.md", session: "s-1"),
             Event("01F000000000000000000000B2", "knowledge.written", "2026-08-10T09:05:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/src/Program.cs", session: "s-1"),
+                subject: "/home/u/RepoA/src/Program.cs", session: "s-1"),
             Event("01F000000000000000000000B3", "knowledge.written", "2026-08-10T09:10:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/appsettings.json", session: "s-1"),
+                subject: "/home/u/RepoA/appsettings.json", session: "s-1"),
             // machine-managed: constitution copy — excluded from kinds, disclosed
             Event("01F000000000000000000000B4", "knowledge.written", "2026-08-10T09:15:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/ai/rules/core/okf.md", session: "s-1"),
+                subject: "/home/u/RepoA/docs/ai/rules/core/okf.md", session: "s-1"),
             // codebase-map.md is knowledge-kind but under docs/ai → still machine-managed
             Event("01F000000000000000000000B5", "knowledge.written", "2026-08-10T09:20:00Z", kbroot: "vault",
-subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
+                subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
 
         Assert.Equal(2, gold.SddPanel.MachineManagedWrites);
         Dictionary<string, long> kinds = gold.SddPanel.WritesByKind.ToDictionary(row => row.Kind, row => row.Writes, StringComparer.Ordinal);
@@ -439,9 +439,9 @@ subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
             sources:
               - id: vault
                 layer: global
-                root: {Path.Combine(workspace, "Knowledge")}
+                root: {Path.Combine(_workspace, "Knowledge")}
             """);
-        string eventsRepo = Path.Combine(workspace, "kb-events-sdd");
+        string eventsRepo = Path.Combine(_workspace, "kb-events-sdd");
         JsonObject[] events =
         [
             Session("01F000000000000000000000C0", "s-a", "2026-08-10T08:00:00Z", "/home/u/RepoA"),
@@ -454,15 +454,15 @@ subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
             // s-c invokes no skills at all — still a session in the denominator
         ];
         new BronzeStore(eventsRepo).Append(events);
-        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
-        DashboardGold gold = DashboardComputer.Compute(silverPath, sddRegistry, new FixedTimeProvider(Now));
+        _ = SilverRebuilder.Rebuild(eventsRepo, _silverPath);
+        DashboardGold gold = DashboardComputer.Compute(_silverPath, sddRegistry, new FixedTimeProvider(_now));
 
         Assert.True(gold.SddPanel.SkillConfigured);
-        SddSkillRateRow repoA = gold.SddPanel.SkillRate.Single(row => row.Repo == "/home/u/RepoA");
+        SddSkillRateRow repoA = gold.SddPanel.SkillRate.Single(row => row.Repo is "/home/u/RepoA");
         Assert.Equal(2, repoA.Sessions);
         Assert.Equal(1, repoA.SddSessions);
         Assert.Equal(0.5, repoA.Rate, precision: 3);
-        SddSkillRateRow repoB = gold.SddPanel.SkillRate.Single(row => row.Repo == "/home/u/RepoB");
+        SddSkillRateRow repoB = gold.SddPanel.SkillRate.Single(row => row.Repo is "/home/u/RepoB");
         Assert.Equal(1, repoB.Sessions);
         Assert.Equal(0, repoB.SddSessions);
     }
@@ -513,7 +513,7 @@ subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
         // Hurting case (BL-033): failed-search oscillating far above the goal must
         // read 🔴 with a gap line — never a permanent amber.
         DashboardGold gold = Compute(
-        [.. WeeklySearches("01F000000000000000000000E", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 7, currentWeekTotal: 25)]);
+            [.. WeeklySearches("01F000000000000000000000E", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 7, currentWeekTotal: 25)]);
 
         MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search", StringComparison.Ordinal));
         Assert.Equal("🔴", tile.State);
@@ -532,7 +532,7 @@ subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
     public void Mirror_FailedSearchAcuteSpike_OnlyStateThatAlarms()
     {
         DashboardGold gold = Compute(
-        [.. WeeklySearches("01F000000000000000000000F", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 24, currentWeekTotal: 25)]);
+            [.. WeeklySearches("01F000000000000000000000F", [3, 2, 4, 3, 2, 4, 3], currentWeekZero: 24, currentWeekTotal: 25)]);
 
         MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search", StringComparison.Ordinal));
         Assert.Equal("⚠️", tile.State);
@@ -544,7 +544,7 @@ subject: "/home/u/RepoA/docs/ai/baseline.md", session: "s-1"));
     public void Mirror_TooLittleHistory_WaitsWithPlaceholder()
     {
         DashboardGold gold = Compute(
-        [.. WeeklySearches("01F000000000000000000000G", [], currentWeekZero: 7, currentWeekTotal: 25)]);
+            [.. WeeklySearches("01F000000000000000000000G", [], currentWeekZero: 7, currentWeekTotal: 25)]);
 
         MirrorTile tile = gold.Mirror!.Tiles.Single(tile => tile.Label.StartsWith("Failed-search", StringComparison.Ordinal));
         Assert.Equal("⏳", tile.State);

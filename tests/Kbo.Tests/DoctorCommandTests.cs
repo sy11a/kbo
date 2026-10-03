@@ -7,14 +7,14 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class DoctorCommandTests : IDisposable
+public sealed class DoctorCommandTests : IDisposable
 {
-    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-08-12T18:00:00Z", CultureInfo.InvariantCulture);
+    private static readonly DateTimeOffset _now = DateTimeOffset.Parse("2026-08-12T18:00:00Z", CultureInfo.InvariantCulture);
 
-    private readonly string workspace;
-    private readonly string eventsRepo;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _eventsRepo;
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -29,38 +29,43 @@ public class DoctorCommandTests : IDisposable
         public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
         {
             Invocations.Add((fileName, arguments));
-            if (fileName == "systemctl")
+            if (fileName is "systemctl")
             {
-                return new ProcessResult(timerState == "active" ? 0 : 3, timerState + "\n", "");
+                return new ProcessResult(timerState is "active" ? 0 : 3, timerState + "\n", string.Empty);
             }
-            return new ProcessResult(0, "", "");
+            return new ProcessResult(0, string.Empty, string.Empty);
         }
     }
 
     public DoctorCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-doctor-tests").FullName;
-        eventsRepo = Path.Combine(workspace, "kb-events");
+        _workspace = Directory.CreateTempSubdirectory("kbo-doctor-tests").FullName;
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
     }
 
-    public void Dispose() => Directory.Delete(workspace, recursive: true);
+    public void Dispose()
+    {
+        _output.Dispose();
+        _error.Dispose();
+        Directory.Delete(_workspace, recursive: true);
+    }
 
     private void JobCompleted(string job, double daysAgo)
     {
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
                 "job.completed", job, kbroot: null,
                 new JsonObject { ["job"] = job, ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                Now.AddDays(-daysAgo), new Random(1)),
+                _now.AddDays(-daysAgo), new Random(1)),
         });
     }
 
     private int Run(FakeRunner runner, params string[] args)
     {
-        string? Environment(string name) => name == "KBO_EVENTS_REPO" ? eventsRepo : null;
-        return DoctorCommand.Run(args, output, error, Environment, workspace, runner, new FixedTimeProvider(Now));
+        string? Environment(string name) => name is "KBO_EVENTS_REPO" ? _eventsRepo : null;
+        return DoctorCommand.Run(args, _output, _error, variable => Environment(variable), _workspace, runner, new FixedTimeProvider(_now));
     }
 
     [Fact]
@@ -72,8 +77,8 @@ public class DoctorCommandTests : IDisposable
         int exitCode = Run(runner);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("timer: active", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("all jobs healthy", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("timer: active", _output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("all jobs healthy", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -87,8 +92,8 @@ public class DoctorCommandTests : IDisposable
         int exitCode = Run(runner);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("audit: ok", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("report: ok", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("audit: ok", _output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("report: ok", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,7 +106,7 @@ public class DoctorCommandTests : IDisposable
         int exitCode = Run(runner);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("audit: SILENT", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("audit: SILENT", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -114,8 +119,8 @@ public class DoctorCommandTests : IDisposable
         int exitCode = Run(runner);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("backup", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("5", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("backup", _output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("5", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -127,12 +132,12 @@ public class DoctorCommandTests : IDisposable
         int exitCode = Run(runner);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("timer: inactive", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("timer: inactive", _output.ToString(), StringComparison.Ordinal);
     }
 
     private void WriteCaptureError(DateTimeOffset when)
     {
-        string logPath = Path.Combine(workspace, ".local", "state", "kbo", "capture-errors.log");
+        string logPath = Path.Combine(_workspace, ".local", "state", "kbo", "capture-errors.log");
         _ = Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         File.AppendAllText(logPath,
             string.Create(CultureInfo.InvariantCulture, $"{when:yyyy-MM-dd'T'HH:mm:ss'Z'}\tclaude-code\tregistry: not found\n"));
@@ -142,26 +147,26 @@ public class DoctorCommandTests : IDisposable
     public void RecentCaptureDrops_ReportedAndExit1()
     {
         JobCompleted("harvest", 0.2);
-        WriteCaptureError(Now.AddHours(-2));
+        WriteCaptureError(_now.AddHours(-2));
         FakeRunner runner = new();
 
         int exitCode = Run(runner);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("capture errors: 1", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("capture errors: 1", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void StaleCaptureDrops_ReportedButNotAProblem()
     {
         JobCompleted("harvest", 0.2);
-        WriteCaptureError(Now.AddDays(-30));
+        WriteCaptureError(_now.AddDays(-30));
         FakeRunner runner = new();
 
         int exitCode = Run(runner);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("capture errors: 1", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("capture errors: 1", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,13 +176,13 @@ public class DoctorCommandTests : IDisposable
         FakeRunner problemRunner = new();
         _ = Run(problemRunner, "--notify");
         Assert.Contains(problemRunner.Invocations,
-            i => i.FileName == "notify-send" && i.Arguments.Contains("critical", StringComparer.Ordinal));
+            i => i.FileName is "notify-send" && i.Arguments.Contains("critical", StringComparer.Ordinal));
 
         JobCompleted("backup", 0.1);
         FakeRunner healthyRunner = new();
         _ = Run(healthyRunner, "--notify");
         (string FileName, IReadOnlyList<string> Arguments) =
-            healthyRunner.Invocations.Single(i => i.FileName == "notify-send");
+            healthyRunner.Invocations.Single(i => i.FileName is "notify-send");
         Assert.DoesNotContain("critical", Arguments, StringComparer.Ordinal);
     }
 }
