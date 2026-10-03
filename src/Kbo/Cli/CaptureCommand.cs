@@ -49,34 +49,74 @@ internal static class CaptureCommand
 
     private static void Capture(string agent, TextReader input, Func<string, string?> environment, string homeDirectory)
     {
-        JsonObject? payload;
-        try
-        {
-            payload = JsonNode.Parse(input.ReadToEnd()) as JsonObject;
-        }
-        catch (JsonException)
-        {
-            payload = null;
-        }
+        JsonObject? payload = TryParsePayload(input);
         if (payload is null)
         {
             LogDrop(homeDirectory, agent, "invalid hook payload (not a JSON object)");
             return;
         }
 
-        KnowledgeRegistry registry;
+        KnowledgeRegistry? registry = TryLoadRegistry(environment, homeDirectory, out string? errorMessage);
+        if (registry is null)
+        {
+            LogDrop(homeDirectory, agent, $"registry: {errorMessage}");
+            return;
+        }
+
+        List<JsonObject> events = MapEvents(agent, payload, registry, homeDirectory);
+        // An unsupported hook event for a known agent is a benign no-op,
+        // like an untracked tool — nothing to capture, nothing to log.
+        if (events.Count is 0)
+        {
+            return;
+        }
+
+        List<JsonObject> validEvents = ValidateEvents(agent, events, homeDirectory);
+        if (validEvents.Count is 0)
+        {
+            return;
+        }
+
+        AppendEvents(validEvents, environment, homeDirectory);
+    }
+
+    private static JsonObject? TryParsePayload(TextReader input)
+    {
         try
         {
-            registry = KnowledgeRegistry.Load(
+            return JsonNode.Parse(input.ReadToEnd()) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static KnowledgeRegistry? TryLoadRegistry(
+        Func<string, string?> environment,
+        string homeDirectory,
+        out string? errorMessage)
+    {
+        try
+        {
+            errorMessage = null;
+            return KnowledgeRegistry.Load(
                 RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
         {
-            LogDrop(homeDirectory, agent, $"registry: {exception.Message}");
-            return;
+            errorMessage = exception.Message;
+            return null;
         }
+    }
 
+    private static List<JsonObject> MapEvents(
+        string agent,
+        JsonObject payload,
+        KnowledgeRegistry registry,
+        string homeDirectory)
+    {
         List<JsonObject> events = [];
         string? hookEventName = (string?)payload[HookPayload.HookEventName];
         switch (agent, hookEventName)
@@ -111,17 +151,12 @@ internal static class CaptureCommand
                         Path.Combine(homeDirectory, ".config", "opencode")));
                     break;
                 }
-            default:
-                // An unsupported hook event for a known agent is a benign no-op,
-                // like an untracked tool — nothing to capture, nothing to log.
-                return;
         }
+        return events;
+    }
 
-        if (events.Count is 0)
-        {
-            return;
-        }
-
+    private static List<JsonObject> ValidateEvents(string agent, List<JsonObject> events, string homeDirectory)
+    {
         // Append the valid events and log any that fail validation, rather than
         // dropping a whole SessionStart batch for one bad member (mirrors harvest).
         EventValidator validator = new();
@@ -138,12 +173,14 @@ internal static class CaptureCommand
                 LogDrop(homeDirectory, agent, $"event failed validation: {string.Join("; ", result.Errors)}");
             }
         }
+        return validEvents;
+    }
 
-        if (validEvents.Count is 0)
-        {
-            return;
-        }
-
+    private static void AppendEvents(
+        List<JsonObject> validEvents,
+        Func<string, string?> environment,
+        string homeDirectory)
+    {
         string eventsRepo = environment(KboEnvironment.EventsRepoVariable)
             ?? KboEnvironment.DefaultEventsRepo(homeDirectory);
         new BronzeStore(eventsRepo).Append(validEvents);

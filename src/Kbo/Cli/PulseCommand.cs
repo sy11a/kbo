@@ -22,19 +22,13 @@ internal static class PulseCommand
             return 1;
         }
 
-        KnowledgeRegistry registry;
-        try
+        KnowledgeRegistry? registry = TryLoadRegistry(environment, homeDirectory, error);
+        if (registry is null)
         {
-            registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
-                environment(KboEnvironment.TaskPatternVariable));
-        }
-        catch (RegistryFormatException exception)
-        {
-            error.WriteLine(exception.Message);
             return 1;
         }
 
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         string eventsRepo = environment(KboEnvironment.EventsRepoVariable)
             ?? KboEnvironment.DefaultEventsRepo(homeDirectory);
         string archiveRoot = environment(KboEnvironment.ArchiveRootVariable)
@@ -42,9 +36,44 @@ internal static class PulseCommand
         string resticRepo = environment(KboEnvironment.ResticRepoVariable)
             ?? Path.Combine(homeDirectory, "Backups", "kb-restic");
         string resticPasswordFile = Path.Combine(homeDirectory, ".config", "kb-observability", "restic-password");
+        List<string> backupPaths = BuildBackupPaths(archiveRoot, eventsRepo, vault);
 
+        List<IPulseJob> jobs = BuildJobs(
+            registry,
+            eventsRepo,
+            archiveRoot,
+            vault,
+            resticRepo,
+            resticPasswordFile,
+            backupPaths,
+            environment,
+            homeDirectory);
+
+        int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, Random.Shared, output);
+        return failures is 0 ? 0 : 1;
+    }
+
+    private static KnowledgeRegistry? TryLoadRegistry(
+        Func<string, string?> environment,
+        string homeDirectory,
+        TextWriter error)
+    {
+        try
+        {
+            return KnowledgeRegistry.Load(
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
+                environment(KboEnvironment.TaskPatternVariable));
+        }
+        catch (RegistryFormatException exception)
+        {
+            error.WriteLine(exception.Message);
+            return null;
+        }
+    }
+
+    private static List<string> BuildBackupPaths(string archiveRoot, string eventsRepo, KnowledgeSource? vault)
+    {
         List<string> backupPaths = [archiveRoot];
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is not null)
         {
             backupPaths.Add(vault.Root);
@@ -53,7 +82,20 @@ internal static class PulseCommand
         {
             backupPaths.Add(eventsRepo);
         }
+        return backupPaths;
+    }
 
+    private static List<IPulseJob> BuildJobs(
+        KnowledgeRegistry registry,
+        string eventsRepo,
+        string archiveRoot,
+        KnowledgeSource? vault,
+        string resticRepo,
+        string resticPasswordFile,
+        List<string> backupPaths,
+        Func<string, string?> environment,
+        string homeDirectory)
+    {
         ProcessRunner processRunner = new();
         List<IPulseJob> jobs =
         [
@@ -88,8 +130,6 @@ internal static class PulseCommand
         jobs.Add(new CommandJob("audit", JobDeadMan.CadenceOf("audit"),
             (jobOutput, jobError) => AuditCommand.Run(
                 [], jobOutput, jobError, environment, homeDirectory)));
-
-        int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, Random.Shared, output);
-        return failures is 0 ? 0 : 1;
+        return jobs;
     }
 }

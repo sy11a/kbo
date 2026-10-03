@@ -24,7 +24,49 @@ internal static class ReportCommand
         Func<string, string?> environment,
         string homeDirectory)
     {
-        string? explicitOut = null;
+        if (!TryParseArguments(args, error, out string? explicitOut))
+        {
+            return 1;
+        }
+
+        KnowledgeRegistry? registry = TryLoadRegistry(environment, homeDirectory, error);
+        if (registry is null)
+        {
+            return 1;
+        }
+
+        KnowledgeSource? vault = ResolveVault(registry, error);
+        if (vault is null)
+        {
+            return 1;
+        }
+
+        string? silverPath = ResolveSilverPath(environment, homeDirectory, error);
+        if (silverPath is null)
+        {
+            return 1;
+        }
+
+        if (!TryScanFleet(registry, out ConstitutionFleetGold? fleet, error))
+        {
+            return 1;
+        }
+
+        string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
+        GoldReport report = GoldComputer.Compute(silverPath, registry, TimeProvider.System);
+        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
+        IReadOnlyList<DayDigest> digests = DailyDigestComputer.Compute(silverPath, registry, TimeProvider.System);
+        WriteOutputFiles(outputDirectory, report, dashboard, vault.Root);
+
+        WriteDailyDigests(outputDirectory, digests);
+
+        output.WriteLine(Summarize(outputDirectory, report, dashboard, fleet, digests));
+        return 0;
+    }
+
+    private static bool TryParseArguments(string[] args, TextWriter error, out string? explicitOut)
+    {
+        explicitOut = null;
         for (int index = 0; index < args.Length; index++)
         {
             if (args[index] is "--out" && index + 1 < args.Length)
@@ -34,61 +76,86 @@ internal static class ReportCommand
             else
             {
                 error.WriteLine(Usage);
-                return 1;
+                return false;
             }
         }
+        return true;
+    }
 
-        KnowledgeRegistry registry;
+    private static KnowledgeRegistry? TryLoadRegistry(
+        Func<string, string?> environment,
+        string homeDirectory,
+        TextWriter error)
+    {
         try
         {
-            registry = KnowledgeRegistry.Load(
+            return KnowledgeRegistry.Load(
                 RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
         {
             error.WriteLine(exception.Message);
-            return 1;
+            return null;
         }
+    }
 
+    private static KnowledgeSource? ResolveVault(KnowledgeRegistry registry, TextWriter error)
+    {
         KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is null)
         {
             error.WriteLine("registry has no global-layer source (the vault); cannot locate _generated/");
-            return 1;
         }
+        return vault;
+    }
 
+    private static string? ResolveSilverPath(
+        Func<string, string?> environment,
+        string homeDirectory,
+        TextWriter error)
+    {
         string silverPath = environment(KboEnvironment.SilverVariable)
             ?? KboEnvironment.DefaultSilverPath(homeDirectory);
         if (!File.Exists(silverPath))
         {
             error.WriteLine($"silver not found at {silverPath} — run 'kbo rebuild' first");
-            return 1;
+            return null;
         }
+        return silverPath;
+    }
 
-        ConstitutionFleetGold? fleet;
+    private static bool TryScanFleet(
+        KnowledgeRegistry registry,
+        out ConstitutionFleetGold? fleet,
+        TextWriter error)
+    {
         try
         {
             fleet = ConstitutionFleet.Scan(registry.Constitution);
+            return true;
         }
         catch (RegistryFormatException exception)
         {
+            fleet = null;
             error.WriteLine(exception.Message);
-            return 1;
+            return false;
         }
+    }
 
-        GoldReport report = GoldComputer.Compute(silverPath, registry, TimeProvider.System);
-        DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
-        IReadOnlyList<DayDigest> digests = DailyDigestComputer.Compute(silverPath, registry, TimeProvider.System);
-
-        string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
+    private static void WriteOutputFiles(
+        string outputDirectory,
+        GoldReport report,
+        DashboardGold dashboard,
+        string vaultRoot)
+    {
         _ = Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(
             Path.Combine(outputDirectory, "README.md"),
             "# GENERATED — do not edit\n\nEverything in this folder is written by `kbo report` and overwritten on every run.\n");
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-report.md"),
-            MarkdownRenderer.Render(report, vault.Root));
+            MarkdownRenderer.Render(report, vaultRoot));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-report.gold.json"),
             JsonSerializer.Serialize(report, _goldJsonOptions));
@@ -98,15 +165,19 @@ internal static class ReportCommand
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.html"),
             DashboardRenderer.Render(dashboard, DashboardRenderer.LoadEmbeddedChartSpecs()));
+    }
 
-        WriteDailyDigests(outputDirectory, digests);
-
+    private static string Summarize(
+        string outputDirectory,
+        GoldReport report,
+        DashboardGold dashboard,
+        ConstitutionFleetGold? fleet,
+        IReadOnlyList<DayDigest> digests)
+    {
         string fleetSummary = fleet is null
             ? string.Empty
             : string.Create(CultureInfo.InvariantCulture, $"; fleet: {fleet.Repos.Count} repo(s), {fleet.Behind} behind v{fleet.CurrentVersion}");
-        output.WriteLine(
-            string.Create(CultureInfo.InvariantCulture, $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status is "red")} red{fleetSummary}; {digests.Count} day page(s)"));
-        return 0;
+        return string.Create(CultureInfo.InvariantCulture, $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status is "red")} red{fleetSummary}; {digests.Count} day page(s)");
     }
 
     private static void WriteDailyDigests(string outputDirectory, IReadOnlyList<DayDigest> digests)
