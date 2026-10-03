@@ -9,25 +9,25 @@ namespace Kbo.Gold;
 /// were never knowledge to prune. Path-segment-based; pure, no I/O.
 /// Mirror of ContentKind (ADR-0025 pattern).
 /// </summary>
-public static class NoteRole
+internal static class NoteRole
 {
     public const string Reference = "reference";
     public const string Lifecycle = "lifecycle";
     public const string MachineManaged = "machine-managed";
 
-    private static readonly string[] LifecycleSegments =
+    private static readonly string[] _lifecycleSegments =
     [
         "/superpowers/plans/",
         "/superpowers/specs/",
         "/journal/",
     ];
 
-    private static readonly string[] MachineManagedSegments =
+    private static readonly string[] _machineManagedSegments =
     [
         "/docs/ai/",
     ];
 
-    private static readonly string[] MachineManagedSuffixes =
+    private static readonly string[] _machineManagedSuffixes =
     [
         "/adr/template.md",
     ];
@@ -35,12 +35,12 @@ public static class NoteRole
     public static string Of(string path)
     {
         string normalized = path.Replace('\\', '/');
-        if (MachineManagedSegments.Any(segment => normalized.Contains(segment, StringComparison.Ordinal))
-            || MachineManagedSuffixes.Any(suffix => normalized.EndsWith(suffix, StringComparison.Ordinal)))
+        if (_machineManagedSegments.Any(segment => normalized.Contains(segment, StringComparison.Ordinal))
+            || _machineManagedSuffixes.Any(suffix => normalized.EndsWith(suffix, StringComparison.Ordinal)))
         {
             return MachineManaged;
         }
-        return LifecycleSegments.Any(segment => normalized.Contains(segment, StringComparison.Ordinal))
+        return _lifecycleSegments.Any(segment => normalized.Contains(segment, StringComparison.Ordinal))
             ? Lifecycle
             : Reference;
     }

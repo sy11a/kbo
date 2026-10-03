@@ -2,59 +2,53 @@ using Kbo.Registry;
 
 namespace Kbo.Tests;
 
-public class RegistryGlobTests : IDisposable
+public sealed class RegistryGlobTests : IDisposable
 {
-    private readonly string workspace;
+    private readonly string _workspace;
 
-    public RegistryGlobTests()
-    {
-        workspace = Directory.CreateTempSubdirectory("kbo-registry-glob-tests").FullName;
-    }
+    public RegistryGlobTests() => _workspace = Directory.CreateTempSubdirectory("kbo-registry-glob-tests").FullName;
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     [Fact]
     public void GlobSegment_ExpandsToOneSourcePerMatchingDirectory()
     {
-        Directory.CreateDirectory(Path.Combine(workspace, "RepoA", "docs"));
-        Directory.CreateDirectory(Path.Combine(workspace, "RepoB", "docs"));
-        Directory.CreateDirectory(Path.Combine(workspace, "RepoC"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "RepoA", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "RepoB", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "RepoC"));
 
         KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: repo
                 layer: local
-                root: {workspace}/*/docs
+                root: {_workspace}/*/docs
             """);
 
         Assert.Equal(2, registry.Sources.Count);
-        KnowledgeSource repoA = Assert.Single(registry.Sources, source => source.Id == "repo-RepoA");
-        Assert.Equal(Path.Combine(workspace, "RepoA", "docs"), repoA.Root);
+        KnowledgeSource repoA = Assert.Single(registry.Sources, source => source.Id is "repo-RepoA");
+        Assert.Equal(Path.Combine(_workspace, "RepoA", "docs"), repoA.Root);
         Assert.Equal(KnowledgeLayer.Local, repoA.Layer);
-        Assert.Contains(registry.Sources, source => source.Id == "repo-RepoB");
+        Assert.Contains(registry.Sources, source => source.Id is "repo-RepoB");
 
-        Assert.Equal("repo-RepoA", registry.Resolve(Path.Combine(workspace, "RepoA", "docs", "adr", "0001.md")));
-        Assert.Null(registry.Resolve(Path.Combine(workspace, "RepoC", "readme.md")));
+        Assert.Equal("repo-RepoA", registry.Resolve(Path.Combine(_workspace, "RepoA", "docs", "adr", "0001.md")));
+        Assert.Null(registry.Resolve(Path.Combine(_workspace, "RepoC", "readme.md")));
     }
 
     [Fact]
     public void Glob_NoMatches_YieldsNoSourcesForThatEntry()
     {
-        Directory.CreateDirectory(Path.Combine(workspace, "vault"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "vault"));
 
         KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {workspace}/vault
+                root: {_workspace}/vault
               - id: repo
                 layer: local
-                root: {workspace}/nothing/*/docs
+                root: {_workspace}/nothing/*/docs
             """);
 
         KnowledgeSource only = Assert.Single(registry.Sources);
@@ -64,43 +58,43 @@ public class RegistryGlobTests : IDisposable
     [Fact]
     public void Glob_ExpandedIdCollidingWithExplicitId_IsRejected()
     {
-        Directory.CreateDirectory(Path.Combine(workspace, "x", "docs"));
-        Directory.CreateDirectory(Path.Combine(workspace, "explicit"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "x", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "explicit"));
 
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: repo-x
                 layer: local
-                root: {workspace}/explicit
+                root: {_workspace}/explicit
               - id: repo
                 layer: local
-                root: {workspace}/*/docs
+                root: {_workspace}/*/docs
             """));
 
-        Assert.Contains("duplicate source id 'repo-x'", exception.Message);
+        Assert.Contains("duplicate source id 'repo-x'", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Glob_ExcludedDirectoryNames_AreSkipped()
     {
-        Directory.CreateDirectory(Path.Combine(workspace, "Alpha", "docs"));
-        Directory.CreateDirectory(Path.Combine(workspace, "Beta", "docs"));
-        Directory.CreateDirectory(Path.Combine(workspace, "kb-observability-private-archive", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "Alpha", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "Beta", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "kb-observability-private-archive", "docs"));
 
         KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: repo
                 layer: local
-                root: {workspace}/*/docs
+                root: {_workspace}/*/docs
                 exclude: [kb-observability-private-archive]
             """);
 
-        string[] ids = registry.Sources.Select(source => source.Id).ToArray();
-        Assert.Contains("repo-Alpha", ids);
-        Assert.Contains("repo-Beta", ids);
-        Assert.DoesNotContain("repo-kb-observability-private-archive", ids);
+        string[] ids = [.. registry.Sources.Select(source => source.Id)];
+        Assert.Contains("repo-Alpha", ids, StringComparer.Ordinal);
+        Assert.Contains("repo-Beta", ids, StringComparer.Ordinal);
+        Assert.DoesNotContain("repo-kb-observability-private-archive", ids, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -116,20 +110,20 @@ public class RegistryGlobTests : IDisposable
                     exclude: [something]
                 """));
 
-        Assert.Contains("'exclude' requires a glob root", exception.Message);
+        Assert.Contains("'exclude' requires a glob root", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Glob_ExcludePaths_PropagateToExpandedSources()
     {
-        Directory.CreateDirectory(Path.Combine(workspace, "Alpha", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(_workspace, "Alpha", "docs"));
 
         KnowledgeRegistry registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: repo
                 layer: local
-                root: {workspace}/*/docs
+                root: {_workspace}/*/docs
                 excludePaths: [ai]
             """);
 
@@ -146,9 +140,9 @@ public class RegistryGlobTests : IDisposable
             sources:
               - id: repo
                 layer: local
-                root: {workspace}/Repo*/docs
+                root: {_workspace}/Repo*/docs
             """));
 
-        Assert.Contains("only a whole '*' segment", exception.Message);
+        Assert.Contains("only a whole '*' segment", exception.Message, StringComparison.Ordinal);
     }
 }

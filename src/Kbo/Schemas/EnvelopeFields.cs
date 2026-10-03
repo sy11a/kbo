@@ -3,7 +3,7 @@ namespace Kbo.Schemas;
 /// <summary>
 /// JSON property names of the event envelope (ADR-0001, schemas/envelope/1.json).
 /// </summary>
-public static class EnvelopeFields
+internal static class EnvelopeFields
 {
     public const string SpecVersion = "specversion";
     public const string Id = "id";

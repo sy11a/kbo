@@ -12,20 +12,22 @@ namespace Kbo.Cli;
 /// resident daemon — the loop runs only while the command is in the foreground
 /// and stops on cancellation (Ctrl-C).
 /// </summary>
-public static class WatchCommand
+internal static class WatchCommand
 {
     public const int DefaultIntervalSeconds = 30;
     public const int MinIntervalSeconds = 5;
 
     private const string Usage = "usage: kbo watch [--interval <seconds>]";
 
-    private static readonly JsonSerializerOptions GoldJsonOptions = new()
+    private static readonly JsonSerializerOptions _goldJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
     };
 
-    public static async Task<int> Run(
+    public static async Task<int> RunAsync(
         string[] args,
         TextWriter output,
         TextWriter error,
@@ -35,15 +37,14 @@ public static class WatchCommand
     {
         if (!TryParseInterval(args, out int intervalSeconds, out string? parseError))
         {
-            error.WriteLine(parseError);
+            await error.WriteLineAsync(parseError).ConfigureAwait(false);
             return 1;
         }
 
-        output.WriteLine(FormattableString.Invariant(
-            $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop"));
+        await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop")).ConfigureAwait(false);
 
         int firstTick = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
-        if (firstTick != 0)
+        if (firstTick is not 0)
         {
             return firstTick;
         }
@@ -51,16 +52,16 @@ public static class WatchCommand
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(intervalSeconds));
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken))
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                RunOnce(output, error, environment, homeDirectory, intervalSeconds);
+                _ = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
             }
         }
         catch (OperationCanceledException)
         {
         }
 
-        output.WriteLine("kbo watch stopped");
+        await output.WriteLineAsync("kbo watch stopped").ConfigureAwait(false);
         return 0;
     }
 
@@ -70,7 +71,7 @@ public static class WatchCommand
         errorMessage = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--interval" && index + 1 < args.Length)
+            if (args[index] is "--interval" && index + 1 < args.Length)
             {
                 string raw = args[++index];
                 if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
@@ -97,8 +98,8 @@ public static class WatchCommand
         string homeDirectory,
         int intervalSeconds)
     {
-        int rebuild = RebuildCommand.Run(Array.Empty<string>(), output, error, environment, homeDirectory);
-        if (rebuild != 0)
+        int rebuild = RebuildCommand.Run([], output, error, environment, homeDirectory);
+        if (rebuild is not 0)
         {
             return rebuild;
         }
@@ -107,7 +108,7 @@ public static class WatchCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -116,7 +117,7 @@ public static class WatchCommand
             return 1;
         }
 
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is null)
         {
             error.WriteLine("registry has no global-layer source (the vault); cannot locate _generated/");
@@ -139,17 +140,17 @@ public static class WatchCommand
         DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
 
         string outputDirectory = Path.Combine(vault.Root, "_generated");
-        Directory.CreateDirectory(outputDirectory);
+        _ = Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.gold.json"),
-            JsonSerializer.Serialize(dashboard, GoldJsonOptions));
+            JsonSerializer.Serialize(dashboard, _goldJsonOptions));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.html"),
             DashboardRenderer.Render(dashboard, DashboardRenderer.LoadEmbeddedChartSpecs(), intervalSeconds));
 
         string stamp = TimeProvider.System.GetUtcNow().UtcDateTime.ToString("HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        int red = dashboard.JobHealth.Count(tile => tile.Status == "red");
-        output.WriteLine(FormattableString.Invariant($"dashboard refreshed {stamp} — {red} red job tile(s)"));
+        int red = dashboard.JobHealth.Count(tile => tile.Status is "red");
+        output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"dashboard refreshed {stamp} — {red} red job tile(s)"));
         return 0;
     }
 }

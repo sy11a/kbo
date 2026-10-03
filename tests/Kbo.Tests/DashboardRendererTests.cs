@@ -43,7 +43,7 @@ public class DashboardRendererTests
             RecentSessions:
             [
                 new RecentSessionRow("2026-08-12", "09:00", "opencode", "/home/u/Repository/RepoA",
-                    46, 12, 1, 0, true, 125000, 537000),
+                    46, 12, 1, 0, TouchedKb: true, 125000, 537000),
             ],
             TopFailedSearches: [new DayCount("duckdb window function", 4)],
             TopReusedNotes: [new ReuseRow("/home/u/Knowledge/core.md", 15, 42)],
@@ -70,23 +70,23 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("2026-08-12T22:00:00Z", html);
-        Assert.Contains("test-machine", html);
+        Assert.Contains("2026-08-12T22:00:00Z", html, StringComparison.Ordinal);
+        Assert.Contains("test-machine", html, StringComparison.Ordinal);
 
-        Assert.Contains("Dead-man: 1/2 ok", html);
-        Assert.Contains("oldest backup 5.9d / limit 3d", html);
-        Assert.Contains("✗ SILENT", html);
-        Assert.Contains("5.9d silent", html);
+        Assert.Contains("Dead-man: 1/2 ok", html, StringComparison.Ordinal);
+        Assert.Contains("oldest backup 5.9d / limit 3d", html, StringComparison.Ordinal);
+        Assert.Contains("✗ SILENT", html, StringComparison.Ordinal);
+        Assert.Contains("5.9d silent", html, StringComparison.Ordinal);
 
-        Assert.Contains("\"cacheReadTokens\":900000", html);
-        Assert.Contains("vegaEmbed(\"#failed-search-rate\"", html);
-        Assert.Contains("vegaEmbed(\"#tokens-trend\"", html);
-        Assert.Contains("integrity=\"sha384-", html);
+        Assert.Contains("\"cacheReadTokens\":900000", html, StringComparison.Ordinal);
+        Assert.Contains("vegaEmbed(\"#failed-search-rate\"", html, StringComparison.Ordinal);
+        Assert.Contains("vegaEmbed(\"#tokens-trend\"", html, StringComparison.Ordinal);
+        Assert.Contains("integrity=\"sha384-", html, StringComparison.Ordinal);
 
-        Assert.Contains("Practice mirror", html);
-        Assert.Contains("Cache discipline", html);
-        Assert.Contains("Write", html);
-        Assert.Contains("tile red", html);
+        Assert.Contains("Practice mirror", html, StringComparison.Ordinal);
+        Assert.Contains("Cache discipline", html, StringComparison.Ordinal);
+        Assert.Contains("Write", html, StringComparison.Ordinal);
+        Assert.Contains("tile red", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -94,17 +94,17 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains(Enc("🟢 Cache discipline · 14д"), html);
-        Assert.Contains(Enc("🔴 Failed-search · 14д"), html);
-        Assert.Contains(Enc("цель ≤15% · до цели −13пп"), html);
-        Assert.Contains(Enc("⚠️ Spec-before-code"), html);
-        Assert.Contains("острый выход: z = 2.3", html);
-        Assert.Contains(Enc("⏳ Write→read loop · 6 нед"), html);
-        Assert.Contains("история 2/6 нед", html);
-        Assert.Contains(Enc("в коридоре 20–32%"), html);
-        Assert.Contains("tile sick", html);
-        Assert.Contains("tile wait", html);
-        Assert.Contains("Состояние = эмодзи, не цвет", html);
+        Assert.Contains(Enc("🟢 Cache discipline · 14д"), html, StringComparison.Ordinal);
+        Assert.Contains(Enc("🔴 Failed-search · 14д"), html, StringComparison.Ordinal);
+        Assert.Contains(Enc("цель ≤15% · до цели −13пп"), html, StringComparison.Ordinal);
+        Assert.Contains(Enc("⚠️ Spec-before-code"), html, StringComparison.Ordinal);
+        Assert.Contains("острый выход: z = 2.3", html, StringComparison.Ordinal);
+        Assert.Contains(Enc("⏳ Write→read loop · 6 нед"), html, StringComparison.Ordinal);
+        Assert.Contains("история 2/6 нед", html, StringComparison.Ordinal);
+        Assert.Contains(Enc("в коридоре 20–32%"), html, StringComparison.Ordinal);
+        Assert.Contains("tile sick", html, StringComparison.Ordinal);
+        Assert.Contains("tile wait", html, StringComparison.Ordinal);
+        Assert.Contains("Состояние = эмодзи, не цвет", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class DashboardRendererTests
         Assert.Equal(1, CountOccurrences(html, "tile amber"));
         Assert.Equal(1, CountOccurrences(html, Enc("⚠️ Spec-before-code")));
         // 🔴 is a state, not an alarm: the sick tile carries no warning styling
-        Assert.DoesNotContain("tile red", html[..html.IndexOf(Enc("🔴"), StringComparison.Ordinal)]);
+        Assert.DoesNotContain("tile red", html[..html.IndexOf(Enc("🔴"), StringComparison.Ordinal)], StringComparison.Ordinal);
     }
 
     private static string Enc(string value) => System.Net.WebUtility.HtmlEncode(value);
@@ -138,7 +138,7 @@ public class DashboardRendererTests
         DashboardGold gold = Gold() with { Mirror = null };
         string html = DashboardRenderer.Render(gold, DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("Practice mirror", html);
+        Assert.DoesNotContain("Practice mirror", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class DashboardRendererTests
             ],
             LastSeen: [],
             ConstitutionFleet: null,
-            ServiceSessions: new ServiceSessionsSummary(0, ""),
+            ServiceSessions: new ServiceSessionsSummary(0, string.Empty),
             SddPanel: new SddPanelGold(
                 [], new SddOrderingSummary(0, 0, 0), [], 0, [], SkillConfigured: false),
             FailedSearchDaily: [],
@@ -165,7 +165,7 @@ public class DashboardRendererTests
             RecentSessions:
             [
                 new RecentSessionRow("2026-08-12", "09:00", "cc<script>alert(3)</script>", "/r",
-                    1, 0, 0, 0, false, 0, 0),
+                    1, 0, 0, 0, TouchedKb: false, 0, 0),
             ],
             TopFailedSearches: [new DayCount("q<script>alert(5)</script>", 1)],
             TopReusedNotes: [new ReuseRow("/n/<script>alert(6)</script>.md", 2, 3)],
@@ -175,19 +175,19 @@ public class DashboardRendererTests
 
         string html = DashboardRenderer.Render(hostile, DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("<script>alert(1)</script>", html);
-        Assert.DoesNotContain("<img src=x", html);
-        Assert.Contains("evil&lt;script&gt;", html);
-        Assert.Contains("job&lt;img", html);
-        Assert.Contains("vault/x&lt;img", html);
-        Assert.DoesNotContain("<script>alert(3)</script>", html);
-        Assert.Contains("cc&lt;script&gt;", html);
-        Assert.DoesNotContain("<script>alert(5)</script>", html);
-        Assert.Contains("q&lt;script&gt;", html);
-        Assert.DoesNotContain("<script>alert(6)</script>", html);
-        Assert.Contains("/n/&lt;script&gt;", html);
-        Assert.DoesNotContain("<script>alert(7)</script>", html);
-        Assert.Contains("/w/&lt;script&gt;", html);
+        Assert.DoesNotContain("<script>alert(1)</script>", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<img src=x", html, StringComparison.Ordinal);
+        Assert.Contains("evil&lt;script&gt;", html, StringComparison.Ordinal);
+        Assert.Contains("job&lt;img", html, StringComparison.Ordinal);
+        Assert.Contains("vault/x&lt;img", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>alert(3)</script>", html, StringComparison.Ordinal);
+        Assert.Contains("cc&lt;script&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>alert(5)</script>", html, StringComparison.Ordinal);
+        Assert.Contains("q&lt;script&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>alert(6)</script>", html, StringComparison.Ordinal);
+        Assert.Contains("/n/&lt;script&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>alert(7)</script>", html, StringComparison.Ordinal);
+        Assert.Contains("/w/&lt;script&gt;", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -198,8 +198,8 @@ public class DashboardRendererTests
         Assert.NotNull(Gold().ConstitutionFleet);
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("Constitution fleet", html);
-        Assert.DoesNotContain("fleet.sh upgrade", html);
+        Assert.DoesNotContain("Constitution fleet", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("fleet.sh upgrade", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,9 +207,9 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("Служебные сессии: 7", html);
-        Assert.Contains("service-fleet", html);
-        Assert.Contains("ADR-0039", html);
+        Assert.Contains("Служебные сессии: 7", html, StringComparison.Ordinal);
+        Assert.Contains("service-fleet", html, StringComparison.Ordinal);
+        Assert.Contains("ADR-0039", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -217,13 +217,13 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("SDD practice — spec before code", html);
-        Assert.Contains("2026-W33", html);
-        Assert.Contains("/home/u/Repository/RepoA", html);
-        Assert.Contains("50%", html);
+        Assert.Contains("SDD practice — spec before code", html, StringComparison.Ordinal);
+        Assert.Contains("2026-W33", html, StringComparison.Ordinal);
+        Assert.Contains("/home/u/Repository/RepoA", html, StringComparison.Ordinal);
+        Assert.Contains("50%", html, StringComparison.Ordinal);
         // machine-managed disclosure (no-silent-caps)
-        Assert.Contains("12", html);
-        Assert.Contains("ADR-0040", html);
+        Assert.Contains("12", html, StringComparison.Ordinal);
+        Assert.Contains("ADR-0040", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -237,17 +237,17 @@ public class DashboardRendererTests
             },
             DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("SDD practice — spec before code", html);
-        Assert.Contains("sdd: { skills:", html);
+        Assert.Contains("SDD practice — spec before code", html, StringComparison.Ordinal);
+        Assert.Contains("sdd: { skills:", html, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Render_NoServiceSessions_OmitsTheNote()
     {
-        string html = DashboardRenderer.Render(Gold() with { ServiceSessions = new ServiceSessionsSummary(0, "") },
+        string html = DashboardRenderer.Render(Gold() with { ServiceSessions = new ServiceSessionsSummary(0, string.Empty) },
             DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("Служебные сессии", html);
+        Assert.DoesNotContain("Служебные сессии", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -255,7 +255,7 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs(), autoReloadSeconds: 20);
 
-        Assert.Contains("<meta http-equiv=\"refresh\" content=\"20\">", html);
+        Assert.Contains("<meta http-equiv=\"refresh\" content=\"20\">", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -263,7 +263,7 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("http-equiv=\"refresh\"", html);
+        Assert.DoesNotContain("http-equiv=\"refresh\"", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -272,8 +272,8 @@ public class DashboardRendererTests
         IReadOnlyDictionary<string, string> specs = DashboardRenderer.LoadEmbeddedChartSpecs();
 
         Assert.Equal(2, specs.Count);
-        Assert.Contains("failed-search-rate.vl.json", specs.Keys);
-        Assert.Contains("tokens-trend.vl.json", specs.Keys);
+        Assert.Contains("failed-search-rate.vl.json", specs.Keys, StringComparer.Ordinal);
+        Assert.Contains("tokens-trend.vl.json", specs.Keys, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -282,15 +282,15 @@ public class DashboardRendererTests
         // per R-007 — the declutter cut list must not resurrect anywhere.
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.DoesNotContain("This week vs last week", html);
-        Assert.DoesNotContain("Sessions by repository", html);
-        Assert.DoesNotContain("Top skills used", html);
-        Assert.DoesNotContain("Reads by content type", html);
-        Assert.DoesNotContain("Most-read knowledge themes", html);
-        Assert.DoesNotContain("vegaEmbed(\"#reads-over-time\"", html);
-        Assert.DoesNotContain("vegaEmbed(\"#reads-by-theme\"", html);
-        Assert.DoesNotContain("vegaEmbed(\"#kb-touch-rate\"", html);
-        Assert.DoesNotContain("Share of sessions touching", html);
+        Assert.DoesNotContain("This week vs last week", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Sessions by repository", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Top skills used", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reads by content type", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Most-read knowledge themes", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("vegaEmbed(\"#reads-over-time\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("vegaEmbed(\"#reads-by-theme\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("vegaEmbed(\"#kb-touch-rate\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Share of sessions touching", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public class DashboardRendererTests
 
         int[] positions = [mirror, deadMan, lastSeen, sdd, reuse, unused, loop, failed, zeroHit, tokens, recent];
         Assert.All(positions, position => Assert.True(position >= 0, "every surviving section must render"));
-        Assert.Equal(positions, positions.OrderBy(position => position).ToArray());
+        Assert.Equal(positions, positions.Order().ToArray());
     }
 
     [Fact]
@@ -333,10 +333,10 @@ public class DashboardRendererTests
         };
         string html = DashboardRenderer.Render(gold, DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("Dead-man: 2/2 ok", html);
-        Assert.Contains("oldest report 2.9d / limit 9.5d", html);
-        Assert.DoesNotContain("✗ SILENT", html);
-        Assert.DoesNotContain("harvest", html);
+        Assert.Contains("Dead-man: 2/2 ok", html, StringComparison.Ordinal);
+        Assert.Contains("oldest report 2.9d / limit 9.5d", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("✗ SILENT", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("harvest", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -345,10 +345,10 @@ public class DashboardRendererTests
         // per R-003 — a red job returns as a full tile beside the strip.
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("Dead-man: 1/2 ok", html);
-        Assert.Contains("✗ SILENT", html);
-        Assert.Contains("5.9d silent", html);
-        Assert.Contains(Enc("test-machine · kbo"), html);
+        Assert.Contains("Dead-man: 1/2 ok", html, StringComparison.Ordinal);
+        Assert.Contains("✗ SILENT", html, StringComparison.Ordinal);
+        Assert.Contains("5.9d silent", html, StringComparison.Ordinal);
+        Assert.Contains(Enc("test-machine · kbo"), html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -360,8 +360,8 @@ public class DashboardRendererTests
         int detailsStart = html.IndexOf("<details>", StringComparison.Ordinal);
         Assert.True(detailsStart >= 0);
         string details = html[detailsStart..html.IndexOf("</details>", StringComparison.Ordinal)];
-        Assert.Contains("Last seen in bronze — 1 agent(s) · newest 0d ago", details[..details.IndexOf("</summary>")]);
-        Assert.Contains("последний раз", html);
+        Assert.Contains("Last seen in bronze — 1 agent(s) · newest 0d ago", details[..details.IndexOf("</summary>", StringComparison.Ordinal)], StringComparison.Ordinal);
+        Assert.Contains("последний раз", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -369,19 +369,19 @@ public class DashboardRendererTests
     {
         string html = DashboardRenderer.Render(Gold(), DashboardRenderer.LoadEmbeddedChartSpecs());
 
-        Assert.Contains("Never-read themes", html);
-        Assert.Contains("vault/ideas", html);
-        Assert.Contains("Recent sessions", html);
-        Assert.Contains("2026-08-12 09:00", html);
-        Assert.Contains("125k/537k", html);
-        Assert.Contains("Top zero-hit searches", html);
-        Assert.Contains("duckdb window function", html);
-        Assert.Contains("Most-reused knowledge notes", html);
-        Assert.Contains("/home/u/Knowledge/core.md", html);
-        Assert.Contains("60%", html);   // single-use ratio 48/80
-        Assert.Contains("Write → read loop", html);
-        Assert.Contains("/home/u/Knowledge/made.md", html);
-        Assert.Contains("70%", html);   // loop rate 21/30
+        Assert.Contains("Never-read themes", html, StringComparison.Ordinal);
+        Assert.Contains("vault/ideas", html, StringComparison.Ordinal);
+        Assert.Contains("Recent sessions", html, StringComparison.Ordinal);
+        Assert.Contains("2026-08-12 09:00", html, StringComparison.Ordinal);
+        Assert.Contains("125k/537k", html, StringComparison.Ordinal);
+        Assert.Contains("Top zero-hit searches", html, StringComparison.Ordinal);
+        Assert.Contains("duckdb window function", html, StringComparison.Ordinal);
+        Assert.Contains("Most-reused knowledge notes", html, StringComparison.Ordinal);
+        Assert.Contains("/home/u/Knowledge/core.md", html, StringComparison.Ordinal);
+        Assert.Contains("60%", html, StringComparison.Ordinal);   // single-use ratio 48/80
+        Assert.Contains("Write → read loop", html, StringComparison.Ordinal);
+        Assert.Contains("/home/u/Knowledge/made.md", html, StringComparison.Ordinal);
+        Assert.Contains("70%", html, StringComparison.Ordinal);   // loop rate 21/30
     }
 
     [Fact]
@@ -394,10 +394,10 @@ public class DashboardRendererTests
         {
             string? russian = System.Text.Json.Nodes.JsonNode.Parse(specJson)?["usermeta"]?["kbo"]?["ru"]?.GetValue<string>();
             Assert.False(string.IsNullOrWhiteSpace(russian), $"{name} must carry a Russian description in usermeta.kbo.ru");
-            Assert.Contains(System.Net.WebUtility.HtmlEncode(russian), html);
+            Assert.Contains(System.Net.WebUtility.HtmlEncode(russian), html, StringComparison.Ordinal);
         }
 
-        Assert.Contains("Здоровье фоновых задач", html);
-        Assert.Contains("последний раз", html);
+        Assert.Contains("Здоровье фоновых задач", html, StringComparison.Ordinal);
+        Assert.Contains("последний раз", html, StringComparison.Ordinal);
     }
 }

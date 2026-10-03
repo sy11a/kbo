@@ -102,6 +102,6 @@ public class RegistryParseTests
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse(
             "machine: m\ntaskPattern: '('\nsources:\n  - {id: k, layer: global, root: /kb}"));
 
-        Assert.Contains("taskPattern", exception.Message);
+        Assert.Contains("taskPattern", exception.Message, StringComparison.Ordinal);
     }
 }

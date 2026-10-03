@@ -4,7 +4,7 @@ using Kbo.Silver;
 
 namespace Kbo.Gold;
 
-public static class GoldComputer
+internal static class GoldComputer
 {
     public const int MinInventoryAgeDays = 30;
     public const int ReadWindowDays = 60;
@@ -13,10 +13,17 @@ public static class GoldComputer
     public const int HotNoteLimit = 20;
     public const int DormantAfterDays = 21;
 
-    private static readonly string[] NoteActions = ["archive", "merge", "re-link"];
-    private static readonly string[] SkillActions = ["retire", "fix trigger phrases"];
+    private static readonly string[] _noteActions = ["archive", "merge", "re-link"];
+    private static readonly string[] _skillActions = ["retire", "fix trigger phrases"];
 
     private sealed record ReadStats(long ReadsInWindow, long ReadsTotal, DateTimeOffset LastRead);
+
+    private sealed record NoteClassifications(
+        Dictionary<string, int> InventoryCounts,
+        Dictionary<string, int> LifecycleCounts,
+        Dictionary<string, int> MachineManagedCounts,
+        List<DeadNote> DeadNotes,
+        List<StaleNote> StaleNotes);
 
     public static GoldReport Compute(string silverPath, KnowledgeRegistry registry, TimeProvider clock)
     {
@@ -24,14 +31,46 @@ public static class GoldComputer
         Dictionary<string, ReadStats> statsByPath = QueryReadStats(silverPath, now.AddDays(-ReadWindowDays));
         List<InventoryNote> inventory = NoteInventory.Scan(registry);
 
-        Dictionary<string, int> inventoryCounts = inventory
-            .GroupBy(note => note.SourceId)
-            .ToDictionary(group => group.Key, group => group.Count());
+        NoteClassifications classifications = ClassifyNotes(inventory, statsByPath, now);
 
-        List<DeadNote> deadNotes = new();
-        List<StaleNote> staleNotes = new();
-        Dictionary<string, int> lifecycleCounts = new();
-        Dictionary<string, int> machineManagedCounts = new();
+        List<HotNote> hotNotes = PickHotNotes(statsByPath, inventory);
+
+        Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
+        (List<DormantSource> dormantSources, HashSet<string> dormantSourceIds) =
+            FindDormantSources(classifications.InventoryCounts, activityBySource, classifications.DeadNotes, now);
+
+        List<DeadNote> deadNotes = [.. classifications.DeadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId))];
+
+        return new GoldReport(
+            now,
+            registry.Machine,
+            MinInventoryAgeDays,
+            ReadWindowDays,
+            StaleMinReads,
+            StaleUnmodifiedDays,
+            DormantAfterDays,
+            classifications.InventoryCounts,
+            classifications.LifecycleCounts,
+            classifications.MachineManagedCounts,
+            dormantSources,
+            deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
+            hotNotes,
+            classifications.StaleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+    }
+
+    private static NoteClassifications ClassifyNotes(
+        List<InventoryNote> inventory,
+        Dictionary<string, ReadStats> statsByPath,
+        DateTimeOffset now)
+    {
+        Dictionary<string, int> inventoryCounts = inventory
+            .GroupBy(note => note.SourceId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+        List<DeadNote> deadNotes = [];
+        List<StaleNote> staleNotes = [];
+        Dictionary<string, int> lifecycleCounts = [];
+        Dictionary<string, int> machineManagedCounts = [];
         foreach (InventoryNote note in inventory)
         {
             string role = NoteRole.Of(note.Path);
@@ -50,7 +89,7 @@ public static class GoldComputer
 
             if (role == NoteRole.Reference && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
             {
-                string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
+                string[] actions = note.Layer is KnowledgeLayer.Skills ? _skillActions : _noteActions;
                 deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
             }
 
@@ -60,8 +99,13 @@ public static class GoldComputer
             }
         }
 
-        Dictionary<string, InventoryNote> inventoryByPath = inventory.ToDictionary(note => note.Path);
-        List<HotNote> hotNotes = statsByPath
+        return new NoteClassifications(inventoryCounts, lifecycleCounts, machineManagedCounts, deadNotes, staleNotes);
+    }
+
+    private static List<HotNote> PickHotNotes(Dictionary<string, ReadStats> statsByPath, List<InventoryNote> inventory)
+    {
+        Dictionary<string, InventoryNote> inventoryByPath = inventory.ToDictionary(note => note.Path, StringComparer.Ordinal);
+        return [.. statsByPath
             .Where(entry => entry.Value.ReadsInWindow > 0 && inventoryByPath.ContainsKey(entry.Key))
             .OrderByDescending(entry => entry.Value.ReadsInWindow)
             .ThenByDescending(entry => entry.Value.ReadsTotal)
@@ -72,40 +116,24 @@ public static class GoldComputer
                 inventoryByPath[entry.Key].SourceId,
                 entry.Value.ReadsInWindow,
                 entry.Value.ReadsTotal,
-                entry.Value.LastRead))
-            .ToList();
+                entry.Value.LastRead)),];
+    }
 
-        Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
+    private static (List<DormantSource> dormantSources, HashSet<string> dormantSourceIds) FindDormantSources(
+        Dictionary<string, int> inventoryCounts,
+        Dictionary<string, DateTimeOffset> activityBySource,
+        List<DeadNote> deadNotes,
+        DateTimeOffset now)
+    {
         DateTimeOffset dormantCutoff = now.AddDays(-DormantAfterDays);
-        HashSet<string> dormantSourceIds = inventoryCounts.Keys
-            .Where(id => !activityBySource.TryGetValue(id, out DateTimeOffset last) || last < dormantCutoff)
-            .ToHashSet();
-
-        List<DormantSource> dormantSources = dormantSourceIds
-            .OrderBy(id => id, StringComparer.Ordinal)
+        HashSet<string> dormantSourceIds = [.. inventoryCounts.Keys.Where(id => !activityBySource.TryGetValue(id, out DateTimeOffset last) || last < dormantCutoff)];
+        List<DormantSource> dormantSources = [.. dormantSourceIds
+            .Order(StringComparer.Ordinal)
             .Select(id => new DormantSource(
                 id,
                 activityBySource.TryGetValue(id, out DateTimeOffset last) ? last : null,
-                deadNotes.Count(note => note.SourceId == id)))
-            .ToList();
-
-        deadNotes = deadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId)).ToList();
-
-        return new GoldReport(
-            now,
-            registry.Machine,
-            MinInventoryAgeDays,
-            ReadWindowDays,
-            StaleMinReads,
-            StaleUnmodifiedDays,
-            DormantAfterDays,
-            inventoryCounts,
-            lifecycleCounts,
-            machineManagedCounts,
-            dormantSources,
-            deadNotes.OrderBy(note => note.Path, StringComparer.Ordinal).ToList(),
-            hotNotes,
-            staleNotes.OrderByDescending(note => note.ReadsInWindow).ThenBy(note => note.Path, StringComparer.Ordinal).ToList());
+                deadNotes.Count(note => note.SourceId == id))),];
+        return (dormantSources, dormantSourceIds);
     }
 
     /// <summary>
@@ -116,13 +144,14 @@ public static class GoldComputer
     /// </summary>
     private static Dictionary<string, DateTimeOffset> QuerySourceActivity(string silverPath, KnowledgeRegistry registry)
     {
-        Dictionary<string, DateTimeOffset> lastBySource = new();
+        Dictionary<string, DateTimeOffset> lastBySource = [];
         void Bump(string sourceId, DateTimeOffset time)
         {
-            if (!lastBySource.TryGetValue(sourceId, out DateTimeOffset existing) || time > existing)
+            if (lastBySource.TryGetValue(sourceId, out DateTimeOffset existing) && time <= existing)
             {
-                lastBySource[sourceId] = time;
+                return;
             }
+            lastBySource[sourceId] = time;
         }
 
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
@@ -134,7 +163,7 @@ public static class GoldComputer
                 WHERE type IN ('knowledge.read', 'context.loaded')
                   AND subject IS NOT NULL GROUP BY subject
                 """;
-            using DuckDBDataReader reader = (DuckDBDataReader)bySubject.ExecuteReader();
+            using DuckDBDataReader reader = bySubject.ExecuteReader();
             while (reader.Read())
             {
                 string? sourceId = registry.Resolve(reader.GetString(0));
@@ -152,7 +181,7 @@ public static class GoldComputer
                 WHERE type IN ('knowledge.read', 'context.loaded')
                   AND repo IS NOT NULL GROUP BY repo
                 """;
-            using DuckDBDataReader reader = (DuckDBDataReader)byRepo.ExecuteReader();
+            using DuckDBDataReader reader = byRepo.ExecuteReader();
             while (reader.Read())
             {
                 string repo = reader.GetString(0);
@@ -170,14 +199,11 @@ public static class GoldComputer
         return lastBySource;
     }
 
-    private static string LayerName(KnowledgeLayer layer)
-    {
-        return layer.ToString().ToLowerInvariant();
-    }
+    private static string LayerName(KnowledgeLayer layer) => layer.ToString().ToLowerInvariant();
 
     private static Dictionary<string, ReadStats> QueryReadStats(string silverPath, DateTimeOffset windowCutoff)
     {
-        Dictionary<string, ReadStats> statsByPath = new();
+        Dictionary<string, ReadStats> statsByPath = [];
 
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
         using DuckDBCommand command = connection.CreateCommand();
@@ -191,9 +217,9 @@ public static class GoldComputer
               AND subject IS NOT NULL
             GROUP BY subject
             """;
-        command.Parameters.Add(new DuckDBParameter { Value = windowCutoff.UtcDateTime });
+        _ = command.Parameters.Add(new DuckDBParameter { Value = windowCutoff.UtcDateTime });
 
-        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
             DateTime lastRead = DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc);

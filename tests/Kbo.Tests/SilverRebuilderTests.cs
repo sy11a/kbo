@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Nodes;
 using DuckDB.NET.Data;
 using Kbo.Bronze;
@@ -5,30 +6,27 @@ using Kbo.Silver;
 
 namespace Kbo.Tests;
 
-public class SilverRebuilderTests : IDisposable
+public sealed class SilverRebuilderTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string eventsRepo;
-    private readonly string silverPath;
+    private readonly string _workspace;
+    private readonly string _eventsRepo;
+    private readonly string _silverPath;
 
     public SilverRebuilderTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-silver-tests").FullName;
-        eventsRepo = Path.Combine(workspace, "kb-events");
-        silverPath = Path.Combine(workspace, "silver.duckdb");
+        _workspace = Directory.CreateTempSubdirectory("kbo-silver-tests").FullName;
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
+        _silverPath = Path.Combine(_workspace, "silver.duckdb");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private static JsonObject Event(
         string id, string type, string time, string? session, string? origin,
         string? transcript = null, string? subject = null, string? kbroot = null,
         string? model = null, JsonObject? extraData = null)
     {
-        JsonObject data = extraData ?? new JsonObject();
+        JsonObject data = extraData ?? [];
         data["origin"] = origin;
         if (transcript is not null)
         {
@@ -56,7 +54,7 @@ public class SilverRebuilderTests : IDisposable
 
     private void SeedBronze()
     {
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             Event("01A00000000000000000000001", "session.started", "2026-07-01T10:00:00Z", "sess-mixed", "hook"),
             Event("01A00000000000000000000002", "knowledge.read", "2026-07-01T10:01:00Z", "sess-mixed", "hook",
@@ -79,12 +77,13 @@ public class SilverRebuilderTests : IDisposable
 
     private DuckDBConnection Open()
     {
-        DuckDBConnection connection = new($"Data Source={silverPath}");
+        DuckDBConnection connection = new($"Data Source={_silverPath}");
         connection.Open();
         return connection;
     }
 
-    private long Scalar(DuckDBConnection connection, string sql)
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Test fixture SQL written in this file.")]
+    private static long Scalar(DuckDBConnection connection, string sql)
     {
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = sql;
@@ -100,7 +99,7 @@ public class SilverRebuilderTests : IDisposable
     public void Rebuild_LoadsAllBronzeEventsIntoEventsTable()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
         Assert.Equal(8, Scalar(connection, "SELECT count(*) FROM events"));
@@ -113,7 +112,7 @@ public class SilverRebuilderTests : IDisposable
     public void EventsPreferred_DropsHookRowsOnlyForHarvestCoveredSessions()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
         Assert.Equal(0, Scalar(connection,
@@ -130,12 +129,12 @@ public class SilverRebuilderTests : IDisposable
     public void EventsPreferred_HookTailAfterLastHarvestEvent_StaysVisible()
     {
         SeedBronze();
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             Event("01A00000000000000000000009", "knowledge.read", "2026-07-01T12:00:00Z", "sess-mixed", "hook",
                 subject: "/kb/tail.md", kbroot: "vault"),
         });
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
         Assert.Equal(1, Scalar(connection,
@@ -148,7 +147,7 @@ public class SilverRebuilderTests : IDisposable
     public void Sessions_CollapsesMultiTranscriptSessions_SummingUsage()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
         Assert.Equal(2, Scalar(connection, "SELECT count(*) FROM sessions"));
@@ -158,7 +157,7 @@ public class SilverRebuilderTests : IDisposable
 
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "SELECT model, strftime(started_at, '%Y-%m-%dT%H:%M:%SZ') FROM sessions WHERE session = 'sess-mixed'";
-        using DuckDB.NET.Data.DuckDBDataReader reader = (DuckDB.NET.Data.DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         Assert.True(reader.Read());
         Assert.Equal("claude-fable-5", reader.GetString(0));
         Assert.Equal("2026-07-01T10:00:00Z", reader.GetString(1));
@@ -168,11 +167,11 @@ public class SilverRebuilderTests : IDisposable
     public void Rebuild_IsDeterministic_P3Proof()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
         List<string> firstDump = DumpEvents();
 
-        File.Delete(silverPath);
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        File.Delete(_silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
         List<string> secondDump = DumpEvents();
 
         Assert.NotEmpty(firstDump);
@@ -183,27 +182,27 @@ public class SilverRebuilderTests : IDisposable
     public void Rebuild_LeavesNoTempFilesBehind()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
-        Assert.True(File.Exists(silverPath));
-        Assert.Empty(Directory.GetFiles(workspace, "silver.duckdb.tmp-*"));
+        Assert.True(File.Exists(_silverPath));
+        Assert.Empty(Directory.GetFiles(_workspace, "silver.duckdb.tmp-*"));
     }
 
     [Fact]
     public void Rebuild_ReplacesSilver_WhileReadOnlyReaderHoldsOldFile()
     {
         SeedBronze();
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
-        using DuckDBConnection reader = new($"Data Source={silverPath};ACCESS_MODE=READ_ONLY");
+        using DuckDBConnection reader = new($"Data Source={_silverPath};ACCESS_MODE=READ_ONLY");
         reader.Open();
 
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             Event("01A0000000000000000000000A", "knowledge.read", "2026-08-02T10:00:00Z", "sess-hook-only", "hook",
                 subject: "/kb/ninth.md", kbroot: "vault"),
         });
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         Assert.Equal(8, Scalar(reader, "SELECT count(*) FROM events"));
 
@@ -222,13 +221,13 @@ public class SilverRebuilderTests : IDisposable
     public void Rebuild_SweepsStaleTempFiles_KeepsFreshOnes()
     {
         SeedBronze();
-        string staleTemp = Path.Combine(workspace, "silver.duckdb.tmp-stale");
-        string freshTemp = Path.Combine(workspace, "silver.duckdb.tmp-fresh");
+        string staleTemp = Path.Combine(_workspace, "silver.duckdb.tmp-stale");
+        string freshTemp = Path.Combine(_workspace, "silver.duckdb.tmp-fresh");
         File.WriteAllText(staleTemp, "leftover from a killed rebuild");
         File.WriteAllText(freshTemp, "a concurrent rebuild's live temp");
         File.SetLastWriteTimeUtc(staleTemp, DateTime.UtcNow.AddHours(-2));
 
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         Assert.False(File.Exists(staleTemp));
         Assert.True(File.Exists(freshTemp));
@@ -239,16 +238,16 @@ public class SilverRebuilderTests : IDisposable
         using DuckDBConnection connection = Open();
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "SELECT id, type, time, subject, session, origin, transcript, kbroot, data FROM events ORDER BY id";
-        using DuckDB.NET.Data.DuckDBDataReader reader = (DuckDB.NET.Data.DuckDBDataReader)command.ExecuteReader();
-        List<string> rows = new();
+        using DuckDBDataReader reader = command.ExecuteReader();
+        List<string> rows = [];
         while (reader.Read())
         {
-            List<string> values = new();
+            List<string> values = [];
             for (int index = 0; index < reader.FieldCount; index++)
             {
-                values.Add(reader.IsDBNull(index) ? "<null>" : reader.GetValue(index).ToString() ?? "<null>");
+                values.Add(reader.IsDBNull(index) ? "<null>" : Convert.ToString(reader.GetValue(index), System.Globalization.CultureInfo.InvariantCulture) ?? "<null>");
             }
-            rows.Add(string.Join("|", values));
+            rows.Add(string.Join('|', values));
         }
         return rows;
     }

@@ -1,22 +1,20 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json.Nodes;
 using Kbo.Schemas;
 
 namespace Kbo.Bronze;
 
-public sealed class BronzeStore
+internal sealed class BronzeStore
 {
     private const string BronzeDirectory = "bronze";
     private const string MonthFileExtension = ".ndjsonl";
     private const string LockDirectory = ".locks";
 
-    private readonly string repositoryRoot;
+    private readonly string _repositoryRoot;
 
-    public BronzeStore(string repositoryRoot)
-    {
-        this.repositoryRoot = repositoryRoot;
-    }
+    public BronzeStore(string repositoryRoot) => this._repositoryRoot = repositoryRoot;
 
     public void Append(IEnumerable<JsonObject> events)
     {
@@ -28,12 +26,12 @@ public sealed class BronzeStore
             string agent = RequiredField(envelopeEvent, EnvelopeFields.Agent);
             string month = RequiredField(envelopeEvent, EnvelopeFields.Time)[..7];
 
-            string directory = Path.Combine(repositoryRoot, BronzeDirectory, machine, agent);
-            Directory.CreateDirectory(directory);
+            string directory = Path.Combine(_repositoryRoot, BronzeDirectory, machine, agent);
+            _ = Directory.CreateDirectory(directory);
             string monthFile = Path.Combine(directory, month + MonthFileExtension);
 
-            string lockDirectory = Path.Combine(repositoryRoot, LockDirectory);
-            Directory.CreateDirectory(lockDirectory);
+            string lockDirectory = Path.Combine(_repositoryRoot, LockDirectory);
+            _ = Directory.CreateDirectory(lockDirectory);
             string lockFile = Path.Combine(lockDirectory, $"{machine}-{agent}-{month}.lock");
 
             byte[] line = Encoding.UTF8.GetBytes(envelopeEvent.ToJsonString() + "\n");
@@ -53,6 +51,7 @@ public sealed class BronzeStore
     // No cross-process signal exists to wait on for the lock file, hence bounded
     // sleep-backoff; exhaustion surfaces as IOException and the capture fail-safe
     // records the drop (ADR-0029, ADR-0030).
+    [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Backoff jitter is contention-spreading, not a security primitive.")]
     internal static void RetryTransientIO(Action appendAction)
     {
         const int maxAttempts = 10;
@@ -74,7 +73,7 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> HarvestedTranscripts()
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             JsonNode? data = envelopeEvent[EnvelopeFields.Data];
@@ -82,7 +81,7 @@ public sealed class BronzeStore
                 && (string?)data[EventDataFields.Origin] == EventDataFields.OriginHarvest
                 && (string?)data[EventDataFields.Transcript] is string transcript)
             {
-                transcripts.Add(transcript);
+                _ = transcripts.Add(transcript);
             }
         }
 
@@ -91,13 +90,13 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> TranscriptsWithType(string eventType)
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] == eventType
                 && (string?)envelopeEvent[EnvelopeFields.Data]?[EventDataFields.Transcript] is string transcript)
             {
-                transcripts.Add(transcript);
+                _ = transcripts.Add(transcript);
             }
         }
 
@@ -106,7 +105,7 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> SeenTranscripts()
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             JsonNode? data = envelopeEvent[EnvelopeFields.Data];
@@ -116,11 +115,11 @@ public sealed class BronzeStore
             }
             if ((string?)data[EventDataFields.Transcript] is string stamped)
             {
-                transcripts.Add(stamped);
+                _ = transcripts.Add(stamped);
             }
             else if ((string?)data[EventDataFields.Raw]?["transcript_path"] is string transcriptPath)
             {
-                transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
+                _ = transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
             }
         }
 
@@ -129,7 +128,7 @@ public sealed class BronzeStore
 
     public Dictionary<string, DateTimeOffset> LastCompletedJobs()
     {
-        Dictionary<string, DateTimeOffset> lastCompleted = new();
+        Dictionary<string, DateTimeOffset> lastCompleted = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.JobCompleted
@@ -159,7 +158,7 @@ public sealed class BronzeStore
     /// </summary>
     public IReadOnlySet<string> GraphMetricsKeys()
     {
-        HashSet<string> keys = new();
+        HashSet<string> keys = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.GraphMetrics)
@@ -171,7 +170,7 @@ public sealed class BronzeStore
             if ((string?)data?[EventDataFields.Date] is string date
                 && (string?)data?[EventDataFields.Source] is string source)
             {
-                keys.Add(date + "|" + source);
+                _ = keys.Add(date + "|" + source);
             }
         }
 
@@ -183,7 +182,7 @@ public sealed class BronzeStore
     // truncated tail line, and one bad line must not poison a whole scan.
     private IEnumerable<JsonObject> ReadEvents()
     {
-        string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
+        string bronzeRoot = Path.Combine(_repositoryRoot, BronzeDirectory);
         if (!Directory.Exists(bronzeRoot))
         {
             yield break;
@@ -220,36 +219,38 @@ public sealed class BronzeStore
     private void EnsureRepository()
     {
         EnsureLockFilesIgnored();
-        if (Directory.Exists(Path.Combine(repositoryRoot, ".git")))
+        if (Directory.Exists(Path.Combine(_repositoryRoot, ".git")))
         {
             return;
         }
 
-        Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(_repositoryRoot);
         ProcessStartInfo startInfo = new("git", "init --quiet")
         {
-            WorkingDirectory = repositoryRoot,
+            WorkingDirectory = _repositoryRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            UseShellExecute = false,
         };
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("failed to start 'git init'");
         process.WaitForExit();
-        if (process.ExitCode != 0)
+        if (process.ExitCode is 0)
         {
-            throw new InvalidOperationException($"'git init' failed in {repositoryRoot}: {process.StandardError.ReadToEnd()}");
+            return;
         }
+        throw new InvalidOperationException($"'git init' failed in {_repositoryRoot}: {process.StandardError.ReadToEnd()}");
     }
 
     private void EnsureLockFilesIgnored()
     {
-        string gitignore = Path.Combine(repositoryRoot, ".gitignore");
-        if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock"))
+        string gitignore = Path.Combine(_repositoryRoot, ".gitignore");
+        if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock", StringComparer.Ordinal))
         {
             return;
         }
 
-        Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(_repositoryRoot);
         File.AppendAllText(gitignore, "*.lock\n");
     }
 }

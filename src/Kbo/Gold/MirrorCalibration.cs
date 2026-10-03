@@ -1,33 +1,11 @@
 namespace Kbo.Gold;
 
-public enum MirrorDirection
-{
-    UpIsBetter,
-    DownIsBetter,
-}
-
-/// <summary>The tile's declared target: a value and which side of it is healthy.</summary>
-public sealed record MirrorGoal(double Value, MirrorDirection Direction);
-
-/// <summary>Calibration verdict for one mirror tile (BL-033). State is the emoji the
-/// renderer prints; StatusClass is the CSS class. Amber ("acute") is the only alarm.</summary>
-public sealed record MirrorVerdict(
-    string State,
-    string StatusClass,
-    double? CorridorLow,
-    double? CorridorHigh,
-    double? Median,
-    double? Mad,
-    double? SlopePerWeek,
-    double? RobustZ,
-    int HistoryWeeks);
-
 /// <summary>Mirror calibration v1 (BL-033, design session 2026-08-27): state = emoji,
 /// not color. A tile is judged against its own history (weekly snapshots): the p25–p75
 /// corridor is "my normal", the robust z-score catches acute breaks, and the OLS slope
 /// catches sustained drift. Chronic sickness (corridor outside the goal) is a backlog
 /// item, not an alarm — only the acute ⚠️ may color the tile amber.</summary>
-public static class MirrorCalibration
+internal static class MirrorCalibration
 {
     public const int RequiredHistoryWeeks = 6;
     public const double AcuteZThreshold = 2.0;
@@ -58,7 +36,7 @@ public static class MirrorCalibration
         int weeks = history.Count;
         if (weeks < RequiredHistoryWeeks)
         {
-            return new MirrorVerdict(StateWaiting, ClassWait, null, null, null, null, null, null, weeks);
+            return new MirrorVerdict(StateWaiting, ClassWait, CorridorLow: null, CorridorHigh: null, Median: null, Mad: null, SlopePerWeek: null, RobustZ: null, weeks);
         }
 
         double median = Percentile(history, 0.5);
@@ -102,7 +80,7 @@ public static class MirrorCalibration
         }
 
         bool corridorInsideGoal = goal is null
-            || (goal.Direction == MirrorDirection.UpIsBetter ? corridorLow >= goal.Value : corridorHigh <= goal.Value);
+            || (goal.Direction is MirrorDirection.UpIsBetter ? corridorLow >= goal.Value : corridorHigh <= goal.Value);
         return corridorInsideGoal
             ? new MirrorVerdict(StateStableGood, ClassOk, corridorLow, corridorHigh, median, mad, slope, robustZ, weeks)
             : new MirrorVerdict(StateStableSick, ClassSick, corridorLow, corridorHigh, median, mad, slope, robustZ, weeks);
@@ -112,11 +90,11 @@ public static class MirrorCalibration
     /// between the two neighbouring order statistics.</summary>
     public static double Percentile(IReadOnlyList<double> values, double p)
     {
-        double[] sorted = [.. values.OrderBy(value => value)];
+        double[] sorted = [.. values.Order()];
         double position = p * (sorted.Length - 1);
         int lower = (int)Math.Floor(position);
         int upper = (int)Math.Ceiling(position);
-        return lower == upper ? sorted[lower] : sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+        return lower == upper ? sorted[lower] : sorted[lower] + ((sorted[upper] - sorted[lower]) * (position - lower));
     }
 
     public static double MedianAbsoluteDeviation(IReadOnlyList<double> values, double median)
@@ -125,7 +103,9 @@ public static class MirrorCalibration
         return Percentile(deviations, 0.5);
     }
 
-    /// <summary>Ordinary least-squares slope of the weekly series, units per week.</summary>
+    /// <summary>
+    /// Ordinary least-squares slope of the weekly series, units per week.
+    /// </summary>
     public static double SlopePerWeek(IReadOnlyList<double> weekly)
     {
         int count = weekly.Count;

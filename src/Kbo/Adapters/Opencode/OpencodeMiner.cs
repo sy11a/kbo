@@ -13,11 +13,11 @@ namespace Kbo.Adapters.Opencode;
 /// The session row pre-aggregates usage; parts carry tool activity with
 /// authoritative hit counts in state.metadata.
 /// </summary>
-public static class OpencodeMiner
+internal static class OpencodeMiner
 {
     public static IReadOnlyList<string> EnumerateSessionIds(string databasePath)
     {
-        List<string> ids = new();
+        List<string> ids = [];
         if (!File.Exists(databasePath))
         {
             return ids;
@@ -39,12 +39,12 @@ public static class OpencodeMiner
         KnowledgeRegistry registry,
         Random random)
     {
-        List<JsonObject> events = new();
-        if (sessionIds.Count == 0 || !File.Exists(databasePath))
+        List<JsonObject> events = [];
+        if (sessionIds.Count is 0 || !File.Exists(databasePath))
         {
             return events;
         }
-        HashSet<string> wanted = new(sessionIds);
+        HashSet<string> wanted = [.. sessionIds];
 
         using SqliteConnection connection = OpenReadOnly(databasePath);
         using SqliteCommand sessionCommand = connection.CreateCommand();
@@ -86,7 +86,7 @@ public static class OpencodeMiner
                 [EventDataFields.Transcript] = sessionId,
             };
             events.Add(EventEnvelope.Create(
-                EventTypes.SessionStarted, sessionId, null, sessionData,
+                EventTypes.SessionStarted, sessionId, kbroot: null, sessionData,
                 registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, started, random));
 
             events.AddRange(MineParts(connection, sessionId, directory, repo, model, registry, random));
@@ -104,10 +104,10 @@ public static class OpencodeMiner
         KnowledgeRegistry registry,
         Random random)
     {
-        List<JsonObject> events = new();
+        List<JsonObject> events = [];
         using SqliteCommand partCommand = connection.CreateCommand();
         partCommand.CommandText = "SELECT data FROM part WHERE session_id = @session ORDER BY time_created, id";
-        partCommand.Parameters.AddWithValue("@session", sessionId);
+        _ = partCommand.Parameters.AddWithValue("@session", sessionId);
         using SqliteDataReader reader = partCommand.ExecuteReader();
         while (reader.Read())
         {
@@ -121,7 +121,7 @@ public static class OpencodeMiner
                 continue;
             }
             if (part is null
-                || (string?)part["type"] != "tool"
+                || (string?)part["type"] is not "tool"
                 || (string?)part["tool"] is not string tool
                 || part["state"] is not JsonObject state
                 || state["input"] is not JsonObject input
@@ -187,7 +187,7 @@ public static class OpencodeMiner
             return null;
         }
         string? root = ClaudeCodeAdapter.AbsolutePath((string?)input[OpencodeAdapter.Payload.Path], directory)
-            ?? ClaudeCodeAdapter.AbsolutePath(directory, null);
+            ?? ClaudeCodeAdapter.AbsolutePath(directory, cwd: null);
         int? hits = null;
         if (state["metadata"] is JsonObject metadata)
         {
@@ -231,7 +231,7 @@ public static class OpencodeMiner
         {
             return null;
         }
-        return new MappedTool(EventTypes.SkillInvoked, skill, null, new JsonObject
+        return new MappedTool(EventTypes.SkillInvoked, skill, Kbroot: null, new JsonObject
         {
             [EventDataFields.Skill] = skill,
             [EventDataFields.Raw] = raw,

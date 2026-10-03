@@ -4,7 +4,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Kbo.Registry;
 
-public sealed class KnowledgeRegistry
+internal sealed class KnowledgeRegistry
 {
     public string Machine { get; }
     public IReadOnlyList<KnowledgeSource> Sources { get; }
@@ -69,118 +69,16 @@ public sealed class KnowledgeRegistry
 
     public static KnowledgeRegistry Parse(string yaml, string? taskPatternOverride = null)
     {
-        IDeserializer deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .Build();
+        RegistryDocument? document = LoadDocument(yaml);
 
-        RegistryDocument document;
-        try
+        List<string> errors = [];
+        ValidateDocument(document, errors);
+
+        List<KnowledgeSource> sources = [];
+        HashSet<string> seenIds = [];
+        foreach (SourceEntry entry in document?.Sources ?? [])
         {
-            document = deserializer.Deserialize<RegistryDocument>(yaml);
-        }
-        catch (YamlDotNet.Core.YamlException exception)
-        {
-            throw new RegistryFormatException($"registry is not valid YAML: {exception.Message}", exception);
-        }
-
-        List<string> errors = new();
-        if (document is null || string.IsNullOrWhiteSpace(document.Machine))
-        {
-            errors.Add("'machine' is missing");
-        }
-        if (document?.Sources is null || document.Sources.Count == 0)
-        {
-            errors.Add("'sources' is missing or empty");
-        }
-
-        List<KnowledgeSource> sources = new();
-        HashSet<string> seenIds = new();
-        foreach (SourceEntry entry in document?.Sources ?? new List<SourceEntry>())
-        {
-            if (string.IsNullOrWhiteSpace(entry.Id))
-            {
-                errors.Add("a source is missing 'id'");
-                continue;
-            }
-            if (!seenIds.Add(entry.Id))
-            {
-                errors.Add($"duplicate source id '{entry.Id}'");
-            }
-            if (string.IsNullOrWhiteSpace(entry.Layer))
-            {
-                errors.Add($"source '{entry.Id}': 'layer' is missing");
-                continue;
-            }
-            if (!Enum.TryParse(entry.Layer, ignoreCase: true, out KnowledgeLayer layer))
-            {
-                errors.Add($"source '{entry.Id}': unknown layer '{entry.Layer}' (expected global|framework|local|skills)");
-                continue;
-            }
-            if (string.IsNullOrWhiteSpace(entry.Root))
-            {
-                errors.Add($"source '{entry.Id}': 'root' is missing");
-                continue;
-            }
-            if (!Path.IsPathRooted(entry.Root))
-            {
-                errors.Add($"source '{entry.Id}': root '{entry.Root}' is not an absolute path");
-                continue;
-            }
-
-            string normalizedRoot = entry.Root.Length > 1 ? entry.Root.TrimEnd('/') : entry.Root;
-            bool hasExclude = entry.Exclude is { Count: > 0 };
-            if (hasExclude && !normalizedRoot.Contains('*'))
-            {
-                errors.Add($"source '{entry.Id}': 'exclude' requires a glob root");
-                continue;
-            }
-
-            List<string> excludePaths = new();
-            bool excludePathsValid = true;
-            foreach (string excludePath in entry.ExcludePaths ?? new List<string>())
-            {
-                if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath) || excludePath.Contains('*'))
-                {
-                    errors.Add($"source '{entry.Id}': excludePaths entry '{excludePath}' must be a relative path without '*'");
-                    excludePathsValid = false;
-                    continue;
-                }
-                excludePaths.Add(excludePath.TrimEnd('/'));
-            }
-            if (!excludePathsValid)
-            {
-                continue;
-            }
-
-            if (entry.MetricsArtifact is not null)
-            {
-                if (!Path.IsPathRooted(entry.MetricsArtifact))
-                {
-                    errors.Add($"source '{entry.Id}': metricsArtifact '{entry.MetricsArtifact}' is not an absolute path");
-                    continue;
-                }
-                if (normalizedRoot.Contains('*'))
-                {
-                    errors.Add($"source '{entry.Id}': metricsArtifact is not allowed on a glob root");
-                    continue;
-                }
-            }
-
-            if (normalizedRoot.Contains('*'))
-            {
-                string? globError = ExpandGlob(entry.Id, layer, normalizedRoot,
-                    entry.Exclude ?? (IReadOnlyCollection<string>)Array.Empty<string>(), excludePaths, sources, seenIds);
-                if (globError is not null)
-                {
-                    errors.Add(globError);
-                }
-                continue;
-            }
-            sources.Add(new KnowledgeSource(entry.Id, layer, normalizedRoot)
-            {
-                ExcludePaths = excludePaths,
-                MetricsArtifact = entry.MetricsArtifact,
-            });
+            ValidateSource(entry, errors, sources, seenIds);
         }
 
         Regex? taskPattern = CompileTaskPattern(
@@ -196,14 +94,171 @@ public sealed class KnowledgeRegistry
         return new KnowledgeRegistry(document!.Machine!, sources, taskPattern, constitution, sdd);
     }
 
+    private static RegistryDocument? LoadDocument(string yaml)
+    {
+        IDeserializer deserializer = new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+
+        try
+        {
+            return deserializer.Deserialize<RegistryDocument>(yaml);
+        }
+        catch (YamlDotNet.Core.YamlException exception)
+        {
+            throw new RegistryFormatException($"registry is not valid YAML: {exception.Message}", exception);
+        }
+    }
+
+    private static void ValidateDocument(RegistryDocument? document, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(document?.Machine))
+        {
+            errors.Add("'machine' is missing");
+        }
+        if (document?.Sources is not null and { Count: > 0 })
+        {
+            return;
+        }
+        errors.Add("'sources' is missing or empty");
+    }
+
+    private static void ValidateSource(SourceEntry entry, List<string> errors, List<KnowledgeSource> sources,
+        HashSet<string> seenIds)
+    {
+        if (!CheckSourceIdentity(entry, errors, seenIds, out KnowledgeLayer layer, out string normalizedRoot))
+        {
+            return;
+        }
+
+        if (!CheckExcludeRequiresGlob(entry, normalizedRoot, errors))
+        {
+            return;
+        }
+
+        List<string>? excludePaths = CollectExcludePaths(entry, errors);
+        if (excludePaths is null)
+        {
+            return;
+        }
+
+        if (!CheckMetricsArtifact(entry, normalizedRoot, errors))
+        {
+            return;
+        }
+
+        if (normalizedRoot.Contains('*', StringComparison.Ordinal))
+        {
+            string? globError = ExpandGlob(entry.Id!, layer, normalizedRoot,
+                entry.Exclude ?? (IReadOnlyCollection<string>)[], excludePaths, sources, seenIds);
+            if (globError is not null)
+            {
+                errors.Add(globError);
+            }
+            return;
+        }
+        sources.Add(new KnowledgeSource(entry.Id!, layer, normalizedRoot)
+        {
+            ExcludePaths = excludePaths,
+            MetricsArtifact = entry.MetricsArtifact,
+        });
+    }
+
+    private static bool CheckSourceIdentity(SourceEntry entry, List<string> errors, HashSet<string> seenIds,
+        out KnowledgeLayer layer, out string normalizedRoot)
+    {
+        layer = default;
+        normalizedRoot = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(entry.Id))
+        {
+            errors.Add("a source is missing 'id'");
+            return false;
+        }
+        if (!seenIds.Add(entry.Id))
+        {
+            errors.Add($"duplicate source id '{entry.Id}'");
+        }
+        if (string.IsNullOrWhiteSpace(entry.Layer))
+        {
+            errors.Add($"source '{entry.Id}': 'layer' is missing");
+            return false;
+        }
+        if (!Enum.TryParse(entry.Layer, ignoreCase: true, out layer))
+        {
+            errors.Add($"source '{entry.Id}': unknown layer '{entry.Layer}' (expected global|framework|local|skills)");
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(entry.Root))
+        {
+            errors.Add($"source '{entry.Id}': 'root' is missing");
+            return false;
+        }
+        if (!Path.IsPathRooted(entry.Root))
+        {
+            errors.Add($"source '{entry.Id}': root '{entry.Root}' is not an absolute path");
+            return false;
+        }
+        normalizedRoot = entry.Root.Length > 1 ? entry.Root.TrimEnd('/') : entry.Root;
+        return true;
+    }
+
+    private static bool CheckExcludeRequiresGlob(SourceEntry entry, string normalizedRoot, List<string> errors)
+    {
+        bool hasExclude = entry.Exclude is { Count: > 0 };
+        if (!hasExclude || normalizedRoot.Contains('*', StringComparison.Ordinal))
+        {
+            return true;
+        }
+        errors.Add($"source '{entry.Id}': 'exclude' requires a glob root");
+        return false;
+    }
+
+    private static List<string>? CollectExcludePaths(SourceEntry entry, List<string> errors)
+    {
+        List<string> excludePaths = [];
+        bool excludePathsValid = true;
+        foreach (string excludePath in entry.ExcludePaths ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath)
+                || excludePath.Contains('*', StringComparison.Ordinal))
+            {
+                errors.Add($"source '{entry.Id}': excludePaths entry '{excludePath}' must be a relative path without '*'");
+                excludePathsValid = false;
+                continue;
+            }
+            excludePaths.Add(excludePath.TrimEnd('/'));
+        }
+        return excludePathsValid ? excludePaths : null;
+    }
+
+    private static bool CheckMetricsArtifact(SourceEntry entry, string normalizedRoot, List<string> errors)
+    {
+        if (entry.MetricsArtifact is null)
+        {
+            return true;
+        }
+        if (!Path.IsPathRooted(entry.MetricsArtifact))
+        {
+            errors.Add($"source '{entry.Id}': metricsArtifact '{entry.MetricsArtifact}' is not an absolute path");
+            return false;
+        }
+        if (!normalizedRoot.Contains('*', StringComparison.Ordinal))
+        {
+            return true;
+        }
+        errors.Add($"source '{entry.Id}': metricsArtifact is not allowed on a glob root");
+        return false;
+    }
+
     private static SddConfig? ParseSdd(SddEntry? entry, List<string> errors)
     {
         if (entry is null)
         {
             return null;
         }
-        List<string> skills = new();
-        foreach (string skill in entry.Skills ?? new List<string>())
+        List<string> skills = [];
+        foreach (string skill in entry.Skills ?? [])
         {
             if (string.IsNullOrWhiteSpace(skill))
             {
@@ -212,7 +267,7 @@ public sealed class KnowledgeRegistry
             }
             skills.Add(skill.Trim());
         }
-        if (skills.Count == 0)
+        if (skills.Count is 0)
         {
             errors.Add("sdd: 'skills' is missing or empty — remove the block or list at least one skill name");
             return null;
@@ -237,13 +292,13 @@ public sealed class KnowledgeRegistry
             errors.Add($"constitution: versionFile '{entry.VersionFile}' is not an absolute path");
             valid = false;
         }
-        if (entry.ScanRoots is null || entry.ScanRoots.Count == 0)
+        if (entry.ScanRoots is null || entry.ScanRoots.Count is 0)
         {
             errors.Add("constitution: 'scanRoots' is missing or empty");
             valid = false;
         }
-        List<string> scanRoots = new();
-        foreach (string root in entry.ScanRoots ?? new List<string>())
+        List<string> scanRoots = [];
+        foreach (string root in entry.ScanRoots ?? [])
         {
             if (string.IsNullOrWhiteSpace(root) || !Path.IsPathRooted(root))
             {
@@ -253,10 +308,10 @@ public sealed class KnowledgeRegistry
             }
             scanRoots.Add(root.Length > 1 ? root.TrimEnd('/') : root);
         }
-        List<string> excludeNames = new();
-        foreach (string name in entry.Exclude ?? new List<string>())
+        List<string> excludeNames = [];
+        foreach (string name in entry.Exclude ?? [])
         {
-            if (string.IsNullOrWhiteSpace(name) || name.Contains('/') || name.Contains('*'))
+            if (string.IsNullOrWhiteSpace(name) || name.Contains('/', StringComparison.Ordinal) || name.Contains('*', StringComparison.Ordinal))
             {
                 errors.Add($"constitution: exclude entry '{name}' must be a plain directory name");
                 valid = false;
@@ -275,7 +330,7 @@ public sealed class KnowledgeRegistry
         }
         try
         {
-            return new Regex(pattern);
+            return new Regex(pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
         }
         catch (ArgumentException exception)
         {
@@ -289,18 +344,18 @@ public sealed class KnowledgeRegistry
         List<KnowledgeSource> sources, HashSet<string> seenIds)
     {
         string[] segments = root.Split('/');
-        if (segments.Any(segment => segment.Contains('*') && segment != "*"))
+        if (segments.Any(segment => segment.Contains('*', StringComparison.Ordinal) && segment is not "*"))
         {
             return $"source '{id}': root '{root}' — only a whole '*' segment is supported (e.g. /home/u/Repository/*/docs)";
         }
 
-        List<(string Path, List<string> Matched)> candidates = new() { ("/", new List<string>()) };
+        List<(string Path, List<string> Matched)> candidates = [("/", new List<string>())];
         foreach (string segment in segments.Where(segment => segment.Length > 0))
         {
-            List<(string, List<string>)> next = new();
+            List<(string, List<string>)> next = [];
             foreach ((string path, List<string> matched) in candidates)
             {
-                if (segment == "*")
+                if (segment is "*")
                 {
                     foreach (string directory in Directory.Exists(path)
                         ? Directory.EnumerateDirectories(path).Order(StringComparer.Ordinal)
@@ -319,11 +374,11 @@ public sealed class KnowledgeRegistry
 
         foreach ((string path, List<string> matched) in candidates.Where(candidate => Directory.Exists(candidate.Path)))
         {
-            if (matched.Any(exclude.Contains))
+            if (matched.Exists(matchedItem => exclude.Contains(matchedItem, StringComparer.Ordinal)))
             {
                 continue;
             }
-            string expandedId = id + "-" + string.Join("-", matched);
+            string expandedId = id + "-" + string.Join('-', matched);
             if (!seenIds.Add(expandedId))
             {
                 return $"duplicate source id '{expandedId}' (expanded from glob '{root}')";

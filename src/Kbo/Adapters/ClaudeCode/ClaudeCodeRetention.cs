@@ -2,7 +2,7 @@ using Kbo.Jobs;
 
 namespace Kbo.Adapters.ClaudeCode;
 
-public static class ClaudeCodeRetention
+internal static class ClaudeCodeRetention
 {
     public static RetentionManifest Manifest(string homeDirectory)
     {

@@ -4,10 +4,6 @@ using Kbo.Registry;
 
 namespace Kbo.Gold;
 
-public sealed record FleetRepoTile(string Repo, string Version, string Status);
-
-public sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<FleetRepoTile> Repos, int Behind);
-
 /// <summary>
 /// Legislated-repo fleet vs the current constitution version. There is no
 /// fleet registry to maintain: the repos' docs/ai/manifest.json files ARE the
@@ -16,7 +12,7 @@ public sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<Fle
 /// version "?" and counts as behind: unknown classification fails toward the
 /// cheap error.
 /// </summary>
-public static class ConstitutionFleet
+internal static class ConstitutionFleet
 {
     public static ConstitutionFleetGold? Scan(ConstitutionConfig? config)
     {
@@ -34,8 +30,8 @@ public static class ConstitutionFleet
         }
 
         string current = currentVersion.ToString(CultureInfo.InvariantCulture);
-        List<FleetRepoTile> repos = new();
-        foreach (string root in config.ScanRoots.Where(Directory.Exists))
+        List<FleetRepoTile> repos = [];
+        foreach (string root in config.ScanRoots.Where(scanRoot => Directory.Exists(scanRoot)))
         {
             foreach (string repo in Directory.EnumerateDirectories(root))
             {
@@ -53,7 +49,7 @@ public static class ConstitutionFleet
             }
         }
         repos.Sort((a, b) => string.CompareOrdinal(a.Repo, b.Repo));
-        return new ConstitutionFleetGold(currentVersion, repos, repos.Count(repo => repo.Status == "red"));
+        return new ConstitutionFleetGold(currentVersion, repos, repos.Count(repo => repo.Status is "red"));
     }
 
     private static string ReadLegislatorVersion(string manifestPath)
@@ -61,7 +57,7 @@ public static class ConstitutionFleet
         try
         {
             using JsonDocument document = JsonDocument.Parse(File.ReadAllText(manifestPath));
-            if (document.RootElement.ValueKind == JsonValueKind.Object
+            if (document.RootElement.ValueKind is JsonValueKind.Object
                 && document.RootElement.TryGetProperty("legislatorVersion", out JsonElement value)
                 && value.TryGetInt32(out int version))
             {

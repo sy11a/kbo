@@ -18,8 +18,8 @@ public class RegistryLocationTests
     public void Locate_NoExplicitPath_UsesEnvironmentVariable()
     {
         string located = RegistryLocator.Locate(
-            null,
-            name => name == "KBO_REGISTRY" ? "/tmp/from-env.yaml" : null,
+            explicitPath: null,
+            name => name is "KBO_REGISTRY" ? "/tmp/from-env.yaml" : null,
             "/home/someone");
         Assert.Equal("/tmp/from-env.yaml", located);
     }
@@ -27,7 +27,7 @@ public class RegistryLocationTests
     [Fact]
     public void Locate_NothingSet_DefaultsToXdgConfig()
     {
-        string located = RegistryLocator.Locate(null, _ => null, "/home/someone");
+        string located = RegistryLocator.Locate(explicitPath: null, _ => null, "/home/someone");
         Assert.Equal("/home/someone/.config/kbo/registry.yaml", located);
     }
 
@@ -56,8 +56,8 @@ public class RegistryLocationTests
     [Fact]
     public void Load_MissingFile_ThrowsNamingThePath()
     {
-        string path = "/nonexistent/kbo/registry.yaml";
+        const string path = "/nonexistent/kbo/registry.yaml";
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Load(path));
-        Assert.Contains(path, exception.Message);
+        Assert.Contains(path, exception.Message, StringComparison.Ordinal);
     }
 }

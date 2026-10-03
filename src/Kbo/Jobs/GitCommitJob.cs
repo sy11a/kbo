@@ -9,18 +9,18 @@ namespace Kbo.Jobs;
 /// bronze-git (ADR-0018 — tamper-evident history for the append-only event
 /// store). No remote — durability is backup's job.
 /// </summary>
-public sealed class GitCommitJob : IPulseJob
+internal sealed class GitCommitJob : IPulseJob
 {
-    private readonly string root;
-    private readonly IProcessRunner processRunner;
-    private readonly TimeProvider clock;
+    private readonly string _root;
+    private readonly IProcessRunner _processRunner;
+    private readonly TimeProvider _clock;
 
     public GitCommitJob(string name, string root, IProcessRunner processRunner, TimeProvider clock)
     {
         Name = name;
-        this.root = root;
-        this.processRunner = processRunner;
-        this.clock = clock;
+        _root = root;
+        _processRunner = processRunner;
+        _clock = clock;
     }
 
     public string Name { get; }
@@ -28,37 +28,36 @@ public sealed class GitCommitJob : IPulseJob
 
     public string Run()
     {
-        if (!Directory.Exists(root))
+        if (!Directory.Exists(_root))
         {
-            throw new InvalidOperationException($"repository root not found: {root}");
+            throw new InvalidOperationException($"repository root not found: {_root}");
         }
 
-        if (!Directory.Exists(Path.Combine(root, ".git")))
+        if (!Directory.Exists(Path.Combine(_root, ".git")))
         {
-            Git("init", "--quiet");
+            _ = Git("init", "--quiet");
         }
 
-        Git("add", "-A");
+        _ = Git("add", "-A");
 
         ProcessResult status = Git("status", "--porcelain");
-        if (status.StandardOutput.Trim().Length == 0)
+        if (status.StandardOutput.Trim().Length is 0)
         {
             return "no changes";
         }
 
-        string message = "kbo auto-commit " + clock.GetUtcNow().UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        Git("-c", "user.name=kbo", "-c", "user.email=kbo@localhost", "commit", "--quiet", "-m", message);
+        string message = "kbo auto-commit " + _clock.GetUtcNow().UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        _ = Git("-c", "user.name=kbo", "-c", "user.email=kbo@localhost", "commit", "--quiet", "-m", message);
 
         int changedFiles = status.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
-        return $"committed {changedFiles} change(s)";
+        return string.Create(CultureInfo.InvariantCulture, $"committed {changedFiles} change(s)");
     }
 
     private ProcessResult Git(params string[] arguments)
     {
-        List<string> fullArguments = new() { "-C", root };
-        fullArguments.AddRange(arguments);
-        ProcessResult result = processRunner.Run("git", fullArguments);
-        if (result.ExitCode != 0)
+        List<string> fullArguments = ["-C", _root, .. arguments];
+        ProcessResult result = _processRunner.Run("git", fullArguments);
+        if (result.ExitCode is not 0)
         {
             throw new InvalidOperationException($"git {string.Join(' ', arguments)} failed: {result.StandardError.Trim()}");
         }

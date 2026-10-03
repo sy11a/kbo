@@ -4,7 +4,7 @@ namespace Kbo.Adapters.ClaudeCode;
 /// Claude Code hook payload contract: JSON keys, hook event names, tool names,
 /// and the context.loaded kind labels this adapter assigns (ADR-0006).
 /// </summary>
-public static class HookPayload
+internal static class HookPayload
 {
     public const string SessionId = "session_id";
     public const string Cwd = "cwd";
@@ -23,13 +23,13 @@ public static class HookPayload
     public const string NewSource = "new_source";
     public const string SizeSuffix = "_size";
 
-    public static class Events
+    internal static class Events
     {
         public const string PostToolUse = "PostToolUse";
         public const string SessionStart = "SessionStart";
     }
 
-    public static class Tools
+    internal static class Tools
     {
         public const string Read = "Read";
         public const string Grep = "Grep";
@@ -40,7 +40,7 @@ public static class HookPayload
         public const string Skill = "Skill";
     }
 
-    public static class ContextKinds
+    internal static class ContextKinds
     {
         public const string GlobalInstructions = "global-instructions";
         public const string ProjectInstructions = "project-instructions";

@@ -4,50 +4,53 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class CaptureCommandTests : IDisposable
+public sealed class CaptureCommandTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly string eventsRepo;
-    private readonly string registryPath;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly string _eventsRepo;
+    private readonly string _registryPath;
+    private readonly StringWriter _error = new();
 
     public CaptureCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-capture-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        eventsRepo = Path.Combine(workspace, "kb-events");
-        Directory.CreateDirectory(vaultRoot);
-        File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "hello\n");
+        _workspace = Directory.CreateTempSubdirectory("kbo-capture-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
+        _ = Directory.CreateDirectory(_vaultRoot);
+        File.WriteAllText(Path.Combine(_vaultRoot, "note.md"), "hello\n");
 
-        registryPath = Path.Combine(workspace, "registry.yaml");
-        File.WriteAllText(registryPath, $"""
+        _registryPath = Path.Combine(_workspace, "registry.yaml");
+        File.WriteAllText(_registryPath, $"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
     }
 
     public void Dispose()
     {
-        Directory.Delete(workspace, recursive: true);
+        _error.Dispose();
+        Directory.Delete(_workspace, recursive: true);
     }
 
-    private string CaptureLog => Path.Combine(workspace, ".local", "state", "kbo", "capture-errors.log");
+    private string CaptureLog => Path.Combine(_workspace, ".local", "state", "kbo", "capture-errors.log");
 
     private int Run(JsonObject payload)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => registryPath,
-            "KBO_EVENTS_REPO" => eventsRepo,
-            _ => null,
-        };
+            return name switch
+            {
+                "KBO_REGISTRY" => _registryPath,
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
         using StringReader input = new(payload.ToJsonString());
-        return CaptureCommand.Run(new[] { "claude-code" }, input, output, error, Environment, workspace);
+        return CaptureCommand.Run(["claude-code"], input, _error, variable => Environment(variable), _workspace);
     }
 
     [Fact]
@@ -56,20 +59,20 @@ public class CaptureCommandTests : IDisposable
         int exitCode = Run(new JsonObject
         {
             ["session_id"] = "sess-cli-1",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["hook_event_name"] = "PostToolUse",
             ["tool_name"] = "Read",
-            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(vaultRoot, "note.md") },
+            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(_vaultRoot, "note.md") },
             ["tool_response"] = new JsonObject { ["file"] = new JsonObject() },
         });
 
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         string line = File.ReadAllLines(monthFile).Single();
         Assert.True(new EventValidator().Validate(line).IsValid);
-        Assert.Contains("\"knowledge.read\"", line);
-        Assert.DoesNotContain("tool_response", line);
+        Assert.Contains("\"knowledge.read\"", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("tool_response", line, StringComparison.Ordinal);
         Assert.False(File.Exists(CaptureLog));
     }
 
@@ -79,15 +82,15 @@ public class CaptureCommandTests : IDisposable
         int exitCode = Run(new JsonObject
         {
             ["session_id"] = "sess-cli-2",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["hook_event_name"] = "SessionStart",
             ["source"] = "startup",
         });
 
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
-        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"session.started\""));
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"session.started\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -96,14 +99,14 @@ public class CaptureCommandTests : IDisposable
         int exitCode = Run(new JsonObject
         {
             ["session_id"] = "sess-cli-3",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["hook_event_name"] = "PostToolUse",
             ["tool_name"] = "Bash",
             ["tool_input"] = new JsonObject { ["command"] = "ls" },
         });
 
         Assert.Equal(0, exitCode);
-        Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
+        Assert.False(Directory.Exists(Path.Combine(_eventsRepo, "bronze")));
     }
 
     [Fact]
@@ -111,36 +114,39 @@ public class CaptureCommandTests : IDisposable
     {
         using StringReader input = new("this is not json");
         int exitCode = CaptureCommand.Run(
-            new[] { "claude-code" }, input, output, error, _ => registryPath, workspace);
+            ["claude-code"], input, _error, _ => _registryPath, _workspace);
 
         Assert.Equal(0, exitCode);
-        Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
+        Assert.False(Directory.Exists(Path.Combine(_eventsRepo, "bronze")));
         Assert.True(File.Exists(CaptureLog));
-        Assert.Contains("claude-code", File.ReadAllText(CaptureLog));
+        Assert.Contains("claude-code", File.ReadAllText(CaptureLog), StringComparison.Ordinal);
     }
 
     [Fact]
     public void MissingRegistry_IsLoggedAndDoesNotFailSession()
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => Path.Combine(workspace, "does-not-exist.yaml"),
-            "KBO_EVENTS_REPO" => eventsRepo,
-            _ => null,
-        };
+            return name switch
+            {
+                "KBO_REGISTRY" => Path.Combine(_workspace, "does-not-exist.yaml"),
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
         JsonObject payload = new()
         {
             ["session_id"] = "sess-cli-registry",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["hook_event_name"] = "PostToolUse",
             ["tool_name"] = "Read",
-            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(vaultRoot, "note.md") },
+            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(_vaultRoot, "note.md") },
         };
         using StringReader input = new(payload.ToJsonString());
-        int exitCode = CaptureCommand.Run(new[] { "claude-code" }, input, output, error, Environment, workspace);
+        int exitCode = CaptureCommand.Run(["claude-code"], input, _error, variable => Environment(variable), _workspace);
 
         Assert.Equal(0, exitCode);
-        Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
+        Assert.False(Directory.Exists(Path.Combine(_eventsRepo, "bronze")));
         Assert.True(File.Exists(CaptureLog));
     }
 
@@ -149,9 +155,9 @@ public class CaptureCommandTests : IDisposable
     {
         using StringReader input = new("{}");
         int exitCode = CaptureCommand.Run(
-            new[] { "some-agent" }, input, output, error, _ => null, workspace);
+            ["some-agent"], input, _error, _ => null, _workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("claude-code", error.ToString());
+        Assert.Contains("claude-code", _error.ToString(), StringComparison.Ordinal);
     }
 }

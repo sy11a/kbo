@@ -6,24 +6,24 @@ using Microsoft.Data.Sqlite;
 
 namespace Kbo.Tests;
 
-public class HarvestCommandTests : IDisposable
+public sealed class HarvestCommandTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string transcriptsRoot;
-    private readonly string eventsRepo;
-    private readonly string registryPath;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _transcriptsRoot;
+    private readonly string _eventsRepo;
+    private readonly string _registryPath;
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
 
     public HarvestCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-harvest-tests").FullName;
-        transcriptsRoot = Path.Combine(workspace, "projects");
-        eventsRepo = Path.Combine(workspace, "kb-events");
-        registryPath = Path.Combine(workspace, "registry.yaml");
-        string vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
-        File.WriteAllText(registryPath, $"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-harvest-tests").FullName;
+        _transcriptsRoot = Path.Combine(_workspace, "projects");
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
+        _registryPath = Path.Combine(_workspace, "registry.yaml");
+        string vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _ = Directory.CreateDirectory(vaultRoot);
+        File.WriteAllText(_registryPath, $"""
             machine: test-machine
             sources:
               - id: vault
@@ -34,20 +34,22 @@ public class HarvestCommandTests : IDisposable
 
     public void Dispose()
     {
+        _output.Dispose();
+        _error.Dispose();
         SqliteConnection.ClearAllPools();
-        Directory.Delete(workspace, recursive: true);
+        Directory.Delete(_workspace, recursive: true);
     }
 
     private void WriteTranscript(string project, string sessionId, string toolName, string filePath, string? fileName = null)
     {
-        string directory = Path.Combine(transcriptsRoot, project);
-        Directory.CreateDirectory(directory);
+        string directory = Path.Combine(_transcriptsRoot, project);
+        _ = Directory.CreateDirectory(directory);
         string line = new JsonObject
         {
             ["type"] = "assistant",
             ["sessionId"] = sessionId,
             ["timestamp"] = "2026-07-01T10:00:00.000Z",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["gitBranch"] = "master",
             ["requestId"] = "req-1",
             ["message"] = new JsonObject
@@ -68,14 +70,14 @@ public class HarvestCommandTests : IDisposable
 
     private void WriteReadAndSkillTranscript(string project, string sessionId, string skillName)
     {
-        string directory = Path.Combine(transcriptsRoot, project);
-        Directory.CreateDirectory(directory);
+        string directory = Path.Combine(_transcriptsRoot, project);
+        _ = Directory.CreateDirectory(directory);
         string line = new JsonObject
         {
             ["type"] = "assistant",
             ["sessionId"] = sessionId,
             ["timestamp"] = "2026-07-01T10:00:00.000Z",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["gitBranch"] = "master",
             ["requestId"] = "req-1",
             ["message"] = new JsonObject
@@ -88,7 +90,7 @@ public class HarvestCommandTests : IDisposable
                         ["type"] = "tool_use",
                         ["id"] = "tu-read",
                         ["name"] = "Read",
-                        ["input"] = new JsonObject { ["file_path"] = Path.Combine(workspace, "Knowledge", "note.md") },
+                        ["input"] = new JsonObject { ["file_path"] = Path.Combine(_workspace, "Knowledge", "note.md") },
                     },
                     new JsonObject
                     {
@@ -102,10 +104,8 @@ public class HarvestCommandTests : IDisposable
         File.WriteAllText(Path.Combine(directory, sessionId + ".jsonl"), line + "\n");
     }
 
-    private void WriteOpencodeDatabase(string databasePath, string sessionId, string skillName)
+    private static void CreateOpencodeSchema(SqliteConnection connection)
     {
-        using SqliteConnection connection = new($"Data Source={databasePath}");
-        connection.Open();
         using SqliteCommand create = connection.CreateCommand();
         create.CommandText = """
             CREATE TABLE session (
@@ -116,15 +116,22 @@ public class HarvestCommandTests : IDisposable
                 id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT NOT NULL,
                 time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL);
             """;
-        create.ExecuteNonQuery();
+        _ = create.ExecuteNonQuery();
+    }
+
+    private void WriteOpencodeDatabase(string databasePath, string sessionId, string skillName)
+    {
+        using SqliteConnection connection = new($"Data Source={databasePath}");
+        connection.Open();
+        CreateOpencodeSchema(connection);
 
         long baseMs = DateTimeOffset.Parse("2026-07-01T10:00:00Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
         using SqliteCommand insertSession = connection.CreateCommand();
         insertSession.CommandText = "INSERT INTO session VALUES (@id, @dir, 'build', '{\"id\":\"glm-5.1\"}', 0, 0, 0, @t, @t)";
-        insertSession.Parameters.AddWithValue("@id", sessionId);
-        insertSession.Parameters.AddWithValue("@dir", workspace);
-        insertSession.Parameters.AddWithValue("@t", baseMs);
-        insertSession.ExecuteNonQuery();
+        _ = insertSession.Parameters.AddWithValue("@id", sessionId);
+        _ = insertSession.Parameters.AddWithValue("@dir", _workspace);
+        _ = insertSession.Parameters.AddWithValue("@t", baseMs);
+        _ = insertSession.ExecuteNonQuery();
 
         JsonObject skillPart = new()
         {
@@ -140,10 +147,10 @@ public class HarvestCommandTests : IDisposable
         };
         using SqliteCommand insertPart = connection.CreateCommand();
         insertPart.CommandText = "INSERT INTO part VALUES ('prt_1', 'msg_1', @session, @t, @t, @data)";
-        insertPart.Parameters.AddWithValue("@session", sessionId);
-        insertPart.Parameters.AddWithValue("@t", baseMs + 60_000);
-        insertPart.Parameters.AddWithValue("@data", skillPart.ToJsonString());
-        insertPart.ExecuteNonQuery();
+        _ = insertPart.Parameters.AddWithValue("@session", sessionId);
+        _ = insertPart.Parameters.AddWithValue("@t", baseMs + 60_000);
+        _ = insertPart.Parameters.AddWithValue("@data", skillPart.ToJsonString());
+        _ = insertPart.ExecuteNonQuery();
 
         JsonObject writePart = new()
         {
@@ -155,7 +162,7 @@ public class HarvestCommandTests : IDisposable
                 ["status"] = "completed",
                 ["input"] = new JsonObject
                 {
-                    ["filePath"] = Path.Combine(workspace, "Knowledge", "mined.md"),
+                    ["filePath"] = Path.Combine(_workspace, "Knowledge", "mined.md"),
                     ["content"] = "[[Alpha]] body",
                 },
                 ["time"] = new JsonObject { ["start"] = baseMs + 90_000 },
@@ -163,68 +170,74 @@ public class HarvestCommandTests : IDisposable
         };
         using SqliteCommand insertWrite = connection.CreateCommand();
         insertWrite.CommandText = "INSERT INTO part VALUES ('prt_2', 'msg_1', @session, @t, @t, @data)";
-        insertWrite.Parameters.AddWithValue("@session", sessionId);
-        insertWrite.Parameters.AddWithValue("@t", baseMs + 90_000);
-        insertWrite.Parameters.AddWithValue("@data", writePart.ToJsonString());
-        insertWrite.ExecuteNonQuery();
+        _ = insertWrite.Parameters.AddWithValue("@session", sessionId);
+        _ = insertWrite.Parameters.AddWithValue("@t", baseMs + 90_000);
+        _ = insertWrite.Parameters.AddWithValue("@data", writePart.ToJsonString());
+        _ = insertWrite.ExecuteNonQuery();
     }
 
     private int RunOpencode(string databasePath, params string[] extraArgs)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => registryPath,
-            "KBO_EVENTS_REPO" => eventsRepo,
-            _ => null,
-        };
-        string[] args = new[] { "opencode", "--db", databasePath }.Concat(extraArgs).ToArray();
-        return HarvestCommand.Run(args, output, error, Environment, workspace);
+            return name switch
+            {
+                "KBO_REGISTRY" => _registryPath,
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
+        string[] args = ["opencode", "--db", databasePath, .. extraArgs];
+        return HarvestCommand.Run(args, _output, _error, name => Environment(name), _workspace);
     }
 
     private int Run(params string[] extraArgs)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => registryPath,
-            "KBO_EVENTS_REPO" => eventsRepo,
-            _ => null,
-        };
-        string[] args = new[] { "claude-code", "--transcripts", transcriptsRoot }.Concat(extraArgs).ToArray();
-        return HarvestCommand.Run(args, output, error, Environment, workspace);
+            return name switch
+            {
+                "KBO_REGISTRY" => _registryPath,
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
+        string[] args = ["claude-code", "--transcripts", _transcriptsRoot, .. extraArgs];
+        return HarvestCommand.Run(args, _output, _error, name => Environment(name), _workspace);
     }
 
     [Fact]
     public void Harvest_MinesAllProjectTranscripts_IntoValidatedBronze()
     {
-        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(workspace, "Knowledge", "note.md"));
-        WriteTranscript("proj-b", "sess-b", "Write", Path.Combine(workspace, "elsewhere.md"));
+        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(_workspace, "Knowledge", "note.md"));
+        WriteTranscript("proj-b", "sess-b", "Write", Path.Combine(_workspace, "elsewhere.md"));
 
         int exitCode = Run();
 
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         string[] lines = File.ReadAllLines(monthFile);
         EventValidator validator = new();
         Assert.All(lines, line => Assert.True(validator.Validate(line).IsValid));
-        Assert.Equal(2, lines.Count(l => l.Contains("\"session.started\"")));
-        Assert.Contains(lines, l => l.Contains("\"knowledge.read\"") && l.Contains("sess-a"));
+        Assert.Equal(2, lines.Count(l => l.Contains("\"session.started\"", StringComparison.Ordinal)));
+        Assert.Contains(lines, l => l.Contains("\"knowledge.read\"", StringComparison.Ordinal) && l.Contains("sess-a", StringComparison.Ordinal));
         // per R-005 — the mined write rides v2 end-to-end into bronze with a
         // null linkcount, and the validator accepts it there.
-        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"")
-            && l.Contains("\"knowledge.written/2\"")
-            && l.Contains("\"linkcount\":null")
-            && l.Contains("sess-b"));
-        Assert.Contains("2 session", output.ToString());
+        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"", StringComparison.Ordinal)
+            && l.Contains("\"knowledge.written/2\"", StringComparison.Ordinal)
+            && l.Contains("\"linkcount\":null", StringComparison.Ordinal)
+            && l.Contains("sess-b", StringComparison.Ordinal));
+        Assert.Contains("2 session", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void Harvest_Rerun_SkipsAlreadyHarvestedSessions()
     {
-        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(workspace, "Knowledge", "note.md"));
-        Run();
+        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(_workspace, "Knowledge", "note.md"));
+        _ = Run();
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         int linesAfterFirstRun = File.ReadAllLines(monthFile).Length;
 
         int exitCode = Run();
@@ -237,10 +250,10 @@ public class HarvestCommandTests : IDisposable
     public void Harvest_Rerun_SkipsFileWhoseRecordsCarryDifferentSessionId()
     {
         WriteTranscript("proj-a", "sess-original", "Read",
-            Path.Combine(workspace, "Knowledge", "note.md"), fileName: "continuation-file");
-        Run();
+            Path.Combine(_workspace, "Knowledge", "note.md"), fileName: "continuation-file");
+        _ = Run();
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         int linesAfterFirstRun = File.ReadAllLines(monthFile).Length;
 
         int exitCode = Run();
@@ -248,13 +261,13 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, exitCode);
         Assert.Equal(linesAfterFirstRun, File.ReadAllLines(monthFile).Length);
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"transcript\":\"continuation-file\"") && l.Contains("sess-original"));
+            l => l.Contains("\"transcript\":\"continuation-file\"", StringComparison.Ordinal) && l.Contains("sess-original", StringComparison.Ordinal));
     }
 
     [Fact]
     public void Harvest_HookOnlySession_IsStillHarvested()
     {
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             new JsonObject
             {
@@ -266,14 +279,14 @@ public class HarvestCommandTests : IDisposable
                 ["data"] = new JsonObject { ["origin"] = "hook" },
             },
         });
-        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(workspace, "Knowledge", "note.md"));
+        WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(_workspace, "Knowledge", "note.md"));
 
         int exitCode = Run();
 
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
-        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"origin\":\"harvest\"") && l.Contains("sess-a"));
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"origin\":\"harvest\"", StringComparison.Ordinal) && l.Contains("sess-a", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -284,27 +297,27 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, Run());
 
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"tdd\""));
+            l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"tdd\"", StringComparison.Ordinal));
     }
 
     [Fact]
     public void Harvest_Opencode_MinedWriteRidesV2WithNullLinkcount()
     {
-        string databasePath = Path.Combine(workspace, "opencode.db");
+        string databasePath = Path.Combine(_workspace, "opencode.db");
         WriteOpencodeDatabase(databasePath, "ses_oc", "grilling");
 
         Assert.Equal(0, RunOpencode(databasePath));
 
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "opencode")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "opencode")).Single();
         // per R-005 — the opencode miner stamps v2 and never counts links,
         // even though the transcript carries the written content.
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"knowledge.written\"")
-                && l.Contains("\"knowledge.written/2\"")
-                && l.Contains("\"linkcount\":null"));
+            l => l.Contains("\"knowledge.written\"", StringComparison.Ordinal)
+                && l.Contains("\"knowledge.written/2\"", StringComparison.Ordinal)
+                && l.Contains("\"linkcount\":null", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -312,7 +325,7 @@ public class HarvestCommandTests : IDisposable
     {
         WriteReadAndSkillTranscript("proj-a", "sess-a", "tdd");
         // Simulate a pre-skill harvest: the transcript is already harvested but carries no skill.invoked.
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             new JsonObject
             {
@@ -329,11 +342,11 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, Run("--backfill-skills"));
 
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         string[] afterBackfill = File.ReadAllLines(monthFile);
-        Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"tdd\""));
+        _ = Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"tdd\"", StringComparison.Ordinal));
         // The read/session events were NOT re-mined (only skill.invoked is additive).
-        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\""));
+        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\"", StringComparison.Ordinal));
 
         Assert.Equal(0, Run("--backfill-skills"));
         Assert.Equal(afterBackfill.Length, File.ReadAllLines(monthFile).Length);
@@ -342,10 +355,10 @@ public class HarvestCommandTests : IDisposable
     [Fact]
     public void BackfillSkills_Opencode_AddsOnlySkillInvoked_ToAlreadyHarvestedSessions_Idempotently()
     {
-        string databasePath = Path.Combine(workspace, "opencode.db");
+        string databasePath = Path.Combine(_workspace, "opencode.db");
         WriteOpencodeDatabase(databasePath, "ses_oc", "grilling");
         // Simulate a pre-skill harvest: the session is already stamped but carries no skill.invoked.
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             new JsonObject
             {
@@ -362,11 +375,11 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, RunOpencode(databasePath, "--backfill-skills"));
 
         string monthFile = Directory.EnumerateFiles(
-            Path.Combine(eventsRepo, "bronze", "test-machine", "opencode")).Single();
+            Path.Combine(_eventsRepo, "bronze", "test-machine", "opencode")).Single();
         string[] afterBackfill = File.ReadAllLines(monthFile);
-        Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"grilling\""));
+        _ = Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"grilling\"", StringComparison.Ordinal));
         // The session.started event was NOT re-mined (only skill.invoked is additive).
-        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\""));
+        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\"", StringComparison.Ordinal));
 
         Assert.Equal(0, RunOpencode(databasePath, "--backfill-skills"));
         Assert.Equal(afterBackfill.Length, File.ReadAllLines(monthFile).Length);
@@ -376,10 +389,10 @@ public class HarvestCommandTests : IDisposable
     public void Harvest_NoTranscriptsDirectory_FailsWithError()
     {
         int exitCode = HarvestCommand.Run(
-            new[] { "claude-code", "--transcripts", Path.Combine(workspace, "missing") },
-            output, error, _ => registryPath, workspace);
+            ["claude-code", "--transcripts", Path.Combine(_workspace, "missing")],
+            _output, _error, _ => _registryPath, _workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("missing", error.ToString());
+        Assert.Contains("missing", _error.ToString(), StringComparison.Ordinal);
     }
 }

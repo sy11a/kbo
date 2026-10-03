@@ -64,8 +64,8 @@ public class ConstitutionConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("exclude", exception.Message);
-        Assert.Contains("plain directory name", exception.Message);
+        Assert.Contains("exclude", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("plain directory name", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,8 +97,8 @@ public class ConstitutionConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("versionFile", exception.Message);
-        Assert.Contains("absolute", exception.Message);
+        Assert.Contains("versionFile", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("absolute", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class ConstitutionConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("scanRoots", exception.Message);
+        Assert.Contains("scanRoots", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class ConstitutionConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("scanRoot", exception.Message);
-        Assert.Contains("absolute", exception.Message);
+        Assert.Contains("scanRoot", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("absolute", exception.Message, StringComparison.Ordinal);
     }
 }

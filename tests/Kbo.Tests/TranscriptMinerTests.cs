@@ -5,31 +5,30 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class TranscriptMinerTests : IDisposable
+public sealed class TranscriptMinerTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly KnowledgeRegistry registry;
+    private static readonly string[] _expectedEventTypes = ["session.started", "knowledge.read", "knowledge.searched", "knowledge.written"];
+
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly KnowledgeRegistry _registry;
 
     public TranscriptMinerTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-miner-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
-        registry = KnowledgeRegistry.Parse($"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-miner-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _ = Directory.CreateDirectory(_vaultRoot);
+        _registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             taskPattern: 'AC-\d+'
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private static string MetaJson(string type, string timestamp, string cwd, string branch)
     {
@@ -51,7 +50,7 @@ public class TranscriptMinerTests : IDisposable
             ["type"] = "assistant",
             ["sessionId"] = "sess-harvest-1",
             ["timestamp"] = "2026-07-01T10:01:00.500Z",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["gitBranch"] = "feature/AC-12-reports",
             ["requestId"] = requestId,
             ["message"] = new JsonObject
@@ -92,14 +91,14 @@ public class TranscriptMinerTests : IDisposable
 
     private List<JsonObject> MineSample()
     {
-        string vaultNote = Path.Combine(vaultRoot, "note.md");
-        List<string> lines = new()
-        {
-            MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
+        string vaultNote = Path.Combine(_vaultRoot, "note.md");
+        List<string> lines =
+        [
+            MetaJson("user", "2026-07-01T10:00:00.000Z", _workspace, "feature/AC-12-reports"),
             "{{{ not json at all",
             AssistantToolUse("Read", new JsonObject { ["file_path"] = vaultNote }, "tu-1", "req-1",
                 new JsonObject { ["input_tokens"] = 100, ["cache_read_input_tokens"] = 1000, ["output_tokens"] = 10 }),
-            AssistantToolUse("Grep", new JsonObject { ["pattern"] = "duckdb", ["path"] = vaultRoot }, "tu-2", "req-1",
+            AssistantToolUse("Grep", new JsonObject { ["pattern"] = "duckdb", ["path"] = _vaultRoot }, "tu-2", "req-1",
                 new JsonObject { ["input_tokens"] = 100, ["cache_read_input_tokens"] = 1000, ["output_tokens"] = 10 }),
             ToolResult("tu-2", new JsonObject
             {
@@ -110,8 +109,8 @@ public class TranscriptMinerTests : IDisposable
             AssistantToolUse("Write", new JsonObject { ["file_path"] = vaultNote }, "tu-3", "req-2",
                 new JsonObject { ["input_tokens"] = 50, ["cache_read_input_tokens"] = 500, ["output_tokens"] = 5 }),
             AssistantToolUse("Bash", new JsonObject { ["command"] = "ls" }, "tu-4", "req-3"),
-        };
-        return TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
+        ];
+        return TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
     }
 
     [Fact]
@@ -143,8 +142,8 @@ public class TranscriptMinerTests : IDisposable
         List<JsonObject> events = MineSample();
         EventValidator validator = new();
 
-        List<string?> types = events.Select(e => (string?)e["type"]).ToList();
-        Assert.Equal(new[] { "session.started", "knowledge.read", "knowledge.searched", "knowledge.written" }, types);
+        List<string?> types = [.. events.Select(e => (string?)e["type"])];
+        Assert.Equal(_expectedEventTypes, types, StringComparer.Ordinal);
 
         foreach (JsonObject minedEvent in events)
         {
@@ -165,7 +164,7 @@ public class TranscriptMinerTests : IDisposable
     {
         List<JsonObject> events = MineSample();
 
-        JsonObject searched = events.Single(e => (string?)e["type"] == "knowledge.searched");
+        JsonObject searched = events.Single(e => (string?)e["type"] is "knowledge.searched");
         Assert.Equal(4, (int?)searched["data"]!["hits"]);
         Assert.Equal("vault", (string?)searched["kbroot"]);
     }
@@ -173,15 +172,15 @@ public class TranscriptMinerTests : IDisposable
     [Fact]
     public void Mine_EmitsSkillInvoked_ForTheSkillTool()
     {
-        List<string> lines = new()
-        {
-            MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
+        List<string> lines =
+        [
+            MetaJson("user", "2026-07-01T10:00:00.000Z", _workspace, "feature/AC-12-reports"),
             AssistantToolUse("Skill", new JsonObject { ["skill"] = "tdd" }, "tu-s", "req-1"),
-        };
+        ];
 
-        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
+        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
 
-        JsonObject skill = Assert.Single(events, e => (string?)e["type"] == "skill.invoked");
+        JsonObject skill = Assert.Single(events, e => (string?)e["type"] is "skill.invoked");
         EventValidationResult result = new EventValidator().Validate(skill.ToJsonString());
         Assert.True(result.IsValid, string.Join("; ", result.Errors));
         Assert.Equal("tdd", (string?)skill["subject"]);
@@ -193,20 +192,20 @@ public class TranscriptMinerTests : IDisposable
     [Fact]
     public void Mine_WrittenEvent_StripsContentFromRaw_KeepsContenthashNull()
     {
-        string vaultNote = Path.Combine(vaultRoot, "mined-note.md");
-        List<string> lines = new()
-        {
-            MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
+        string vaultNote = Path.Combine(_vaultRoot, "mined-note.md");
+        List<string> lines =
+        [
+            MetaJson("user", "2026-07-01T10:00:00.000Z", _workspace, "feature/AC-12-reports"),
             AssistantToolUse("Write", new JsonObject
             {
                 ["file_path"] = vaultNote,
                 ["content"] = "historical body",
             }, "tu-w", "req-1"),
-        };
+        ];
 
-        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
+        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
 
-        JsonObject written = Assert.Single(events, e => (string?)e["type"] == "knowledge.written");
+        JsonObject written = Assert.Single(events, e => (string?)e["type"] is "knowledge.written");
         EventValidationResult result = new EventValidator().Validate(written.ToJsonString());
         Assert.True(result.IsValid, string.Join("; ", result.Errors));
         JsonObject rawInput = (JsonObject)written["data"]!["raw"]!["tool_input"]!;
@@ -221,8 +220,5 @@ public class TranscriptMinerTests : IDisposable
     }
 
     [Fact]
-    public void Mine_EmptyTranscript_YieldsNoEvents()
-    {
-        Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", registry, new Random(42)));
-    }
+    public void Mine_EmptyTranscript_YieldsNoEvents() => Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", _registry, new Random(42)));
 }

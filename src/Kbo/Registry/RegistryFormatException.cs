@@ -1,6 +1,6 @@
 namespace Kbo.Registry;
 
-public sealed class RegistryFormatException : Exception
+internal sealed class RegistryFormatException : Exception
 {
     public RegistryFormatException(string message)
         : base(message)

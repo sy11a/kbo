@@ -5,39 +5,39 @@ using Kbo.Cli;
 
 namespace Kbo.Tests;
 
-public class WatchCommandTests : IDisposable
+public sealed class WatchCommandTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly string silverPath;
-    private readonly string eventsRepo;
-    private readonly string registryPath;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly string _silverPath;
+    private readonly string _eventsRepo;
+    private readonly string _registryPath;
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
 
     public WatchCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-watch-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        silverPath = Path.Combine(workspace, "silver.duckdb");
-        eventsRepo = Path.Combine(workspace, "kb-events");
-        registryPath = Path.Combine(workspace, "registry.yaml");
-        Directory.CreateDirectory(vaultRoot);
-        File.WriteAllText(registryPath, $"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-watch-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _silverPath = Path.Combine(_workspace, "silver.duckdb");
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
+        _registryPath = Path.Combine(_workspace, "registry.yaml");
+        _ = Directory.CreateDirectory(_vaultRoot);
+        File.WriteAllText(_registryPath, $"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             new JsonObject
             {
                 ["id"] = "01E00000000000000000000001",
                 ["type"] = "knowledge.read",
                 ["time"] = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
-                ["subject"] = Path.Combine(vaultRoot, "note.md"),
+                ["subject"] = Path.Combine(_vaultRoot, "note.md"),
                 ["machine"] = "test-machine",
                 ["agent"] = "claude-code",
                 ["session"] = "sess-1",
@@ -49,64 +49,66 @@ public class WatchCommandTests : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(workspace, recursive: true);
+        _output.Dispose();
+        _error.Dispose();
+        Directory.Delete(_workspace, recursive: true);
     }
 
-    private Task<int> Run(CancellationToken cancellationToken, params string[] args)
+    private async Task<int> RunAsync(CancellationToken cancellationToken, params string[] args)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => registryPath,
-            "KBO_SILVER" => silverPath,
-            "KBO_EVENTS_REPO" => eventsRepo,
-            _ => null,
-        };
-        return WatchCommand.Run(args, output, error, Environment, workspace, cancellationToken);
+            return name switch
+            {
+                "KBO_REGISTRY" => _registryPath,
+                "KBO_SILVER" => _silverPath,
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
+        return await WatchCommand.RunAsync(args, _output, _error, variable => Environment(variable), _workspace, cancellationToken);
     }
 
-    private static CancellationToken Cancelled()
-    {
-        return new CancellationToken(canceled: true);
-    }
+    private static CancellationToken Cancelled() => new(canceled: true);
 
     [Fact]
-    public async Task Watch_CancelledToken_RendersDashboardOnce_WithAutoReloadAndStops()
+    public async Task Watch_CancelledToken_RendersDashboardOnce_WithAutoReloadAndStopsAsync()
     {
-        int exitCode = await Run(Cancelled());
+        int exitCode = await RunAsync(Cancelled());
 
         Assert.Equal(0, exitCode);
-        string dashboard = Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html");
+        string dashboard = Path.Combine(_vaultRoot, "_generated", "kbo-dashboard.html");
         Assert.True(File.Exists(dashboard));
-        Assert.Contains("http-equiv=\"refresh\" content=\"30\"", File.ReadAllText(dashboard));
-        Assert.Contains("kbo watch stopped", output.ToString());
+        Assert.Contains("http-equiv=\"refresh\" content=\"30\"", await File.ReadAllTextAsync(dashboard, CancellationToken.None), StringComparison.Ordinal);
+        Assert.Contains("kbo watch stopped", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Watch_ExplicitInterval_DrivesTheRefreshContent()
+    public async Task Watch_ExplicitInterval_DrivesTheRefreshContentAsync()
     {
-        int exitCode = await Run(Cancelled(), "--interval", "10");
+        int exitCode = await RunAsync(Cancelled(), "--interval", "10");
 
         Assert.Equal(0, exitCode);
-        string dashboard = File.ReadAllText(Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html"));
-        Assert.Contains("http-equiv=\"refresh\" content=\"10\"", dashboard);
+        string dashboard = await File.ReadAllTextAsync(Path.Combine(_vaultRoot, "_generated", "kbo-dashboard.html"), CancellationToken.None);
+        Assert.Contains("http-equiv=\"refresh\" content=\"10\"", dashboard, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Watch_IntervalBelowMinimum_FailsBeforeRendering()
+    public async Task Watch_IntervalBelowMinimum_FailsBeforeRenderingAsync()
     {
-        int exitCode = await Run(Cancelled(), "--interval", "1");
+        int exitCode = await RunAsync(Cancelled(), "--interval", "1");
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("interval", error.ToString());
-        Assert.False(File.Exists(Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html")));
+        Assert.Contains("interval", _error.ToString(), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_vaultRoot, "_generated", "kbo-dashboard.html")));
     }
 
     [Fact]
-    public async Task Watch_UnknownArgument_ReturnsUsage()
+    public async Task Watch_UnknownArgument_ReturnsUsageAsync()
     {
-        int exitCode = await Run(Cancelled(), "--bogus");
+        int exitCode = await RunAsync(Cancelled(), "--bogus");
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("usage: kbo watch", error.ToString());
+        Assert.Contains("usage: kbo watch", _error.ToString(), StringComparison.Ordinal);
     }
 }

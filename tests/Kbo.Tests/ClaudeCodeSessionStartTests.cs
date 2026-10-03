@@ -6,64 +6,61 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class ClaudeCodeSessionStartTests : IDisposable
+public sealed class ClaudeCodeSessionStartTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string home;
-    private readonly string repoRoot;
-    private readonly KnowledgeRegistry registry;
+    private readonly string _workspace;
+    private readonly string _home;
+    private readonly string _repoRoot;
+    private readonly KnowledgeRegistry _registry;
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
 
-    private static readonly TimeProvider Clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
+    private static readonly TimeProvider _clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
 
     public ClaudeCodeSessionStartTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-session-tests").FullName;
-        home = Path.Combine(workspace, "home");
-        repoRoot = Path.Combine(workspace, "repo");
+        _workspace = Directory.CreateTempSubdirectory("kbo-session-tests").FullName;
+        _home = Path.Combine(_workspace, "home");
+        _repoRoot = Path.Combine(_workspace, "repo");
 
-        Directory.CreateDirectory(Path.Combine(home, ".claude"));
-        File.WriteAllText(Path.Combine(home, ".claude", "CLAUDE.md"), "global instructions\n");
+        _ = Directory.CreateDirectory(Path.Combine(_home, ".claude"));
+        File.WriteAllText(Path.Combine(_home, ".claude", "CLAUDE.md"), "global instructions\n");
 
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
-        File.WriteAllText(Path.Combine(repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-9-hook\n");
-        File.WriteAllText(Path.Combine(repoRoot, "CLAUDE.md"), "hello\n");
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".claude", "rules"));
-        File.WriteAllText(Path.Combine(repoRoot, ".claude", "rules", "skills.md"), "rules\n");
+        _ = Directory.CreateDirectory(Path.Combine(_repoRoot, ".git"));
+        File.WriteAllText(Path.Combine(_repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-9-hook\n");
+        File.WriteAllText(Path.Combine(_repoRoot, "CLAUDE.md"), "hello\n");
+        _ = Directory.CreateDirectory(Path.Combine(_repoRoot, ".claude", "rules"));
+        File.WriteAllText(Path.Combine(_repoRoot, ".claude", "rules", "skills.md"), "rules\n");
 
-        string memoryDirectory = Path.Combine(home, ".claude", "projects", repoRoot.Replace('/', '-'), "memory");
-        Directory.CreateDirectory(memoryDirectory);
+        string memoryDirectory = Path.Combine(_home, ".claude", "projects", _repoRoot.Replace('/', '-'), "memory");
+        _ = Directory.CreateDirectory(memoryDirectory);
         File.WriteAllText(Path.Combine(memoryDirectory, "MEMORY.md"), "memory index\n");
 
-        registry = KnowledgeRegistry.Parse($"""
+        _registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             taskPattern: 'AC-\d+'
             sources:
               - id: repo-kb
                 layer: local
-                root: {repoRoot}
+                root: {_repoRoot}
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private List<JsonObject> MapSessionStart()
     {
         JsonObject payload = new()
         {
             ["session_id"] = "sess-0002",
-            ["cwd"] = repoRoot,
+            ["cwd"] = _repoRoot,
             ["hook_event_name"] = "SessionStart",
             ["source"] = "startup",
         };
-        return ClaudeCodeAdapter.MapSessionStart(payload, registry, Clock, new Random(42), home);
+        return ClaudeCodeAdapter.MapSessionStart(payload, _registry, _clock, new Random(42), _home);
     }
 
     [Fact]
@@ -89,17 +86,17 @@ public class ClaudeCodeSessionStartTests : IDisposable
             sources:
               - id: repo-kb
                 layer: local
-                root: {repoRoot}
+                root: {_repoRoot}
             """);
         JsonObject payload = new()
         {
             ["session_id"] = "sess-0003",
-            ["cwd"] = repoRoot,
+            ["cwd"] = _repoRoot,
             ["hook_event_name"] = "SessionStart",
             ["source"] = "startup",
         };
 
-        List<JsonObject> events = ClaudeCodeAdapter.MapSessionStart(payload, noPatternRegistry, Clock, new Random(42), home);
+        List<JsonObject> events = ClaudeCodeAdapter.MapSessionStart(payload, noPatternRegistry, _clock, new Random(42), _home);
 
         JsonObject started = events[0];
         EventValidationResult result = new EventValidator().Validate(started.ToJsonString());
@@ -112,7 +109,7 @@ public class ClaudeCodeSessionStartTests : IDisposable
     public void EmitsContextLoaded_ForEachExistingImplicitFile()
     {
         List<JsonObject> events = MapSessionStart();
-        List<JsonObject> loaded = events.Where(e => (string?)e["type"] == "context.loaded").ToList();
+        List<JsonObject> loaded = [.. events.Where(e => (string?)e["type"] is "context.loaded")];
 
         EventValidator validator = new();
         foreach (JsonObject contextEvent in loaded)
@@ -121,18 +118,18 @@ public class ClaudeCodeSessionStartTests : IDisposable
             Assert.True(result.IsValid, string.Join("; ", result.Errors));
         }
 
-        List<string?> paths = loaded.Select(e => (string?)e["subject"]).ToList();
-        Assert.Contains(Path.Combine(home, ".claude", "CLAUDE.md"), paths);
-        Assert.Contains(Path.Combine(repoRoot, "CLAUDE.md"), paths);
-        Assert.Contains(Path.Combine(repoRoot, ".claude", "rules", "skills.md"), paths);
-        Assert.Contains(paths, p => p!.EndsWith("MEMORY.md"));
+        List<string?> paths = [.. loaded.Select(e => (string?)e["subject"])];
+        Assert.Contains(Path.Combine(_home, ".claude", "CLAUDE.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(Path.Combine(_repoRoot, "CLAUDE.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(Path.Combine(_repoRoot, ".claude", "rules", "skills.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(paths, p => p!.EndsWith("MEMORY.md", StringComparison.Ordinal));
 
-        JsonObject projectInstructions = loaded.Single(e => (string?)e["subject"] == Path.Combine(repoRoot, "CLAUDE.md"));
+        JsonObject projectInstructions = loaded.Single(e => (string?)e["subject"] == Path.Combine(_repoRoot, "CLAUDE.md"));
         Assert.Equal("repo-kb", (string?)projectInstructions["kbroot"]);
         Assert.Equal("5891b5b522d5df08", (string?)projectInstructions["data"]!["contenthash"]);
         Assert.Equal("project-instructions", (string?)projectInstructions["data"]!["raw"]!["kind"]);
 
-        JsonObject globalInstructions = loaded.Single(e => (string?)e["subject"] == Path.Combine(home, ".claude", "CLAUDE.md"));
+        JsonObject globalInstructions = loaded.Single(e => (string?)e["subject"] == Path.Combine(_home, ".claude", "CLAUDE.md"));
         Assert.Null(globalInstructions["kbroot"]);
         Assert.Null(globalInstructions["data"]!["contenthash"]);
         Assert.Equal("global-instructions", (string?)globalInstructions["data"]!["raw"]!["kind"]);

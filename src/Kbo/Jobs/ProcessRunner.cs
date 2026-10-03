@@ -2,14 +2,7 @@ using System.Diagnostics;
 
 namespace Kbo.Jobs;
 
-public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
-
-public interface IProcessRunner
-{
-    ProcessResult Run(string fileName, IReadOnlyList<string> arguments);
-}
-
-public sealed class ProcessRunner : IProcessRunner
+internal sealed class ProcessRunner : IProcessRunner
 {
     public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
     {
@@ -17,6 +10,7 @@ public sealed class ProcessRunner : IProcessRunner
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            UseShellExecute = false,
         };
         foreach (string argument in arguments)
         {

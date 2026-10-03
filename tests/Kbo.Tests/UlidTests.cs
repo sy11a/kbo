@@ -4,10 +4,8 @@ using Kbo.Bronze;
 
 namespace Kbo.Tests;
 
-public class UlidTests
+public partial class UlidTests
 {
-    private static readonly Regex EnvelopeIdPattern = new("^[0-9A-HJKMNP-TV-Z]{26}$");
-
     [Fact]
     public void NewUlid_MatchesEnvelopeSchemaPattern()
     {
@@ -32,7 +30,7 @@ public class UlidTests
         Random random = new(42);
         DateTimeOffset instant = DateTimeOffset.Parse("2026-08-11T12:00:00Z", CultureInfo.InvariantCulture);
 
-        Assert.NotEqual(Ulid.New(instant, random), Ulid.New(instant, random));
+        Assert.NotEqual(Ulid.New(instant, random), Ulid.New(instant, random), StringComparer.Ordinal);
     }
 
     [Fact]
@@ -40,6 +38,9 @@ public class UlidTests
     {
         string ulid = Ulid.New(DateTimeOffset.FromUnixTimeMilliseconds(0), new Random(42));
 
-        Assert.StartsWith("0000000000", ulid);
+        Assert.StartsWith("0000000000", ulid, StringComparison.Ordinal);
     }
+
+    [GeneratedRegex("^[0-9A-HJKMNP-TV-Z]{26}$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex EnvelopeIdPattern { get; }
 }

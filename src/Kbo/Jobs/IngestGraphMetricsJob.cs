@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Bronze;
 using Kbo.Registry;
@@ -15,19 +16,19 @@ namespace Kbo.Jobs;
 /// (the consumer ships before the first emit); a present-but-invalid
 /// artifact fails the run before anything is appended.
 /// </summary>
-public sealed class IngestGraphMetricsJob : IPulseJob
+internal sealed class IngestGraphMetricsJob : IPulseJob
 {
-    private readonly KnowledgeRegistry registry;
-    private readonly string eventsRepo;
-    private readonly TimeProvider clock;
-    private readonly Random random;
+    private readonly KnowledgeRegistry _registry;
+    private readonly string _eventsRepo;
+    private readonly TimeProvider _clock;
+    private readonly Random _random;
 
     public IngestGraphMetricsJob(KnowledgeRegistry registry, string eventsRepo, TimeProvider clock, Random random)
     {
-        this.registry = registry;
-        this.eventsRepo = eventsRepo;
-        this.clock = clock;
-        this.random = random;
+        _registry = registry;
+        _eventsRepo = eventsRepo;
+        _clock = clock;
+        _random = random;
     }
 
     public string Name => "ingest-graph-metrics";
@@ -35,20 +36,18 @@ public sealed class IngestGraphMetricsJob : IPulseJob
 
     public string Run()
     {
-        List<KnowledgeSource> publishing = registry.Sources
-            .Where(source => source.MetricsArtifact is not null)
-            .ToList();
-        if (publishing.Count == 0)
+        List<KnowledgeSource> publishing = [.. _registry.Sources.Where(source => source.MetricsArtifact is not null)];
+        if (publishing.Count is 0)
         {
             return "no source carries metricsArtifact — nothing to ingest";
         }
 
-        BronzeStore store = new(eventsRepo);
-        HashSet<string> seenKeys = new(store.GraphMetricsKeys());
+        BronzeStore store = new(_eventsRepo);
+        HashSet<string> seenKeys = [.. store.GraphMetricsKeys()];
         EventValidator validator = new();
 
-        List<JsonObject> pending = new();
-        List<string> absent = new();
+        List<JsonObject> pending = [];
+        List<string> absent = [];
         int skipped = 0;
 
         foreach (KnowledgeSource source in publishing)
@@ -68,7 +67,7 @@ public sealed class IngestGraphMetricsJob : IPulseJob
             store.Append(pending);
         }
 
-        string summary = $"ingested {pending.Count} graph.metrics event(s), skipped {skipped} duplicate(s)";
+        string summary = string.Create(CultureInfo.InvariantCulture, $"ingested {pending.Count} graph.metrics event(s), skipped {skipped} duplicate(s)");
         if (absent.Count > 0)
         {
             summary += $"; artifact absent: {string.Join(", ", absent)}";
@@ -93,56 +92,79 @@ public sealed class IngestGraphMetricsJob : IPulseJob
                 continue;
             }
 
-            JsonObject? parsed;
-            try
-            {
-                parsed = JsonNode.Parse(line) as JsonObject;
-            }
-            catch (System.Text.Json.JsonException exception)
-            {
-                throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})");
-            }
-
-            JsonObject payload = parsed
-                ?? throw new InvalidOperationException($"{artifact} line {lineNumber}: not a JSON object");
-
-            string? payloadSource = (string?)payload[EventDataFields.Source];
-            if (payloadSource != source.Id)
-            {
-                throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'");
-            }
-
-            JsonObject envelope = EventEnvelope.Create(
-                EventTypes.GraphMetrics,
-                subject: source.Id,
-                kbroot: source.Id,
-                data: payload,
-                registry.Machine,
-                PulseRunner.AgentName,
-                session: null,
-                repo: null,
-                task: null,
-                model: null,
-                clock.GetUtcNow(),
-                random);
-
-            EventValidationResult validation = validator.Validate(envelope.ToJsonString());
-            if (!validation.IsValid)
-            {
-                throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}");
-            }
-
-            string dedupKey = (string?)payload[EventDataFields.Date] + "|" + payloadSource;
-            if (!seenKeys.Add(dedupKey))
-            {
-                skipped++;
-                continue;
-            }
-
-            pending.Add(envelope);
+            IngestArtifactLine(artifact, source, line, lineNumber, validator, seenKeys, pending, ref skipped);
         }
+    }
+
+    private void IngestArtifactLine(
+        string artifact,
+        KnowledgeSource source,
+        string line,
+        int lineNumber,
+        EventValidator validator,
+        HashSet<string> seenKeys,
+        List<JsonObject> pending,
+        ref int skipped)
+    {
+        JsonObject payload = ParseArtifactLine(artifact, line, lineNumber);
+        ValidatePayloadSource(artifact, source, payload, lineNumber);
+
+        JsonObject envelope = EventEnvelope.Create(
+            EventTypes.GraphMetrics,
+            subject: source.Id,
+            kbroot: source.Id,
+            data: payload,
+            _registry.Machine,
+            PulseRunner.AgentName,
+            session: null,
+            repo: null,
+            task: null,
+            model: null,
+            _clock.GetUtcNow(),
+            _random);
+
+        EventValidationResult validation = validator.Validate(envelope.ToJsonString());
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}"));
+        }
+
+        string dedupKey = (string?)payload[EventDataFields.Date] + "|" + source.Id;
+        if (!seenKeys.Add(dedupKey))
+        {
+            skipped++;
+            return;
+        }
+
+        pending.Add(envelope);
+    }
+
+    private static JsonObject ParseArtifactLine(string artifact, string line, int lineNumber)
+    {
+        JsonObject? parsed;
+        try
+        {
+            parsed = JsonNode.Parse(line) as JsonObject;
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})"), exception);
+        }
+
+        return parsed
+            ?? throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not a JSON object"));
+    }
+
+    private static void ValidatePayloadSource(string artifact, KnowledgeSource source, JsonObject payload, int lineNumber)
+    {
+        string? payloadSource = (string?)payload[EventDataFields.Source];
+        if (payloadSource == source.Id)
+        {
+            return;
+        }
+        throw new InvalidOperationException(
+            string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'"));
     }
 }

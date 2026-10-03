@@ -1,6 +1,6 @@
 namespace Kbo.Registry;
 
-public enum KnowledgeLayer
+internal enum KnowledgeLayer
 {
     Global,
     Framework,

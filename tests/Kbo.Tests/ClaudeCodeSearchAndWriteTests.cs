@@ -6,50 +6,47 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class ClaudeCodeSearchAndWriteTests : IDisposable
+public sealed class ClaudeCodeSearchAndWriteTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly KnowledgeRegistry registry;
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly KnowledgeRegistry _registry;
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
 
-    private static readonly TimeProvider Clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
+    private static readonly TimeProvider _clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
 
     public ClaudeCodeSearchAndWriteTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
-        registry = KnowledgeRegistry.Parse($"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _ = Directory.CreateDirectory(_vaultRoot);
+        _registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private JsonObject? Map(string toolName, JsonObject toolInput, JsonNode? toolResponse = null)
     {
         JsonObject payload = new()
         {
             ["session_id"] = "sess-0001",
-            ["cwd"] = workspace,
+            ["cwd"] = _workspace,
             ["hook_event_name"] = "PostToolUse",
             ["tool_name"] = toolName,
             ["tool_input"] = toolInput,
             ["tool_response"] = toolResponse ?? new JsonObject(),
         };
-        return ClaudeCodeAdapter.MapPostToolUse(payload, registry, Clock, new Random(42));
+        return ClaudeCodeAdapter.MapPostToolUse(payload, _registry, _clock, new Random(42));
     }
 
     private static void AssertValid(JsonObject mapped)
@@ -63,7 +60,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     {
         JsonObject? mapped = Map(
             "Grep",
-            new JsonObject { ["pattern"] = "duckdb appender", ["path"] = vaultRoot },
+            new JsonObject { ["pattern"] = "duckdb appender", ["path"] = _vaultRoot },
             new JsonObject { ["numFiles"] = 3 });
 
         Assert.NotNull(mapped);
@@ -71,7 +68,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
         Assert.Equal("knowledge.searched", (string?)mapped["type"]);
         Assert.Equal("duckdb appender", (string?)mapped["subject"]);
         Assert.Equal("vault", (string?)mapped["kbroot"]);
-        Assert.Equal(vaultRoot, (string?)mapped["data"]!["root"]);
+        Assert.Equal(_vaultRoot, (string?)mapped["data"]!["root"]);
         Assert.Equal(3, (int?)mapped["data"]!["hits"]);
     }
 
@@ -82,7 +79,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
 
         Assert.NotNull(mapped);
         AssertValid(mapped);
-        Assert.Equal(workspace, (string?)mapped["data"]!["root"]);
+        Assert.Equal(_workspace, (string?)mapped["data"]!["root"]);
         Assert.Null(mapped["data"]!["hits"]);
         Assert.Null(mapped["kbroot"]);
     }
@@ -92,7 +89,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     {
         JsonObject? mapped = Map(
             "Glob",
-            new JsonObject { ["pattern"] = "**/*.md", ["path"] = vaultRoot },
+            new JsonObject { ["pattern"] = "**/*.md", ["path"] = _vaultRoot },
             new JsonObject { ["numFiles"] = 12 });
 
         Assert.NotNull(mapped);
@@ -105,7 +102,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     [Fact]
     public void Write_StripsContentFromRaw_AndHashesTheWrittenFile()
     {
-        string notePath = Path.Combine(vaultRoot, "stripped-note.md");
+        string notePath = Path.Combine(_vaultRoot, "stripped-note.md");
         File.WriteAllText(notePath, "note body\n");
 
         JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = notePath, ["content"] = "note body\n" });
@@ -123,7 +120,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     [Fact]
     public void Edit_StripsOldAndNewStringsFromRaw()
     {
-        string notePath = Path.Combine(vaultRoot, "edited-note.md");
+        string notePath = Path.Combine(_vaultRoot, "edited-note.md");
         File.WriteAllText(notePath, "after\n");
 
         JsonObject? mapped = Map("Edit", new JsonObject
@@ -146,7 +143,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     [Fact]
     public void NotebookEdit_StripsNewSourceFromRaw()
     {
-        string notebookPath = Path.Combine(vaultRoot, "analysis.ipynb");
+        string notebookPath = Path.Combine(_vaultRoot, "analysis.ipynb");
         File.WriteAllText(notebookPath, "{}");
 
         JsonObject? mapped = Map("NotebookEdit", new JsonObject
@@ -165,7 +162,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     [Fact]
     public void Write_OutsideAnyKbroot_StillStripsContent_WithoutHash()
     {
-        string codePath = Path.Combine(workspace, "program.cs");
+        string codePath = Path.Combine(_workspace, "program.cs");
         File.WriteAllText(codePath, "code");
 
         JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = codePath, ["content"] = "code" });
@@ -186,8 +183,8 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     [InlineData("NotebookEdit")]
     public void WriteLikeTools_ProduceWrittenEvent(string toolName)
     {
-        string notePath = Path.Combine(vaultRoot, "new-note.md");
-        string inputKey = toolName == "NotebookEdit" ? "notebook_path" : "file_path";
+        string notePath = Path.Combine(_vaultRoot, "new-note.md");
+        string inputKey = toolName is "NotebookEdit" ? "notebook_path" : "file_path";
         JsonObject? mapped = Map(toolName, new JsonObject { [inputKey] = notePath });
 
         Assert.NotNull(mapped);
@@ -203,7 +200,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     {
         // per R-002 + R-004 — the hurting case: alias, anchor, and embed
         // variants collapse to distinct targets; the event rides v2.
-        string notePath = Path.Combine(vaultRoot, "linked-note.md");
+        string notePath = Path.Combine(_vaultRoot, "linked-note.md");
         File.WriteAllText(notePath, "[[Alpha]] [[Alpha|shown differently]] [[Beta#section]] ![[Gamma]]\n");
 
         JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = notePath, ["content"] = "body" });
@@ -218,7 +215,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     public void Write_ToCodeFileUnderKbroot_HasNullLinkcount()
     {
         // per R-003 — content kind gates the count, not just the root.
-        string codePath = Path.Combine(vaultRoot, "script.cs");
+        string codePath = Path.Combine(_vaultRoot, "script.cs");
         File.WriteAllText(codePath, "// [[not a wikilink target]]\n");
 
         JsonObject? mapped = Map("Write", new JsonObject { ["file_path"] = codePath, ["content"] = "code" });

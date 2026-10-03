@@ -4,29 +4,26 @@ using Kbo.Silver;
 
 namespace Kbo.Tests;
 
-public class SilverConnectionTests : IDisposable
+public sealed class SilverConnectionTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string silverPath;
+    private readonly string _workspace;
+    private readonly string _silverPath;
 
     public SilverConnectionTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-silver-connection-tests").FullName;
-        silverPath = Path.Combine(workspace, "silver.duckdb");
+        _workspace = Directory.CreateTempSubdirectory("kbo-silver-connection-tests").FullName;
+        _silverPath = Path.Combine(_workspace, "silver.duckdb");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private void CreateSilver()
     {
-        using DuckDBConnection connection = new($"Data Source={silverPath}");
+        using DuckDBConnection connection = new($"Data Source={_silverPath}");
         connection.Open();
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE probe AS SELECT 42 AS answer";
-        command.ExecuteNonQuery();
+        _ = command.ExecuteNonQuery();
     }
 
     private static long QueryProbe(DuckDBConnection connection)
@@ -41,17 +38,17 @@ public class SilverConnectionTests : IDisposable
     public void OpenReadOnly_MissingFile_ThrowsWithRebuildHint()
     {
         FileNotFoundException exception =
-            Assert.Throws<FileNotFoundException>(() => SilverConnection.OpenReadOnly(silverPath));
-        Assert.Contains("kbo rebuild", exception.Message);
-        Assert.Contains(silverPath, exception.Message);
+            Assert.Throws<FileNotFoundException>(() => SilverConnection.OpenReadOnly(_silverPath));
+        Assert.Contains("kbo rebuild", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(_silverPath, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void OpenReadOnly_TwoConcurrentConnections_BothQuery()
     {
         CreateSilver();
-        using DuckDBConnection first = SilverConnection.OpenReadOnly(silverPath);
-        using DuckDBConnection second = SilverConnection.OpenReadOnly(silverPath);
+        using DuckDBConnection first = SilverConnection.OpenReadOnly(_silverPath);
+        using DuckDBConnection second = SilverConnection.OpenReadOnly(_silverPath);
 
         Assert.Equal(42, QueryProbe(first));
         Assert.Equal(42, QueryProbe(second));
@@ -61,10 +58,10 @@ public class SilverConnectionTests : IDisposable
     public void OpenReadOnly_RejectsWrites()
     {
         CreateSilver();
-        using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
+        using DuckDBConnection connection = SilverConnection.OpenReadOnly(_silverPath);
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE illegal (id INTEGER)";
 
-        Assert.ThrowsAny<DbException>(() => command.ExecuteNonQuery());
+        _ = Assert.ThrowsAny<DbException>(() => command.ExecuteNonQuery());
     }
 }

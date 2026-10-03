@@ -4,7 +4,7 @@ namespace Kbo.Schemas;
 /// JSON property names inside an event's <c>data</c> object, per the type
 /// schemas in <c>schemas/&lt;type&gt;/&lt;version&gt;.json</c>.
 /// </summary>
-public static class EventDataFields
+internal static class EventDataFields
 {
     public const string Path = "path";
     public const string ContentHash = "contenthash";

@@ -11,10 +11,11 @@ namespace Kbo.Cli;
 /// threshold? Installed by kbo init as a login-time service so the owner
 /// never has to remember the reboot check.
 /// </summary>
-public static class DoctorCommand
+internal static class DoctorCommand
 {
     private const string Usage = "usage: kbo doctor [--notify]";
     private const int CaptureDropThresholdDays = 3;
+    private static readonly string[] _pulseTimerStatusArgs = ["--user", "is-active", "kbo-pulse.timer"];
 
     public static int Run(
         string[] args,
@@ -25,36 +26,78 @@ public static class DoctorCommand
         IProcessRunner processRunner,
         TimeProvider clock)
     {
+        bool? notify = ParseArguments(args, error);
+        if (notify is null)
+        {
+            return 1;
+        }
+
+        List<string> problems = [];
+        CheckPulseTimer(processRunner, output, problems);
+
+        Dictionary<string, DateTimeOffset> lastCompleted = LoadLastCompleted(environment, homeDirectory);
+        DateTimeOffset now = clock.GetUtcNow();
+        AnalyzeJobs(lastCompleted, now, output, problems);
+        ReportCaptureDrops(homeDirectory, now, output, problems);
+
+        if (problems.Count is 0)
+        {
+            output.WriteLine("all jobs healthy");
+        }
+
+        if (notify.Value)
+        {
+            SendNotification(processRunner, problems);
+        }
+
+        return problems.Count is 0 ? 0 : 1;
+    }
+
+    private static bool? ParseArguments(string[] args, TextWriter error)
+    {
         bool notify = false;
         foreach (string argument in args)
         {
-            if (argument == "--notify")
+            if (argument is "--notify")
             {
                 notify = true;
             }
             else
             {
                 error.WriteLine(Usage);
-                return 1;
+                return null;
             }
         }
+        return notify;
+    }
 
-        List<string> problems = new();
-
-        ProcessResult timerState = processRunner.Run("systemctl", new[] { "--user", "is-active", "kbo-pulse.timer" });
+    private static void CheckPulseTimer(IProcessRunner processRunner, TextWriter output, List<string> problems)
+    {
+        ProcessResult timerState = processRunner.Run("systemctl", _pulseTimerStatusArgs);
         string timerStatus = timerState.StandardOutput.Trim();
         output.WriteLine($"timer: {timerStatus}");
-        if (timerState.ExitCode != 0)
+        if (timerState.ExitCode is 0)
         {
-            problems.Add($"kbo-pulse.timer is {timerStatus} — re-arm with 'kbo init'");
+            return;
         }
+        problems.Add($"kbo-pulse.timer is {timerStatus} — re-arm with 'kbo init'");
+    }
 
+    private static Dictionary<string, DateTimeOffset> LoadLastCompleted(
+        Func<string, string?> environment, string homeDirectory)
+    {
         string eventsRepo = environment(KboEnvironment.EventsRepoVariable)
             ?? KboEnvironment.DefaultEventsRepo(homeDirectory);
-        Dictionary<string, DateTimeOffset> lastCompleted = new BronzeStore(eventsRepo).LastCompletedJobs();
-        DateTimeOffset now = clock.GetUtcNow();
+        return new BronzeStore(eventsRepo).LastCompletedJobs();
+    }
 
-        if (lastCompleted.Count == 0)
+    private static void AnalyzeJobs(
+        Dictionary<string, DateTimeOffset> lastCompleted,
+        DateTimeOffset now,
+        TextWriter output,
+        List<string> problems)
+    {
+        if (lastCompleted.Count is 0)
         {
             problems.Add("no job.completed events in bronze — has a pulse ever run?");
         }
@@ -63,7 +106,7 @@ public static class DoctorCommand
             double daysSilent = (now - last).TotalDays;
             if (daysSilent > JobDeadMan.ThresholdDays(job))
             {
-                string line = $"{job}: SILENT {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d (last {last:yyyy-MM-dd})";
+                string line = string.Create(CultureInfo.InvariantCulture, $"{job}: SILENT {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d (last {last:yyyy-MM-dd})");
                 output.WriteLine(line);
                 problems.Add(line);
             }
@@ -72,19 +115,6 @@ public static class DoctorCommand
                 output.WriteLine($"{job}: ok ({daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d ago)");
             }
         }
-        ReportCaptureDrops(homeDirectory, now, output, problems);
-
-        if (problems.Count == 0)
-        {
-            output.WriteLine("all jobs healthy");
-        }
-
-        if (notify)
-        {
-            SendNotification(processRunner, problems);
-        }
-
-        return problems.Count == 0 ? 0 : 1;
     }
 
     /// <summary>
@@ -102,10 +132,8 @@ public static class DoctorCommand
             return;
         }
 
-        string[] drops = File.ReadAllLines(captureLog)
-            .Where(line => line.Trim().Length > 0)
-            .ToArray();
-        if (drops.Length == 0)
+        string[] drops = [.. File.ReadAllLines(captureLog).Where(line => line.Trim().Length > 0)];
+        if (drops.Length is 0)
         {
             return;
         }
@@ -117,10 +145,11 @@ public static class DoctorCommand
         string line = $"capture errors: {drops.Length} (last {when})";
         output.WriteLine(line);
 
-        if (lastDrop is { } recent && (now - recent).TotalDays <= CaptureDropThresholdDays)
+        if (lastDrop is not { } recent || (now - recent).TotalDays > CaptureDropThresholdDays)
         {
-            problems.Add(line + " — recent capture drops; check the registry/hook");
+            return;
         }
+        problems.Add(line + " — recent capture drops; check the registry/hook");
     }
 
     private static DateTimeOffset? ParseTimestamp(string logLine)
@@ -135,27 +164,27 @@ public static class DoctorCommand
     private static void SendNotification(IProcessRunner processRunner, List<string> problems)
     {
         List<string> arguments;
-        if (problems.Count == 0)
+        if (problems.Count is 0)
         {
-            arguments = new List<string>
-            {
+            arguments =
+            [
                 "--app-name=kbo", "--urgency", "normal",
                 "kbo: healthy", "pulse timer armed; all jobs within the dead-man threshold",
-            };
+            ];
         }
         else
         {
             StringBuilder body = new();
             foreach (string problem in problems)
             {
-                body.AppendLine(problem);
+                _ = body.AppendLine(problem);
             }
-            arguments = new List<string>
-            {
+            arguments =
+            [
                 "--app-name=kbo", "--urgency", "critical",
                 $"kbo: {problems.Count} problem(s)", body.ToString().Trim(),
-            };
+            ];
         }
-        processRunner.Run("notify-send", arguments);
+        _ = processRunner.Run("notify-send", arguments);
     }
 }

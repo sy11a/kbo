@@ -4,7 +4,7 @@ namespace Kbo;
 /// Environment variables and default locations shared across kbo commands
 /// (ADR-0005 registry overlay, ADR-0006 events repo).
 /// </summary>
-public static class KboEnvironment
+internal static class KboEnvironment
 {
     public const string RegistryVariable = "KBO_REGISTRY";
     public const string TaskPatternVariable = "KBO_TASK_PATTERN";
@@ -13,23 +13,14 @@ public static class KboEnvironment
     public const string ArchiveRootVariable = "KB_ARCHIVE_ROOT";
     public const string ResticRepoVariable = "KB_RESTIC_REPO";
 
-    public static string DefaultEventsRepo(string homeDirectory)
-    {
-        return Path.Combine(homeDirectory, "Repository", "kb-events");
-    }
+    public static string DefaultEventsRepo(string homeDirectory) => Path.Combine(homeDirectory, "Repository", "kb-events");
 
-    public static string DefaultSilverPath(string homeDirectory)
-    {
-        return Path.Combine(homeDirectory, ".local", "share", "kbo", "silver.duckdb");
-    }
+    public static string DefaultSilverPath(string homeDirectory) => Path.Combine(homeDirectory, ".local", "share", "kbo", "silver.duckdb");
 
     /// <summary>
     /// Where <c>kbo capture</c> records dropped events instead of failing the
     /// observed session, and where <c>kbo doctor</c> reads them back (ADR-0029).
     /// XDG state dir, matching the hook wrapper's <c>hook.log</c>.
     /// </summary>
-    public static string CaptureErrorLog(string homeDirectory)
-    {
-        return Path.Combine(homeDirectory, ".local", "state", "kbo", "capture-errors.log");
-    }
+    public static string CaptureErrorLog(string homeDirectory) => Path.Combine(homeDirectory, ".local", "state", "kbo", "capture-errors.log");
 }

@@ -6,63 +6,60 @@ using Kbo.Schemas;
 
 namespace Kbo.Tests;
 
-public class ClaudeCodeMapPostToolUseTests : IDisposable
+public sealed class ClaudeCodeMapPostToolUseTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly string repoRoot;
-    private readonly KnowledgeRegistry registry;
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly string _repoRoot;
+    private readonly KnowledgeRegistry _registry;
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
 
-    private static readonly TimeProvider Clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
+    private static readonly TimeProvider _clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-08-11T15:00:00Z", CultureInfo.InvariantCulture));
 
     public ClaudeCodeMapPostToolUseTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        repoRoot = Path.Combine(workspace, "repo");
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "notes"));
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
-        File.WriteAllText(Path.Combine(vaultRoot, "notes", "duckdb.md"), "hello\n");
-        File.WriteAllText(Path.Combine(repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-77-capture\n");
+        _workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _repoRoot = Path.Combine(_workspace, "repo");
+        _ = Directory.CreateDirectory(Path.Combine(_vaultRoot, "notes"));
+        _ = Directory.CreateDirectory(Path.Combine(_repoRoot, ".git"));
+        File.WriteAllText(Path.Combine(_vaultRoot, "notes", "duckdb.md"), "hello\n");
+        File.WriteAllText(Path.Combine(_repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-77-capture\n");
 
-        registry = KnowledgeRegistry.Parse($"""
+        _registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             taskPattern: 'AC-\d+'
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(_workspace, recursive: true);
 
     private JsonObject? Map(string toolName, JsonObject toolInput, JsonNode? toolResponse = null)
     {
         JsonObject payload = new()
         {
             ["session_id"] = "sess-0001",
-            ["cwd"] = repoRoot,
+            ["cwd"] = _repoRoot,
             ["hook_event_name"] = "PostToolUse",
             ["tool_name"] = toolName,
             ["tool_input"] = toolInput,
             ["tool_response"] = toolResponse ?? new JsonObject(),
         };
-        return ClaudeCodeAdapter.MapPostToolUse(payload, registry, Clock, new Random(42));
+        return ClaudeCodeAdapter.MapPostToolUse(payload, _registry, _clock, new Random(42));
     }
 
     [Fact]
     public void Read_UnderVault_ProducesValidKnowledgeReadEvent()
     {
-        string notePath = Path.Combine(vaultRoot, "notes", "duckdb.md");
+        string notePath = Path.Combine(_vaultRoot, "notes", "duckdb.md");
         JsonObject? mapped = Map("Read", new JsonObject { ["file_path"] = notePath });
 
         Assert.NotNull(mapped);
@@ -75,7 +72,7 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
         Assert.Equal(notePath, (string?)mapped["subject"]);
         Assert.Equal("vault", (string?)mapped["kbroot"]);
         Assert.Equal("sess-0001", (string?)mapped["session"]);
-        Assert.Equal(repoRoot, (string?)mapped["repo"]);
+        Assert.Equal(_repoRoot, (string?)mapped["repo"]);
         Assert.Equal("AC-77", (string?)mapped["task"]);
         Assert.Null(mapped["model"]);
         Assert.Equal("2026-08-11T15:00:00Z", (string?)mapped["time"]);
@@ -89,7 +86,7 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
     [Fact]
     public void Read_OutsideRoots_HasNullKbrootAndNoHash()
     {
-        string outsidePath = Path.Combine(workspace, "elsewhere.md");
+        string outsidePath = Path.Combine(_workspace, "elsewhere.md");
         File.WriteAllText(outsidePath, "hello\n");
         JsonObject? mapped = Map("Read", new JsonObject { ["file_path"] = outsidePath });
 
@@ -102,7 +99,7 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
     [Fact]
     public void Read_LargeVaultFile_RecordsSizeInsteadOfHash()
     {
-        string bigPath = Path.Combine(vaultRoot, "big.canvas");
+        string bigPath = Path.Combine(_vaultRoot, "big.canvas");
         using (FileStream stream = File.Create(bigPath))
         {
             stream.SetLength(6 * 1024 * 1024);
@@ -118,7 +115,7 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
     [Fact]
     public void MappedEvents_CarryHookOrigin()
     {
-        string notePath = Path.Combine(vaultRoot, "notes", "duckdb.md");
+        string notePath = Path.Combine(_vaultRoot, "notes", "duckdb.md");
         JsonObject? mapped = Map("Read", new JsonObject { ["file_path"] = notePath });
 
         Assert.NotNull(mapped);
@@ -126,8 +123,5 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
     }
 
     [Fact]
-    public void UnrelatedTool_MapsToNothing()
-    {
-        Assert.Null(Map("Bash", new JsonObject { ["command"] = "ls" }));
-    }
+    public void UnrelatedTool_MapsToNothing() => Assert.Null(Map("Bash", new JsonObject { ["command"] = "ls" }));
 }

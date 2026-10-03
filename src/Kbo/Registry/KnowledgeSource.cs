@@ -1,6 +1,6 @@
 namespace Kbo.Registry;
 
-public sealed record KnowledgeSource(string Id, KnowledgeLayer Layer, string Root)
+internal sealed record KnowledgeSource(string Id, KnowledgeLayer Layer, string Root)
 {
     /// <summary>
     /// Relative subtrees under Root excluded from the note inventory

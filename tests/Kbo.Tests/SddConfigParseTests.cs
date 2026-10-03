@@ -50,7 +50,7 @@ public class SddConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("sdd: 'skills' is missing or empty", exception.Message);
+        Assert.Contains("sdd: 'skills' is missing or empty", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -67,6 +67,6 @@ public class SddConfigParseTests
                 root: /home/u/Knowledge
             """));
 
-        Assert.Contains("sdd: skills entries must be non-empty", exception.Message);
+        Assert.Contains("sdd: skills entries must be non-empty", exception.Message, StringComparison.Ordinal);
     }
 }

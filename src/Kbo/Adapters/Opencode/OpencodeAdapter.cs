@@ -13,11 +13,11 @@ namespace Kbo.Adapters.Opencode;
 /// agent's "transcript file" unit (ADR-0014), so audit and harvest idempotency
 /// reuse the existing stamp machinery.
 /// </summary>
-public static class OpencodeAdapter
+internal static class OpencodeAdapter
 {
     private const long HashSizeCapBytes = 5 * 1024 * 1024;
 
-    public static class Payload
+    internal static class Payload
     {
         public const string HookEventName = "hook_event_name";
         public const string SessionId = "session_id";
@@ -33,7 +33,7 @@ public static class OpencodeAdapter
         public const string SessionStart = "session.start";
     }
 
-    public static class Tools
+    internal static class Tools
     {
         public const string Read = "read";
         public const string Grep = "grep";
@@ -46,68 +46,70 @@ public static class OpencodeAdapter
     public static JsonObject? MapToolExecute(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, Random random)
     {
         string? tool = (string?)payload[Payload.Tool];
-        JsonObject? args = payload[Payload.Args] as JsonObject;
-        if (tool is null || args is null)
+        if (tool is null || payload[Payload.Args] is not JsonObject args)
         {
             return null;
         }
 
         string? directory = (string?)payload[Payload.Directory];
-        switch (tool)
+        return tool switch
         {
-            case Tools.Read:
-            {
-                string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
-                if (filePath is null)
-                {
-                    return null;
-                }
-                string? kbroot = registry.Resolve(filePath);
-                JsonObject data = new() { [EventDataFields.Path] = filePath };
-                AddContentHash(data, filePath, kbroot);
-                data[EventDataFields.Raw] = payload.DeepClone();
-                return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random);
-            }
-            case Tools.Grep:
-            case Tools.Glob:
-            {
-                string? pattern = (string?)args[Payload.Pattern];
-                if (pattern is null)
-                {
-                    return null;
-                }
-                string? root = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.Path], directory)
-                    ?? ClaudeCodeAdapter.AbsolutePath(directory, null);
-                JsonObject data = new()
-                {
-                    [EventDataFields.Pattern] = pattern,
-                    [EventDataFields.Root] = root,
-                    [EventDataFields.Hits] = null,
-                    [EventDataFields.Raw] = payload.DeepClone(),
-                };
-                string? kbroot = root is null ? null : registry.Resolve(root);
-                return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), random);
-            }
-            case Tools.Write:
-            case Tools.Edit:
-            {
-                string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
-                if (filePath is null)
-                {
-                    return null;
-                }
-                string? kbroot = registry.Resolve(filePath);
-                JsonObject data = new()
-                {
-                    [EventDataFields.Path] = filePath,
-                    [EventDataFields.Raw] = payload.DeepClone(),
-                };
-                AddLinkcount(data, filePath, kbroot);
-                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
-            }
-            default:
-                return null;
+            Tools.Read => MapReadTool(payload, args, directory, registry, clock, random),
+            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, clock, random),
+            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, clock, random),
+            _ => null,
+        };
+    }
+
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
+        if (filePath is null)
+        {
+            return null;
         }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new() { [EventDataFields.Path] = filePath };
+        AddContentHash(data, filePath, kbroot);
+        data[EventDataFields.Raw] = payload.DeepClone();
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random);
+    }
+
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? pattern = (string?)args[Payload.Pattern];
+        if (pattern is null)
+        {
+            return null;
+        }
+        string? root = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.Path], directory)
+            ?? ClaudeCodeAdapter.AbsolutePath(directory, cwd: null);
+        JsonObject data = new()
+        {
+            [EventDataFields.Pattern] = pattern,
+            [EventDataFields.Root] = root,
+            [EventDataFields.Hits] = null,
+            [EventDataFields.Raw] = payload.DeepClone(),
+        };
+        string? kbroot = root is null ? null : registry.Resolve(root);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), random);
+    }
+
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    {
+        string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
+        if (filePath is null)
+        {
+            return null;
+        }
+        string? kbroot = registry.Resolve(filePath);
+        JsonObject data = new()
+        {
+            [EventDataFields.Path] = filePath,
+            [EventDataFields.Raw] = payload.DeepClone(),
+        };
+        AddLinkcount(data, filePath, kbroot);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(
@@ -117,7 +119,7 @@ public static class OpencodeAdapter
         Random random,
         string opencodeConfigDirectory)
     {
-        List<JsonObject> events = new();
+        List<JsonObject> events = [];
         string? directory = (string?)payload[Payload.Directory];
         GitContext git = GitContext.Discover(directory, registry.TaskPattern);
 
@@ -128,7 +130,7 @@ public static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         events.Add(Envelope(
-            EventTypes.SessionStarted, (string?)payload[Payload.SessionId], null, sessionData, payload, registry, clock.GetUtcNow(), random));
+            EventTypes.SessionStarted, (string?)payload[Payload.SessionId], kbroot: null, sessionData, payload, registry, clock.GetUtcNow(), random));
 
         foreach ((string path, string kind) in ImplicitContextFiles(directory, opencodeConfigDirectory))
         {
@@ -146,19 +148,21 @@ public static class OpencodeAdapter
 
     private static IEnumerable<(string Path, string Kind)> ImplicitContextFiles(string? directory, string opencodeConfigDirectory)
     {
-        string globalAgents = System.IO.Path.Combine(opencodeConfigDirectory, "AGENTS.md");
+        string globalAgents = Path.Combine(opencodeConfigDirectory, "AGENTS.md");
         if (File.Exists(globalAgents))
         {
             yield return (globalAgents, "global-instructions");
         }
-        if (directory is not null)
+        if (directory is null)
         {
-            string projectAgents = System.IO.Path.Combine(directory, "AGENTS.md");
-            if (File.Exists(projectAgents))
-            {
-                yield return (projectAgents, "project-instructions");
-            }
+            yield break;
         }
+        string projectAgents = Path.Combine(directory, "AGENTS.md");
+        if (!File.Exists(projectAgents))
+        {
+            yield break;
+        }
+        yield return (projectAgents, "project-instructions");
     }
 
     private static void AddContentHash(JsonObject data, string filePath, string? kbroot)

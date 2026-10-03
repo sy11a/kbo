@@ -13,7 +13,7 @@ public class RegistryValidationTests
                 layer: global
                 root: /home/admin/Knowledge
             """));
-        Assert.Contains("machine", exception.Message);
+        Assert.Contains("machine", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -31,8 +31,8 @@ public class RegistryValidationTests
                 root: /home/admin/other
                 excludePaths: ['ev*ls']
             """));
-        Assert.Contains("'/evals'", exception.Message);
-        Assert.Contains("'ev*ls'", exception.Message);
+        Assert.Contains("'/evals'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'ev*ls'", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class RegistryValidationTests
                 layer: cosmic
                 root: /home/admin/Knowledge
             """));
-        Assert.Contains("cosmic", exception.Message);
+        Assert.Contains("cosmic", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class RegistryValidationTests
                 layer: skills
                 root: /home/admin/.claude/skills
             """));
-        Assert.Contains("knowledge", exception.Message);
+        Assert.Contains("knowledge", exception.Message, StringComparison.Ordinal);
         Assert.Contains("duplicate", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -75,7 +75,7 @@ public class RegistryValidationTests
                 layer: global
                 root: Knowledge/notes
             """));
-        Assert.Contains("Knowledge/notes", exception.Message);
+        Assert.Contains("Knowledge/notes", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -87,20 +87,14 @@ public class RegistryValidationTests
               - id: knowledge
                 layer: global
             """));
-        Assert.Contains("root", exception.Message);
+        Assert.Contains("root", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Parse_EmptySources_Throws()
-    {
-        Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("machine: example-machine"));
-    }
+    public void Parse_EmptySources_Throws() => _ = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("machine: example-machine"));
 
     [Fact]
-    public void Parse_NotYamlAtAll_Throws()
-    {
-        Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("{{{ not yaml"));
-    }
+    public void Parse_NotYamlAtAll_Throws() => _ = Assert.Throws<RegistryFormatException>(() => KnowledgeRegistry.Parse("{{{ not yaml"));
 
     [Fact]
     public void Parse_MetricsArtifact_SurfaceIsCarriedAndDefaultsToNull()
@@ -117,9 +111,9 @@ public class RegistryValidationTests
                 layer: local
                 root: /home/admin/Repository/plain
             """);
-        KnowledgeSource knowledge = Assert.Single(withField.Sources, source => source.Id == "knowledge");
+        KnowledgeSource knowledge = Assert.Single(withField.Sources, source => source.Id is "knowledge");
         Assert.Equal("/home/admin/Repository/kbl/_generated/graph-metrics.ndjson", knowledge.MetricsArtifact);
-        KnowledgeSource plain = Assert.Single(withField.Sources, source => source.Id == "plain");
+        KnowledgeSource plain = Assert.Single(withField.Sources, source => source.Id is "plain");
         Assert.Null(plain.MetricsArtifact);
     }
 
@@ -135,8 +129,8 @@ public class RegistryValidationTests
                 root: /home/admin/Knowledge
                 metricsArtifact: kbl/_generated/graph-metrics.ndjson
             """));
-        Assert.Contains("kbl/_generated/graph-metrics.ndjson", exception.Message);
-        Assert.Contains("metricsArtifact", exception.Message);
+        Assert.Contains("kbl/_generated/graph-metrics.ndjson", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("metricsArtifact", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -151,6 +145,6 @@ public class RegistryValidationTests
                 root: /home/admin/Repository/*/docs
                 metricsArtifact: /home/admin/Repository/kbl/_generated/graph-metrics.ndjson
             """));
-        Assert.Contains("glob", exception.Message);
+        Assert.Contains("glob", exception.Message, StringComparison.Ordinal);
     }
 }

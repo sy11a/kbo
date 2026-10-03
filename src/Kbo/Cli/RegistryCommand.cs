@@ -2,7 +2,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class RegistryCommand
+internal static class RegistryCommand
 {
     private const string Usage = "usage: kbo registry <show | resolve <path>> [--registry <file>]";
 
@@ -13,11 +13,11 @@ public static class RegistryCommand
         Func<string, string?> environment,
         string homeDirectory)
     {
-        List<string> positional = new();
+        List<string> positional = [];
         string? explicitRegistryPath = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--registry")
+            if (args[index] is "--registry")
             {
                 if (index + 1 >= args.Length)
                 {

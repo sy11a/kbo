@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data;
@@ -12,7 +13,7 @@ namespace Kbo.Gold;
 /// day with any session, read, or search within the window. Knowledge is
 /// classified registry-now (ADR-0021).
 /// </summary>
-public static class DailyDigestComputer
+internal static class DailyDigestComputer
 {
     public const int WindowDays = 90;
     public const int TopZeroHitQueryCap = 10;
@@ -22,17 +23,34 @@ public static class DailyDigestComputer
         DateTime cutoff = clock.GetUtcNow().AddDays(-WindowDays).UtcDateTime;
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
 
-        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
-        HashSet<string> registeredIds = sourcesById.Keys.ToHashSet();
+        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id, StringComparer.Ordinal);
+        HashSet<string> registeredIds = [.. sourcesById.Keys];
         HashSet<string> touchedSessions = TouchedSessions(connection, registry, registeredIds);
-
         Dictionary<string, long[]> countsBySession = SessionEventCounts(connection, cutoff);
 
         SortedDictionary<string, DayBuilder> days = new(StringComparer.Ordinal);
-        DayBuilder Day(string date) => days.TryGetValue(date, out DayBuilder? existing)
+        AccumulateSessions(connection, cutoff, days, touchedSessions, countsBySession);
+        AccumulateReads(connection, cutoff, days, registry, sourcesById);
+        AccumulateSearches(connection, cutoff, days);
+        AccumulateSkills(connection, cutoff, days);
+
+        return BuildDigests(days);
+    }
+
+    private static DayBuilder Day(SortedDictionary<string, DayBuilder> days, string date)
+    {
+        return days.TryGetValue(date, out DayBuilder? existing)
             ? existing
             : days[date] = new DayBuilder();
+    }
 
+    private static void AccumulateSessions(
+        DuckDBConnection connection,
+        DateTime cutoff,
+        SortedDictionary<string, DayBuilder> days,
+        HashSet<string> touchedSessions,
+        Dictionary<string, long[]> countsBySession)
+    {
         foreach (object?[] row in Query(connection, """
             SELECT session, agent, coalesce(repo, '(unknown)') AS repo, started_at,
                    coalesce(input_tokens, 0), coalesce(cache_read_tokens, 0)
@@ -49,7 +67,7 @@ public static class DailyDigestComputer
             bool touched = touchedSessions.Contains(session);
             long[] counts = countsBySession.GetValueOrDefault(session) ?? new long[4];
 
-            DayBuilder day = Day(started.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            DayBuilder day = Day(days, started.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             day.Sessions++;
             if (touched)
             {
@@ -63,7 +81,15 @@ public static class DailyDigestComputer
                 started.ToString("HH:mm", CultureInfo.InvariantCulture), agent, repo,
                 counts[0], counts[1], counts[2], counts[3], touched, input, cache));
         }
+    }
 
+    private static void AccumulateReads(
+        DuckDBConnection connection,
+        DateTime cutoff,
+        SortedDictionary<string, DayBuilder> days,
+        KnowledgeRegistry registry,
+        Dictionary<string, KnowledgeSource> sourcesById)
+    {
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day, subject, count(*)
             FROM events_preferred
@@ -76,13 +102,19 @@ public static class DailyDigestComputer
             {
                 continue;
             }
-            DayBuilder day = Day((string)row[0]!);
+            DayBuilder day = Day(days, (string)row[0]!);
             long count = AsLong(row[2]);
             string layer = sourcesById[sourceId].Layer.ToString().ToLowerInvariant();
             day.ReadsByLayer[layer] = day.ReadsByLayer.GetValueOrDefault(layer) + count;
             day.TotalReads += count;
         }
+    }
 
+    private static void AccumulateSearches(
+        DuckDBConnection connection,
+        DateTime cutoff,
+        SortedDictionary<string, DayBuilder> days)
+    {
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    subject,
@@ -92,7 +124,7 @@ public static class DailyDigestComputer
               AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) IS NOT NULL
             """, ("cutoff", cutoff)))
         {
-            DayBuilder day = Day((string)row[0]!);
+            DayBuilder day = Day(days, (string)row[0]!);
             long hits = AsLong(row[2]);
             day.Searches++;
             if (hits == 0)
@@ -106,7 +138,13 @@ public static class DailyDigestComputer
                 day.Hits++;
             }
         }
+    }
 
+    private static void AccumulateSkills(
+        DuckDBConnection connection,
+        DateTime cutoff,
+        SortedDictionary<string, DayBuilder> days)
+    {
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    json_extract_string(data, '$.skill') AS skill, count(*)
@@ -116,10 +154,13 @@ public static class DailyDigestComputer
             GROUP BY day, skill
             """, ("cutoff", cutoff)))
         {
-            DayBuilder day = Day((string)row[0]!);
+            DayBuilder day = Day(days, (string)row[0]!);
             day.Skills[(string)row[1]!] = day.Skills.GetValueOrDefault((string)row[1]!) + AsLong(row[2]);
         }
+    }
 
+    private static IReadOnlyList<DayDigest> BuildDigests(SortedDictionary<string, DayBuilder> days)
+    {
         return days
             .OrderByDescending(entry => entry.Key, StringComparer.Ordinal)
             .Select(entry => entry.Value.Build(entry.Key))
@@ -128,7 +169,7 @@ public static class DailyDigestComputer
 
     private static Dictionary<string, long[]> SessionEventCounts(DuckDBConnection connection, DateTime cutoff)
     {
-        Dictionary<string, long[]> counts = new();
+        Dictionary<string, long[]> counts = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, type, count(*)
             FROM events_preferred
@@ -157,7 +198,7 @@ public static class DailyDigestComputer
 
     private static HashSet<string> TouchedSessions(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> registeredIds)
     {
-        HashSet<string> touched = new();
+        HashSet<string> touched = [];
         foreach (object?[] row in Query(connection, """
             SELECT DISTINCT session, subject, kbroot
             FROM events_preferred
@@ -173,7 +214,7 @@ public static class DailyDigestComputer
             bool stampStillRegistered = row[2] is string kbroot && registeredIds.Contains(kbroot);
             if (resolvesNow || stampStillRegistered)
             {
-                touched.Add(session);
+                _ = touched.Add(session);
             }
         }
         return touched;
@@ -189,12 +230,12 @@ public static class DailyDigestComputer
         public long ZeroHits;
         public long InputTokens;
         public long CacheReadTokens;
-        public Dictionary<string, long> ByAgent { get; } = new();
-        public Dictionary<string, long> ByRepo { get; } = new();
-        public Dictionary<string, long> ReadsByLayer { get; } = new();
-        public Dictionary<string, long> ZeroHitQueries { get; } = new();
-        public Dictionary<string, long> Skills { get; } = new();
-        public List<DaySession> SessionRows { get; } = new();
+        public Dictionary<string, long> ByAgent { get; } = [];
+        public Dictionary<string, long> ByRepo { get; } = [];
+        public Dictionary<string, long> ReadsByLayer { get; } = [];
+        public Dictionary<string, long> ZeroHitQueries { get; } = [];
+        public Dictionary<string, long> Skills { get; } = [];
+        public List<DaySession> SessionRows { get; } = [];
 
         public DayDigest Build(string date)
         {
@@ -219,23 +260,23 @@ public static class DailyDigestComputer
 
         private static List<DayCount> Rank(Dictionary<string, long> counts)
         {
-            return counts
+            return [.. counts
                 .OrderByDescending(entry => entry.Value)
                 .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-                .Select(entry => new DayCount(entry.Key, entry.Value))
-                .ToList();
+                .Select(entry => new DayCount(entry.Key, entry.Value)),];
         }
     }
 
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "All SQL is a constant authored in this file; values are bound via DuckDBParameter, never concatenated.")]
     private static IEnumerable<object?[]> Query(DuckDBConnection connection, string sql, params (string Name, object Value)[] parameters)
     {
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = sql;
         foreach ((string name, object value) in parameters)
         {
-            command.Parameters.Add(new DuckDBParameter(name, value));
+            _ = command.Parameters.Add(new DuckDBParameter(name, value));
         }
-        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
             object?[] values = new object?[reader.FieldCount];

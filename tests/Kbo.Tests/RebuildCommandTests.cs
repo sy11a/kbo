@@ -4,21 +4,21 @@ using Kbo.Cli;
 
 namespace Kbo.Tests;
 
-public class RebuildCommandTests : IDisposable
+public sealed class RebuildCommandTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string eventsRepo;
-    private readonly string silverPath;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _eventsRepo;
+    private readonly string _silverPath;
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
 
     public RebuildCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-rebuild-tests").FullName;
-        eventsRepo = Path.Combine(workspace, "kb-events");
-        silverPath = Path.Combine(workspace, "data", "silver.duckdb");
+        _workspace = Directory.CreateTempSubdirectory("kbo-rebuild-tests").FullName;
+        _eventsRepo = Path.Combine(_workspace, "kb-events");
+        _silverPath = Path.Combine(_workspace, "data", "silver.duckdb");
 
-        new BronzeStore(eventsRepo).Append(new[]
+        new BronzeStore(_eventsRepo).Append(new[]
         {
             new JsonObject
             {
@@ -35,18 +35,23 @@ public class RebuildCommandTests : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(workspace, recursive: true);
+        _output.Dispose();
+        _error.Dispose();
+        Directory.Delete(_workspace, recursive: true);
     }
 
     private int Run(params string[] args)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_EVENTS_REPO" => eventsRepo,
-            "KBO_SILVER" => silverPath,
-            _ => null,
-        };
-        return RebuildCommand.Run(args, output, error, Environment, workspace);
+            return name switch
+            {
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                "KBO_SILVER" => _silverPath,
+                _ => null,
+            };
+        }
+        return RebuildCommand.Run(args, _output, _error, name => Environment(name), _workspace);
     }
 
     [Fact]
@@ -55,9 +60,9 @@ public class RebuildCommandTests : IDisposable
         int exitCode = Run();
 
         Assert.Equal(0, exitCode);
-        Assert.True(File.Exists(silverPath));
-        Assert.Contains("1 event", output.ToString());
-        Assert.Contains("1 session", output.ToString());
+        Assert.True(File.Exists(_silverPath));
+        Assert.Contains("1 event", _output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("1 session", _output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -71,10 +76,10 @@ public class RebuildCommandTests : IDisposable
     public void Rebuild_MissingEventsRepo_FailsWithError()
     {
         int exitCode = RebuildCommand.Run(
-            new[] { "--events-repo", Path.Combine(workspace, "nope") },
-            output, error, _ => silverPath, workspace);
+            ["--events-repo", Path.Combine(_workspace, "nope")],
+            _output, _error, _ => _silverPath, _workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("nope", error.ToString());
+        Assert.Contains("nope", _error.ToString(), StringComparison.Ordinal);
     }
 }

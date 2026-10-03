@@ -1,11 +1,12 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Bronze;
 using Kbo.Schemas;
 
 namespace Kbo.Jobs;
 
-public static class PulseRunner
+internal static class PulseRunner
 {
     public const string AgentName = "kbo";
     public const double WeeklyDueDays = 6.5;
@@ -28,7 +29,7 @@ public static class PulseRunner
         {
             if (lastCompleted.TryGetValue(job.Name, out DateTimeOffset last) && !IsDue(job.Cadence, last, now, zone))
             {
-                output.WriteLine($"{job.Name}: not due (last completed {last:yyyy-MM-dd HH:mm}Z)");
+                output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{job.Name}: not due (last completed {last:yyyy-MM-dd HH:mm}Z)"));
                 continue;
             }
 
@@ -46,7 +47,7 @@ public static class PulseRunner
                         ["summary"] = summary,
                     }),
                 });
-                output.WriteLine($"{job.Name}: completed in {stopwatch.ElapsedMilliseconds}ms — {summary}");
+                output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{job.Name}: completed in {stopwatch.ElapsedMilliseconds}ms — {summary}"));
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -75,7 +76,7 @@ public static class PulseRunner
     /// </summary>
     private static bool IsDue(JobCadence cadence, DateTimeOffset lastCompleted, DateTimeOffset now, TimeZoneInfo zone)
     {
-        if (cadence == JobCadence.Weekly)
+        if (cadence is JobCadence.Weekly)
         {
             return (now - lastCompleted).TotalDays >= WeeklyDueDays;
         }

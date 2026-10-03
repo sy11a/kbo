@@ -3,10 +3,10 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class InitCommand
+internal static class InitCommand
 {
     private const string Usage = "usage: kbo init";
-    private static readonly string[] PhaseZeroTimers = ["kb-archive.timer", "kb-backup.timer"];
+    private static readonly string[] _phaseZeroTimers = ["kb-archive.timer", "kb-backup.timer"];
 
     public static int Run(
         string[] args,
@@ -16,17 +16,17 @@ public static class InitCommand
         string homeDirectory,
         IProcessRunner processRunner)
     {
-        if (args.Length != 0)
+        int? exit = ParseArguments(args, error);
+        if (exit is not null)
         {
-            error.WriteLine(Usage);
-            return 1;
+            return exit.Value;
         }
 
         KnowledgeRegistry registry;
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -37,7 +37,27 @@ public static class InitCommand
         output.WriteLine($"registry ok: machine '{registry.Machine}', {registry.Sources.Count} source(s)");
 
         string unitDirectory = Path.Combine(homeDirectory, ".config", "systemd", "user");
-        Directory.CreateDirectory(unitDirectory);
+        _ = Directory.CreateDirectory(unitDirectory);
+        WriteUnitFiles(unitDirectory, homeDirectory);
+
+        InstallPulseAndDoctor(processRunner, error, output);
+        DisableOldTimers(processRunner, error, output, unitDirectory);
+
+        return 0;
+    }
+
+    private static int? ParseArguments(string[] args, TextWriter error)
+    {
+        if (args.Length is 0)
+        {
+            return null;
+        }
+        error.WriteLine(Usage);
+        return 1;
+    }
+
+    private static void WriteUnitFiles(string unitDirectory, string homeDirectory)
+    {
         File.WriteAllText(Path.Combine(unitDirectory, "kbo-pulse.service"), $"""
             [Unit]
             Description=kbo pulse — Practice Observability daily jobs
@@ -69,14 +89,20 @@ public static class InitCommand
             [Install]
             WantedBy=default.target
             """ + "\n");
+    }
 
+    private static void InstallPulseAndDoctor(IProcessRunner processRunner, TextWriter error, TextWriter output)
+    {
         Systemctl(processRunner, error, "daemon-reload");
         Systemctl(processRunner, error, "enable", "--now", "kbo-pulse.timer");
         output.WriteLine("kbo-pulse.timer registered and enabled (hourly tick, Persistent=true; bronze decides due-ness)");
         Systemctl(processRunner, error, "enable", "kbo-doctor.service");
         output.WriteLine("kbo-doctor.service enabled (health check + notification at every login)");
+    }
 
-        foreach (string timer in PhaseZeroTimers)
+    private static void DisableOldTimers(IProcessRunner processRunner, TextWriter error, TextWriter output, string unitDirectory)
+    {
+        foreach (string timer in _phaseZeroTimers)
         {
             if (File.Exists(Path.Combine(unitDirectory, timer)))
             {
@@ -84,18 +110,16 @@ public static class InitCommand
                 output.WriteLine($"{timer} disabled (unit file kept; re-enable with 'systemctl --user enable --now {timer}')");
             }
         }
-
-        return 0;
     }
 
     private static void Systemctl(IProcessRunner processRunner, TextWriter error, params string[] arguments)
     {
-        List<string> fullArguments = new() { "--user" };
-        fullArguments.AddRange(arguments);
+        List<string> fullArguments = ["--user", .. arguments];
         ProcessResult result = processRunner.Run("systemctl", fullArguments);
-        if (result.ExitCode != 0)
+        if (result.ExitCode is 0)
         {
-            error.WriteLine($"systemctl {string.Join(' ', fullArguments)} failed: {result.StandardError.Trim()}");
+            return;
         }
+        error.WriteLine($"systemctl {string.Join(' ', fullArguments)} failed: {result.StandardError.Trim()}");
     }
 }
