@@ -6,33 +6,33 @@ using Kbo.Silver;
 
 namespace Kbo.Tests;
 
-public class ReportCommandTests : IDisposable
+public sealed class ReportCommandTests : IDisposable
 {
-    private readonly string workspace;
-    private readonly string vaultRoot;
-    private readonly string silverPath;
-    private readonly string registryPath;
-    private readonly StringWriter output = new();
-    private readonly StringWriter error = new();
+    private readonly string _workspace;
+    private readonly string _vaultRoot;
+    private readonly string _silverPath;
+    private readonly string _registryPath;
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
 
     public ReportCommandTests()
     {
-        workspace = Directory.CreateTempSubdirectory("kbo-report-tests").FullName;
-        vaultRoot = Path.Combine(workspace, "Knowledge");
-        silverPath = Path.Combine(workspace, "silver.duckdb");
-        registryPath = Path.Combine(workspace, "registry.yaml");
-        _ = Directory.CreateDirectory(vaultRoot);
-        File.WriteAllText(Path.Combine(vaultRoot, "old-note.md"), "# old\n");
-        File.SetLastWriteTimeUtc(Path.Combine(vaultRoot, "old-note.md"), DateTime.UtcNow.AddDays(-200));
-        File.WriteAllText(registryPath, $"""
+        _workspace = Directory.CreateTempSubdirectory("kbo-report-tests").FullName;
+        _vaultRoot = Path.Combine(_workspace, "Knowledge");
+        _silverPath = Path.Combine(_workspace, "silver.duckdb");
+        _registryPath = Path.Combine(_workspace, "registry.yaml");
+        _ = Directory.CreateDirectory(_vaultRoot);
+        File.WriteAllText(Path.Combine(_vaultRoot, "old-note.md"), "# old\n");
+        File.SetLastWriteTimeUtc(Path.Combine(_vaultRoot, "old-note.md"), DateTime.UtcNow.AddDays(-200));
+        File.WriteAllText(_registryPath, $"""
             machine: test-machine
             sources:
               - id: vault
                 layer: global
-                root: {vaultRoot}
+                root: {_vaultRoot}
             """);
 
-        string eventsRepo = Path.Combine(workspace, "kb-events");
+        string eventsRepo = Path.Combine(_workspace, "kb-events");
         new BronzeStore(eventsRepo).Append(new[]
         {
             new JsonObject
@@ -40,7 +40,7 @@ public class ReportCommandTests : IDisposable
                 ["id"] = "01C00000000000000000000001",
                 ["type"] = "knowledge.read",
                 ["time"] = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
-                ["subject"] = Path.Combine(vaultRoot, "old-note.md"),
+                ["subject"] = Path.Combine(_vaultRoot, "old-note.md"),
                 ["machine"] = "test-machine",
                 ["agent"] = "claude-code",
                 ["session"] = "sess-1",
@@ -48,20 +48,28 @@ public class ReportCommandTests : IDisposable
                 ["data"] = new JsonObject { ["origin"] = "hook" },
             },
         });
-        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(eventsRepo, _silverPath);
     }
 
-    public void Dispose() => Directory.Delete(workspace, recursive: true);
+    public void Dispose()
+    {
+        _output.Dispose();
+        _error.Dispose();
+        Directory.Delete(_workspace, recursive: true);
+    }
 
     private int Run(params string[] args)
     {
-        string? Environment(string name) => name switch
+        string? Environment(string name)
         {
-            "KBO_REGISTRY" => registryPath,
-            "KBO_SILVER" => silverPath,
-            _ => null,
-        };
-        return ReportCommand.Run(args, output, error, Environment, workspace);
+            return name switch
+            {
+                "KBO_REGISTRY" => _registryPath,
+                "KBO_SILVER" => _silverPath,
+                _ => null,
+            };
+        }
+        return ReportCommand.Run(args, _output, _error, name => Environment(name), _workspace);
     }
 
     [Fact]
@@ -70,7 +78,7 @@ public class ReportCommandTests : IDisposable
         int exitCode = Run();
 
         Assert.Equal(0, exitCode);
-        string generated = Path.Combine(vaultRoot, "_generated");
+        string generated = Path.Combine(_vaultRoot, "_generated");
         Assert.True(File.Exists(Path.Combine(generated, "kbo-report.md")));
         Assert.True(File.Exists(Path.Combine(generated, "kbo-report.gold.json")));
         Assert.True(File.Exists(Path.Combine(generated, "README.md")));
@@ -92,12 +100,12 @@ public class ReportCommandTests : IDisposable
     [Fact]
     public void Report_MissingSilver_PointsAtRebuild()
     {
-        File.Delete(silverPath);
+        File.Delete(_silverPath);
 
         int exitCode = Run();
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("kbo rebuild", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("kbo rebuild", _error.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

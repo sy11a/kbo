@@ -4,8 +4,17 @@ namespace Kbo.Tests;
 
 public class MirrorCalibrationTests
 {
-    private static readonly MirrorGoal DownGoal = new(0.15, MirrorDirection.DownIsBetter);
-    private static readonly MirrorGoal UpGoal = new(0.30, MirrorDirection.UpIsBetter);
+    private static readonly MirrorGoal _downGoal = new(0.15, MirrorDirection.DownIsBetter);
+    private static readonly MirrorGoal _upGoal = new(0.30, MirrorDirection.UpIsBetter);
+    private static readonly double[] _risingSlopeSeries = [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22];
+    private static readonly double[] _tooShortHistory = [0.1, 0.2, 0.15, 0.12, 0.18];
+    private static readonly double[] _stableGoodHistory = [0.10, 0.14, 0.11, 0.13, 0.12, 0.14, 0.11];
+    private static readonly double[] _oscillatingHistory = [0.198, 0.318, 0.217, 0.270, 0.237, 0.366, 0.270];
+    private static readonly double[] _straddlingHistory = [0.11, 0.15, 0.12, 0.16, 0.13, 0.17, 0.12];
+    private static readonly double[] _upGoodHistory = [0.35, 0.41, 0.36, 0.40, 0.37, 0.42, 0.38];
+    private static readonly double[] _upSickHistory = [0.15, 0.21, 0.16, 0.20, 0.17, 0.22, 0.18];
+    private static readonly double[] _acuteBreakHistory = [0.10, 0.11, 0.12, 0.12, 0.13, 0.13, 0.14];
+    private static readonly double[] _fallingHistory = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20];
 
     [Fact]
     public void Percentile_LinearInterpolationBetweenOrderStatistics()
@@ -22,14 +31,14 @@ public class MirrorCalibrationTests
         Assert.Equal(1, MirrorCalibration.SlopePerWeek(new double[] { 0, 1, 2, 3 }), 5);
         Assert.Equal(-1, MirrorCalibration.SlopePerWeek(new double[] { 4, 3, 2, 1 }), 5);
         Assert.Equal(0, MirrorCalibration.SlopePerWeek(new double[] { 2, 2, 2, 2, 2 }), 5);
-        Assert.Equal(0.02, MirrorCalibration.SlopePerWeek(new double[] { 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22 }), 5);
+        Assert.Equal(0.02, MirrorCalibration.SlopePerWeek(_risingSlopeSeries), 5);
     }
 
     [Fact]
     public void Evaluate_TooFewHistoryWeeks_WaitsWithoutState()
     {
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.1, 0.2, 0.15, 0.12, 0.18 }, 0.2, DownGoal, trust: false);
+            _tooShortHistory, 0.2, _downGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateWaiting, verdict.State);
         Assert.Equal(MirrorCalibration.ClassWait, verdict.StatusClass);
@@ -41,7 +50,7 @@ public class MirrorCalibrationTests
     public void Evaluate_CorridorInsideGoal_StableGood()
     {
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.10, 0.14, 0.11, 0.13, 0.12, 0.14, 0.11 }, 0.12, DownGoal, trust: false);
+            _stableGoodHistory, 0.12, _downGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateStableGood, verdict.State);
         Assert.Equal(MirrorCalibration.ClassOk, verdict.StatusClass);
@@ -55,7 +64,7 @@ public class MirrorCalibrationTests
         // The hurting-case shape: oscillating failed-search history stuck far from
         // the goal (design session 2026-08-27).
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.198, 0.318, 0.217, 0.270, 0.237, 0.366, 0.270 }, 0.28, DownGoal, trust: false);
+            _oscillatingHistory, 0.28, _downGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateStableSick, verdict.State);
         Assert.Equal(MirrorCalibration.ClassSick, verdict.StatusClass);
@@ -71,7 +80,7 @@ public class MirrorCalibrationTests
         // p25 below the goal, p75 above: "неустойчиво у цели" — not stable-good
         // (operator clarification 2026-08-28).
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.11, 0.15, 0.12, 0.16, 0.13, 0.17, 0.12 }, 0.15, DownGoal, trust: false);
+            _straddlingHistory, 0.15, _downGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateStableSick, verdict.State);
     }
@@ -80,12 +89,12 @@ public class MirrorCalibrationTests
     public void Evaluate_UpGoalUsesCorridorLow()
     {
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.35, 0.41, 0.36, 0.40, 0.37, 0.42, 0.38 }, 0.38, UpGoal, trust: false);
+            _upGoodHistory, 0.38, _upGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateStableGood, verdict.State);
 
         MirrorVerdict sick = MirrorCalibration.Evaluate(
-            new double[] { 0.15, 0.21, 0.16, 0.20, 0.17, 0.22, 0.18 }, 0.18, UpGoal, trust: false);
+            _upSickHistory, 0.18, _upGoal, trust: false);
         Assert.Equal(MirrorCalibration.StateStableSick, sick.State);
     }
 
@@ -93,7 +102,7 @@ public class MirrorCalibrationTests
     public void Evaluate_AcuteBreakBeyondRobustZ_Acute()
     {
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.10, 0.11, 0.12, 0.12, 0.13, 0.13, 0.14 }, 0.20, DownGoal, trust: false);
+            _acuteBreakHistory, 0.20, _downGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateAcute, verdict.State);
         Assert.Equal(MirrorCalibration.ClassAcute, verdict.StatusClass);
@@ -105,10 +114,10 @@ public class MirrorCalibrationTests
     {
         double[] saturated = [0, 0, 0, 0, 0, 0, 0];
 
-        MirrorVerdict jolt = MirrorCalibration.Evaluate(saturated, 0.05, DownGoal, trust: true);
+        MirrorVerdict jolt = MirrorCalibration.Evaluate(saturated, 0.05, _downGoal, trust: true);
         Assert.Equal(MirrorCalibration.StateAcute, jolt.State);
 
-        MirrorVerdict calm = MirrorCalibration.Evaluate(saturated, 0.01, DownGoal, trust: true);
+        MirrorVerdict calm = MirrorCalibration.Evaluate(saturated, 0.01, _downGoal, trust: true);
         Assert.Equal(MirrorCalibration.StateStableGood, calm.State);
         Assert.Null(calm.RobustZ);
     }
@@ -123,7 +132,7 @@ public class MirrorCalibrationTests
         MirrorVerdict trust = MirrorCalibration.Evaluate(ramp, 0.96, goal: null, trust: true);
         Assert.Equal(MirrorCalibration.StateStableGood, trust.State);
 
-        MirrorVerdict goalBearing = MirrorCalibration.Evaluate(ramp, 0.96, UpGoal, trust: false);
+        MirrorVerdict goalBearing = MirrorCalibration.Evaluate(ramp, 0.96, _upGoal, trust: false);
         Assert.Equal(MirrorCalibration.StateTrendUp, goalBearing.State);
         Assert.Equal(MirrorCalibration.ClassTrend, goalBearing.StatusClass);
     }
@@ -134,7 +143,7 @@ public class MirrorCalibrationTests
         // Oscillation around a flat mean: the spike inflates the robust diffs-MAD,
         // not the verdict — noise, not drift; the tile answers the goal question.
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.198, 0.318, 0.217, 0.270, 0.237, 0.366, 0.270 }, 0.28, DownGoal, trust: false);
+            _oscillatingHistory, 0.28, _downGoal, trust: false);
 
         Assert.NotEqual(MirrorCalibration.ClassTrend, verdict.StatusClass, StringComparer.Ordinal);
     }
@@ -143,7 +152,7 @@ public class MirrorCalibrationTests
     public void Evaluate_TrendDown_FlaggedOnFallingSeries()
     {
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
-            new double[] { 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20 }, 0.20, UpGoal, trust: false);
+            _fallingHistory, 0.20, _upGoal, trust: false);
 
         Assert.Equal(MirrorCalibration.StateTrendDown, verdict.State);
         Assert.True(verdict.SlopePerWeek < 0);

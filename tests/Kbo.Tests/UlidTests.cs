@@ -6,8 +6,6 @@ namespace Kbo.Tests;
 
 public partial class UlidTests
 {
-    private static readonly Regex EnvelopeIdPattern = MyRegex();
-
     [Fact]
     public void NewUlid_MatchesEnvelopeSchemaPattern()
     {
@@ -43,6 +41,6 @@ public partial class UlidTests
         Assert.StartsWith("0000000000", ulid, StringComparison.Ordinal);
     }
 
-    [GeneratedRegex("^[0-9A-HJKMNP-TV-Z]{26}$")]
-    private static partial Regex MyRegex();
+    [GeneratedRegex("^[0-9A-HJKMNP-TV-Z]{26}$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex EnvelopeIdPattern { get; }
 }

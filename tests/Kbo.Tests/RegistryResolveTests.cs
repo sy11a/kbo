@@ -4,7 +4,9 @@ namespace Kbo.Tests;
 
 public class RegistryResolveTests
 {
-    private static KnowledgeRegistry BuildRegistry() => KnowledgeRegistry.Parse("""
+    private static KnowledgeRegistry BuildRegistry()
+    {
+        KnowledgeRegistry registry = KnowledgeRegistry.Parse("""
             machine: example-machine
             sources:
               - id: knowledge
@@ -17,6 +19,8 @@ public class RegistryResolveTests
                 layer: framework
                 root: /home/user/Repository/SampleApp/docs/framework
             """);
+        return registry;
+    }
 
     [Fact]
     public void Resolve_PathUnderRoot_ReturnsSourceId() => Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge/rituals/2026-08-11.md"));

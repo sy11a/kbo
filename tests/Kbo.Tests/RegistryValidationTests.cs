@@ -111,9 +111,9 @@ public class RegistryValidationTests
                 layer: local
                 root: /home/admin/Repository/plain
             """);
-        KnowledgeSource knowledge = Assert.Single(withField.Sources, source => source.Id == "knowledge");
+        KnowledgeSource knowledge = Assert.Single(withField.Sources, source => source.Id is "knowledge");
         Assert.Equal("/home/admin/Repository/kbl/_generated/graph-metrics.ndjson", knowledge.MetricsArtifact);
-        KnowledgeSource plain = Assert.Single(withField.Sources, source => source.Id == "plain");
+        KnowledgeSource plain = Assert.Single(withField.Sources, source => source.Id is "plain");
         Assert.Null(plain.MetricsArtifact);
     }
 

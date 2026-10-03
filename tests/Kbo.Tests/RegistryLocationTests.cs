@@ -18,8 +18,8 @@ public class RegistryLocationTests
     public void Locate_NoExplicitPath_UsesEnvironmentVariable()
     {
         string located = RegistryLocator.Locate(
-explicitPath: null,
-            name => name == "KBO_REGISTRY" ? "/tmp/from-env.yaml" : null,
+            explicitPath: null,
+            name => name is "KBO_REGISTRY" ? "/tmp/from-env.yaml" : null,
             "/home/someone");
         Assert.Equal("/tmp/from-env.yaml", located);
     }

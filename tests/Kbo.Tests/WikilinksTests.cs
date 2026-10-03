@@ -26,7 +26,7 @@ public class WikilinksTests
     public void CountDistinct_ReturnsZeroWithoutWikilinks()
     {
         Assert.Equal(0, Wikilinks.CountDistinct("plain body with a [markdown](link.md) and no wikilinks"));
-        Assert.Equal(0, Wikilinks.CountDistinct(""));
+        Assert.Equal(0, Wikilinks.CountDistinct(string.Empty));
     }
 
     [Fact]
