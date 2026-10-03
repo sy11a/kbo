@@ -18,6 +18,8 @@ internal static class DashboardRenderer
     private static readonly JsonSerializerOptions _dataJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
     };
 
     public static IReadOnlyDictionary<string, string> LoadEmbeddedChartSpecs()

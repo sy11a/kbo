@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Kbo.Bronze;
 
 /// <summary>
@@ -10,6 +12,7 @@ internal static class Ulid
 {
     private const string CrockfordAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
+    [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "ULID randomness is for uniqueness, not secrecy; the injected Random keeps tests deterministic.")]
     public static string New(DateTimeOffset time, Random random)
     {
         char[] encoded = new char[26];

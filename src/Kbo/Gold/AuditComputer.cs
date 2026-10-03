@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DuckDB.NET.Data;
 using Kbo.Bronze;
 using Kbo.Jobs;
@@ -75,6 +76,7 @@ internal static class AuditComputer
             QueryUnregisteredSources(silverPath, registry));
     }
 
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "SQL is the IdQuery from the operator's trusted knowledge registry; no user input is concatenated.")]
     private static List<(string Id, DateTime Modified)> EnumerateDatabaseSessions(SqliteSessionSource source)
     {
         List<(string, DateTime)> sessions = [];
@@ -95,6 +97,7 @@ internal static class AuditComputer
         return sessions;
     }
 
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "SQL is a constant query authored in this file; only parameter values are bound, no string concatenation of external input.")]
     private static List<UnregisteredSourceFinding> QueryUnregisteredSources(string silverPath, KnowledgeRegistry registry)
     {
         List<UnregisteredSourceFinding> findings = [];

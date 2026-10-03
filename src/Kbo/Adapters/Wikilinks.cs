@@ -17,7 +17,7 @@ internal static partial class Wikilinks
         HashSet<string> targets = new(StringComparer.Ordinal);
         foreach (Match match in Target.Matches(content))
         {
-            string target = match.Groups[1].Value;
+            string target = match.Groups["target"].Value;
             int aliasSeparator = target.IndexOf('|', StringComparison.Ordinal);
             if (aliasSeparator >= 0)
             {
@@ -37,6 +37,6 @@ internal static partial class Wikilinks
         return targets.Count;
     }
 
-    [GeneratedRegex(@"\[\[([^\[\]]+)\]\]", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\[\[(?<target>[^\[\]]+)\]\]", RegexOptions.Compiled | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex Target { get; }
 }

@@ -23,9 +23,11 @@ internal static class WatchCommand
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
     };
 
-    public static async Task<int> Run(
+    public static async Task<int> RunAsync(
         string[] args,
         TextWriter output,
         TextWriter error,
@@ -35,11 +37,11 @@ internal static class WatchCommand
     {
         if (!TryParseInterval(args, out int intervalSeconds, out string? parseError))
         {
-            await error.WriteLineAsync(parseError);
+            await error.WriteLineAsync(parseError).ConfigureAwait(false);
             return 1;
         }
 
-        await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop"));
+        await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop")).ConfigureAwait(false);
 
         int firstTick = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
         if (firstTick is not 0)
@@ -50,7 +52,7 @@ internal static class WatchCommand
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(intervalSeconds));
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken))
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
                 _ = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
             }
@@ -59,7 +61,7 @@ internal static class WatchCommand
         {
         }
 
-        await output.WriteLineAsync("kbo watch stopped");
+        await output.WriteLineAsync("kbo watch stopped").ConfigureAwait(false);
         return 0;
     }
 

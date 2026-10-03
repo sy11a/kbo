@@ -275,7 +275,7 @@ internal sealed class KnowledgeRegistry
         }
         try
         {
-            return new Regex(pattern);
+            return new Regex(pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
         }
         catch (ArgumentException exception)
         {

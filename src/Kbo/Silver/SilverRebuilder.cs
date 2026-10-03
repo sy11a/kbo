@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -235,6 +236,7 @@ internal static class SilverRebuilder
         return true;
     }
 
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "SQL comes from the code's own constants; values are bound as parameters, no external string concatenation.")]
     private static void Execute(DuckDBConnection connection, string sql)
     {
         using DuckDBCommand command = connection.CreateCommand();

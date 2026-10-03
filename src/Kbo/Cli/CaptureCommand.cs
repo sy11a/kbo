@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -20,10 +21,10 @@ internal static class CaptureCommand
     /// and returns 0 — observation must never perturb the observed session.
     /// Only genuine CLI misuse (unknown agent/args) returns non-zero.
     /// </summary>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Capture is a hook that must never fail the observed session; any failure is logged and swallowed by contract (ADR-0029).")]
     public static int Run(
         string[] args,
         TextReader input,
-        TextWriter output,
         TextWriter error,
         Func<string, string?> environment,
         string homeDirectory)
@@ -148,6 +149,7 @@ internal static class CaptureCommand
         new BronzeStore(eventsRepo).Append(validEvents);
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "The drop log is best-effort; recording a drop must never disrupt the observed session (ADR-0029).")]
     private static void LogDrop(string homeDirectory, string agent, string reason)
     {
         try

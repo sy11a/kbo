@@ -21,7 +21,6 @@ internal static class Program
                 return CaptureCommand.Run(
                     args[1..],
                     Console.In,
-                    Console.Out,
                     Console.Error,
                     key => Environment.GetEnvironmentVariable(key),
                     home);
@@ -85,17 +84,17 @@ internal static class Program
                         eventArgs.Cancel = true;
                         cancellation.Cancel();
                     };
-                    return await WatchCommand.Run(
+                    return await WatchCommand.RunAsync(
                         args[1..],
                         Console.Out,
                         Console.Error,
                         key => Environment.GetEnvironmentVariable(key),
                         home,
-                        cancellation.Token);
+                        cancellation.Token).ConfigureAwait(false);
                 }
             default:
                 {
-                    await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...");
+                    await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...").ConfigureAwait(false);
                     return 1;
                 }
         }

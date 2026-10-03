@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data;
@@ -814,6 +815,7 @@ internal static class DashboardComputer
         return separator < 0 ? string.Empty : relative[..separator];
     }
 
+    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "All SQL is a constant authored in this file; values are bound via DuckDBParameter, never concatenated.")]
     private static IEnumerable<object?[]> Query(DuckDBConnection connection, string sql, params (string Name, object Value)[] parameters)
     {
         using DuckDBCommand command = connection.CreateCommand();
