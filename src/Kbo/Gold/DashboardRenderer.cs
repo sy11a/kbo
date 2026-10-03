@@ -39,6 +39,37 @@ internal static class DashboardRenderer
     public static string Render(DashboardGold gold, IReadOnlyDictionary<string, string> chartSpecs, int? autoReloadSeconds = null)
     {
         StringBuilder html = new();
+        AppendHead(html, autoReloadSeconds);
+        AppendGeneratedAt(html, gold);
+
+        AppendServiceDisclosure(html, gold.ServiceSessions);
+
+        AppendPracticeMirror(html, gold.Mirror);
+
+        AppendDeadMan(html, gold);
+
+        AppendLastSeen(html, gold.LastSeen);
+
+        AppendSddPanel(html, gold.SddPanel);
+        AppendReuse(html, gold.TopReusedNotes, gold.Reuse);
+        AppendUnusedThemes(html, gold.UnusedThemes);
+        AppendWriteReadLoop(html, gold.TopWriteReadNotes, gold.WriteReadLoop);
+        AppendChart(html, "failed-search-rate", "Zero-hit share of knowledge searches",
+            chartSpecs["failed-search-rate.vl.json"], gold.FailedSearchDaily);
+        AppendRankedList(html, string.Create(CultureInfo.InvariantCulture, $"Top zero-hit searches — last {DashboardComputer.ThemeWindowDays} days"),
+            "Запросы, которые чаще всего ничего не находили за окно. Каждая строка — кандидат на новую или переименованную заметку.",
+            gold.TopFailedSearches, "За окно не было поисков без результата. ✓", monospace: true);
+        AppendChart(html, "tokens-trend", "Cache-read vs fresh input tokens per day",
+            chartSpecs["tokens-trend.vl.json"], gold.TokensDaily);
+        AppendRecentSessions(html, gold.RecentSessions);
+
+        _ = html.AppendLine("</body>");
+        _ = html.AppendLine("</html>");
+        return html.ToString();
+    }
+
+    private static void AppendHead(StringBuilder html, int? autoReloadSeconds)
+    {
         _ = html.AppendLine("<!doctype html>");
         _ = html.AppendLine("<html lang=\"en\">");
         _ = html.AppendLine("<head>");
@@ -90,34 +121,12 @@ internal static class DashboardRenderer
             <body>
             <h1>kbo dashboard</h1>
             """);
+    }
 
+    private static void AppendGeneratedAt(StringBuilder html, DashboardGold gold)
+    {
         _ = html.AppendLine(CultureInfo.InvariantCulture,
             $"""<p class="generated-at">generated at <strong>{Timestamp(gold.GeneratedAt)}</strong> on <strong>{Html(gold.Machine)}</strong> — a stale dashboard must look stale</p>""");
-
-        AppendServiceDisclosure(html, gold.ServiceSessions);
-
-        AppendPracticeMirror(html, gold.Mirror);
-
-        AppendDeadMan(html, gold);
-
-        AppendLastSeen(html, gold.LastSeen);
-
-        AppendSddPanel(html, gold.SddPanel);
-        AppendReuse(html, gold.TopReusedNotes, gold.Reuse);
-        AppendUnusedThemes(html, gold.UnusedThemes);
-        AppendWriteReadLoop(html, gold.TopWriteReadNotes, gold.WriteReadLoop);
-        AppendChart(html, "failed-search-rate", "Zero-hit share of knowledge searches",
-            chartSpecs["failed-search-rate.vl.json"], gold.FailedSearchDaily);
-        AppendRankedList(html, string.Create(CultureInfo.InvariantCulture, $"Top zero-hit searches — last {DashboardComputer.ThemeWindowDays} days"),
-            "Запросы, которые чаще всего ничего не находили за окно. Каждая строка — кандидат на новую или переименованную заметку.",
-            gold.TopFailedSearches, "За окно не было поисков без результата. ✓", monospace: true);
-        AppendChart(html, "tokens-trend", "Cache-read vs fresh input tokens per day",
-            chartSpecs["tokens-trend.vl.json"], gold.TokensDaily);
-        AppendRecentSessions(html, gold.RecentSessions);
-
-        _ = html.AppendLine("</body>");
-        _ = html.AppendLine("</html>");
-        return html.ToString();
     }
 
     /// <summary>Dead-man (ADR-0042 §5, ADR-0037): one strip line when every job

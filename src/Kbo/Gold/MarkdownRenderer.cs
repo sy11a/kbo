@@ -11,10 +11,27 @@ internal static class MarkdownRenderer
     public static string Render(GoldReport report, string vaultRoot)
     {
         StringBuilder markdown = new();
+        AppendTitle(markdown, report);
+        AppendInventory(markdown, report);
+        AppendLifecycle(markdown, report);
+        AppendMachineManaged(markdown, report);
+        AppendDormantSources(markdown, report);
+        AppendDeadNotes(markdown, report, vaultRoot);
+        AppendHotNotes(markdown, report, vaultRoot);
+        AppendStaleness(markdown, report, vaultRoot);
+        return markdown.ToString();
+    }
+
+    private static void AppendTitle(StringBuilder markdown, GoldReport report)
+    {
         _ = markdown.AppendLine("# kbo report — knowledge worklists");
         _ = markdown.AppendLine();
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"> **GENERATED** by `kbo report` at **{Timestamp(report.GeneratedAt)}** on `{report.Machine}` — hand-edits die on the next run.");
         _ = markdown.AppendLine();
+    }
+
+    private static void AppendInventory(StringBuilder markdown, GoldReport report)
+    {
         _ = markdown.AppendLine("## Inventory");
         _ = markdown.AppendLine();
         foreach (KeyValuePair<string, int> entry in report.InventoryCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
@@ -22,7 +39,10 @@ internal static class MarkdownRenderer
             _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s)");
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendLifecycle(StringBuilder markdown, GoldReport report)
+    {
         _ = markdown.AppendLine("## Lifecycle artifacts — die on completion, excluded from the dead worklist");
         _ = markdown.AppendLine();
         if (report.LifecycleCounts.Count is 0)
@@ -37,7 +57,10 @@ internal static class MarkdownRenderer
             }
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendMachineManaged(StringBuilder markdown, GoldReport report)
+    {
         _ = markdown.AppendLine("## Machine-managed files — tool-owned, excluded from the dead worklist");
         _ = markdown.AppendLine();
         if (report.MachineManagedCounts.Count is 0)
@@ -52,7 +75,10 @@ internal static class MarkdownRenderer
             }
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendDormantSources(StringBuilder markdown, GoldReport report)
+    {
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
         _ = markdown.AppendLine();
         if (report.DormantSources.Count is 0)
@@ -71,7 +97,10 @@ internal static class MarkdownRenderer
             }
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendDeadNotes(StringBuilder markdown, GoldReport report, string vaultRoot)
+    {
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dead notes — in inventory ≥ {report.MinInventoryAgeDays}d, zero reads in {report.ReadWindowDays}d");
         _ = markdown.AppendLine();
         if (report.DeadNotes.Count is 0)
@@ -90,7 +119,10 @@ internal static class MarkdownRenderer
             }
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendHotNotes(StringBuilder markdown, GoldReport report, string vaultRoot)
+    {
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Hot notes — top reads in the last {report.ReadWindowDays}d");
         _ = markdown.AppendLine();
         if (report.HotNotes.Count is 0)
@@ -108,7 +140,10 @@ internal static class MarkdownRenderer
             }
         }
         _ = markdown.AppendLine();
+    }
 
+    private static void AppendStaleness(StringBuilder markdown, GoldReport report, string vaultRoot)
+    {
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Staleness — ≥ {report.StaleMinReads} reads in {report.ReadWindowDays}d, unmodified > {report.StaleUnmodifiedDays}d");
         _ = markdown.AppendLine();
         if (report.StaleNotes.Count is 0)
@@ -125,8 +160,6 @@ internal static class MarkdownRenderer
                     $"| {Link(note.Path, vaultRoot)} | {note.SourceId} | {note.ReadsInWindow} | {note.DaysSinceModified}d |");
             }
         }
-
-        return markdown.ToString();
     }
 
     private static string Link(string path, string vaultRoot)
