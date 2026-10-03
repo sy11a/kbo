@@ -413,8 +413,28 @@ internal static class DashboardComputer
     {
         DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
 
-        // Session → repo (sessions view; '(unknown)' when absent —
-        // same coalesce convention silver's sessions view uses).
+        Dictionary<string, string> repoBySession = LoadSddSessionRepoMap(connection);
+        Dictionary<string, DateTime> firstSpec = LoadSddFirstSpecBySession(connection, cutoff);
+        SddFirstCodeWrites firstCodeWrites = LoadSddFirstCodeWritesAndWritesByKind(connection, cutoff);
+        (List<SddOrderingRow> orderingRows, SddOrderingSummary orderingSummary) = BuildSddOrdering(
+            firstCodeWrites.FirstWrite, firstSpec, repoBySession);
+        List<SddWritesRow> writesRows = BuildSddWritesRows(firstCodeWrites.WritesByKind);
+        (List<SddSkillRateRow> skillRows, bool skillConfigured) = BuildSddSkillRows(
+            connection, registry, cutoff, repoBySession);
+
+        return new SddPanelGold(
+            orderingRows, orderingSummary, writesRows, firstCodeWrites.MachineManaged, skillRows, skillConfigured);
+    }
+
+    private sealed record SddFirstCodeWrites(
+        Dictionary<string, DateTime> FirstWrite,
+        Dictionary<string, long> WritesByKind,
+        long MachineManaged);
+
+    // Session → repo (sessions view; '(unknown)' when absent —
+    // same coalesce convention silver's sessions view uses).
+    private static Dictionary<string, string> LoadSddSessionRepoMap(DuckDBConnection connection)
+    {
         Dictionary<string, string> repoBySession = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, coalesce(repo, '(unknown)') AS repo
@@ -425,8 +445,12 @@ internal static class DashboardComputer
         {
             repoBySession[(string)row[0]!] = (string)row[1]!;
         }
+        return repoBySession;
+    }
 
-        // Ordering: per session, earliest spec activity vs first code write.
+    // Ordering: per session, earliest spec activity vs first code write.
+    private static Dictionary<string, DateTime> LoadSddFirstSpecBySession(DuckDBConnection connection, DateTime cutoff)
+    {
         Dictionary<string, DateTime> firstSpec = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, min(time) AS first_spec
@@ -440,7 +464,11 @@ internal static class DashboardComputer
         {
             firstSpec[(string)row[0]!] = (DateTime)row[1]!;
         }
+        return firstSpec;
+    }
 
+    private static SddFirstCodeWrites LoadSddFirstCodeWritesAndWritesByKind(DuckDBConnection connection, DateTime cutoff)
+    {
         Dictionary<string, DateTime> firstCodeWrite = [];
         long machineManagedWrites = 0;
         Dictionary<string, long> writesByKind = [];
@@ -469,8 +497,15 @@ internal static class DashboardComputer
                 firstCodeWrite[session] = time;
             }
         }
+        return new SddFirstCodeWrites(firstCodeWrite, writesByKind, machineManagedWrites);
+    }
 
-        // Ordering rows per repo × ISO week of the first code write.
+    // Ordering rows per repo × ISO week of the first code write.
+    private static (List<SddOrderingRow> Rows, SddOrderingSummary Summary) BuildSddOrdering(
+        Dictionary<string, DateTime> firstCodeWrite,
+        Dictionary<string, DateTime> firstSpec,
+        Dictionary<string, string> repoBySession)
+    {
         Dictionary<(string Week, string Repo), long[]> ordering = [];
         long codeSessions = 0;
         long specFirst = 0;
@@ -505,65 +540,76 @@ internal static class DashboardComputer
                 entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0])),];
         SddOrderingSummary orderingSummary = new(
             codeSessions, specFirst, codeSessions == 0 ? 0 : (double)specFirst / codeSessions);
+        return (orderingRows, orderingSummary);
+    }
 
-        List<SddWritesRow> writesRows = [.. writesByKind
+    private static List<SddWritesRow> BuildSddWritesRows(Dictionary<string, long> writesByKind)
+    {
+        return [.. writesByKind
             .OrderByDescending(entry => entry.Value)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal)
             .Select(entry => new SddWritesRow(entry.Key, entry.Value)),];
+    }
 
-        // Skill rate: configured skill names only (ADR-0031 pattern);
-        // an unconfigured block is stated, never silently omitted.
-        List<SddSkillRateRow> skillRows = [];
+    // Skill rate: configured skill names only (ADR-0031 pattern);
+    // an unconfigured block is stated, never silently omitted.
+    private static (List<SddSkillRateRow> Rows, bool Configured) BuildSddSkillRows(
+        DuckDBConnection connection,
+        KnowledgeRegistry registry,
+        DateTime cutoff,
+        Dictionary<string, string> repoBySession)
+    {
         bool skillConfigured = registry.Sdd is not null;
-        if (registry.Sdd is not null)
+        if (registry.Sdd is null)
         {
-            HashSet<string> skills = new(registry.Sdd.Skills, StringComparer.Ordinal);
-            Dictionary<string, long> sessionsTotal = [];
-            Dictionary<string, long> sessionsWithSddSkill = [];
-            foreach (object?[] row in Query(connection, """
-                SELECT session, json_extract_string(data, '$.skill') AS skill
-                FROM practice_events
-                WHERE type = 'skill.invoked' AND session IS NOT NULL
-                  AND skill IS NOT NULL AND time >= $cutoff
-                """, ("cutoff", cutoff)))
-            {
-                string session = (string)row[0]!;
-                _ = sessionsTotal.TryAdd(session, 0);
-                if (skills.Contains((string)row[1]!))
-                {
-                    _ = sessionsWithSddSkill.TryAdd(session, 0);
-                }
-            }
-            foreach (object?[] row in Query(connection, """
-                SELECT DISTINCT session FROM practice_events
-                WHERE session IS NOT NULL AND time >= $cutoff
-                """, ("cutoff", cutoff)))
-            {
-                _ = sessionsTotal.TryAdd((string)row[0]!, 0);
-            }
-
-            Dictionary<string, long[]> byRepo = [];
-            foreach (string session in sessionsTotal.Keys)
-            {
-                string repo = repoBySession.GetValueOrDefault(session, "(unknown)");
-                long[] slot = byRepo.TryGetValue(repo, out long[]? existing)
-                    ? existing : byRepo[repo] = new long[2];
-                slot[0]++;
-                if (sessionsWithSddSkill.ContainsKey(session))
-                {
-                    slot[1]++;
-                }
-            }
-            skillRows = [.. byRepo
-                .OrderByDescending(entry => entry.Value[0])
-                .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-                .Take(RepoListCap)
-                .Select(entry => new SddSkillRateRow(
-                    entry.Key, entry.Value[0], entry.Value[1],
-                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0])),];
+            return ([], skillConfigured);
         }
 
-        return new SddPanelGold(orderingRows, orderingSummary, writesRows, machineManagedWrites, skillRows, skillConfigured);
+        HashSet<string> skills = new(registry.Sdd.Skills, StringComparer.Ordinal);
+        Dictionary<string, long> sessionsTotal = [];
+        Dictionary<string, long> sessionsWithSddSkill = [];
+        foreach (object?[] row in Query(connection, """
+            SELECT session, json_extract_string(data, '$.skill') AS skill
+            FROM practice_events
+            WHERE type = 'skill.invoked' AND session IS NOT NULL
+              AND skill IS NOT NULL AND time >= $cutoff
+            """, ("cutoff", cutoff)))
+        {
+            string session = (string)row[0]!;
+            _ = sessionsTotal.TryAdd(session, 0);
+            if (skills.Contains((string)row[1]!))
+            {
+                _ = sessionsWithSddSkill.TryAdd(session, 0);
+            }
+        }
+        foreach (object?[] row in Query(connection, """
+            SELECT DISTINCT session FROM practice_events
+            WHERE session IS NOT NULL AND time >= $cutoff
+            """, ("cutoff", cutoff)))
+        {
+            _ = sessionsTotal.TryAdd((string)row[0]!, 0);
+        }
+
+        Dictionary<string, long[]> byRepo = [];
+        foreach (string session in sessionsTotal.Keys)
+        {
+            string repo = repoBySession.GetValueOrDefault(session, "(unknown)");
+            long[] slot = byRepo.TryGetValue(repo, out long[]? existing)
+                ? existing : byRepo[repo] = new long[2];
+            slot[0]++;
+            if (sessionsWithSddSkill.ContainsKey(session))
+            {
+                slot[1]++;
+            }
+        }
+        List<SddSkillRateRow> skillRows = [.. byRepo
+            .OrderByDescending(entry => entry.Value[0])
+            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+            .Take(RepoListCap)
+            .Select(entry => new SddSkillRateRow(
+                entry.Key, entry.Value[0], entry.Value[1],
+                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0])),];
+        return (skillRows, skillConfigured);
     }
 
     private static (List<WriteReadRow> Top, WriteReadSummary Summary) WriteReadLoop(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
