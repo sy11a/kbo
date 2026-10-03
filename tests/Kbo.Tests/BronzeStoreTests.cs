@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Bronze;
 
@@ -7,15 +8,9 @@ public class BronzeStoreTests : IDisposable
 {
     private readonly string eventsRepo;
 
-    public BronzeStoreTests()
-    {
-        eventsRepo = Path.Combine(Directory.CreateTempSubdirectory("kbo-bronze-tests").FullName, "kb-events");
-    }
+    public BronzeStoreTests() => eventsRepo = Path.Combine(Directory.CreateTempSubdirectory("kbo-bronze-tests").FullName, "kb-events");
 
-    public void Dispose()
-    {
-        Directory.Delete(Path.GetDirectoryName(eventsRepo)!, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(Path.GetDirectoryName(eventsRepo)!, recursive: true);
 
     private static JsonObject Event(
         string time,
@@ -47,8 +42,8 @@ public class BronzeStoreTests : IDisposable
         Assert.True(Directory.Exists(Path.Combine(eventsRepo, ".git")));
 
         string[] lines = File.ReadAllLines(monthFile);
-        Assert.Single(lines);
-        Assert.Contains("\"01J2ZK8Q000000000000000901\"", lines[0]);
+        _ = Assert.Single(lines);
+        Assert.Contains("\"01J2ZK8Q000000000000000901\"", lines[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -65,14 +60,11 @@ public class BronzeStoreTests : IDisposable
 
         IReadOnlySet<string> harvested = store.HarvestedTranscripts();
 
-        Assert.Equal(new HashSet<string> { "file-a", "file-b" }, harvested);
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "file-a", "file-b" }, harvested);
     }
 
     [Fact]
-    public void HarvestedTranscripts_EmptyOrMissingRepo_ReturnsEmpty()
-    {
-        Assert.Empty(new BronzeStore(eventsRepo).HarvestedTranscripts());
-    }
+    public void HarvestedTranscripts_EmptyOrMissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).HarvestedTranscripts());
 
     [Fact]
     public void SeenTranscripts_CoversHarvestStampsAndHookTranscriptPaths()
@@ -91,7 +83,7 @@ public class BronzeStoreTests : IDisposable
 
         IReadOnlySet<string> seen = store.SeenTranscripts();
 
-        Assert.Equal(new HashSet<string> { "hook-session-file", "harvested-file" }, seen);
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "hook-session-file", "harvested-file" }, seen);
     }
 
     [Fact]
@@ -108,14 +100,11 @@ public class BronzeStoreTests : IDisposable
 
         IReadOnlySet<string> transcripts = store.TranscriptsWithType("skill.invoked");
 
-        Assert.Equal(new HashSet<string> { "skill-file-a", "skill-file-b" }, transcripts);
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "skill-file-a", "skill-file-b" }, transcripts);
     }
 
     [Fact]
-    public void TranscriptsWithType_MissingRepo_ReturnsEmpty()
-    {
-        Assert.Empty(new BronzeStore(eventsRepo).TranscriptsWithType("skill.invoked"));
-    }
+    public void TranscriptsWithType_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).TranscriptsWithType("skill.invoked"));
 
     [Fact]
     public void LastCompletedJobs_KeepsLatestCompletionPerJob()
@@ -138,10 +127,7 @@ public class BronzeStoreTests : IDisposable
     }
 
     [Fact]
-    public void LastCompletedJobs_MissingRepo_ReturnsEmpty()
-    {
-        Assert.Empty(new BronzeStore(eventsRepo).LastCompletedJobs());
-    }
+    public void LastCompletedJobs_MissingRepo_ReturnsEmpty() => Assert.Empty(new BronzeStore(eventsRepo).LastCompletedJobs());
 
     [Fact]
     public void Scanners_SkipMalformedLines()
@@ -155,10 +141,10 @@ public class BronzeStoreTests : IDisposable
         string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         File.AppendAllText(monthFile, "{truncated by a crashed writer\n[42]\n");
 
-        Assert.Equal(new HashSet<string> { "good-file" }, store.HarvestedTranscripts());
-        Assert.Equal(new HashSet<string> { "good-file" }, store.SeenTranscripts());
-        Assert.Equal(new HashSet<string> { "good-file" }, store.TranscriptsWithType("knowledge.read"));
-        Assert.Single(store.LastCompletedJobs());
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "good-file" }, store.HarvestedTranscripts());
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "good-file" }, store.SeenTranscripts());
+        Assert.Equal(new HashSet<string>(StringComparer.Ordinal) { "good-file" }, store.TranscriptsWithType("knowledge.read"));
+        _ = Assert.Single(store.LastCompletedJobs());
     }
 
     [Fact]
@@ -185,18 +171,18 @@ public class BronzeStoreTests : IDisposable
         const int writerCount = 8;
         const int eventsPerWriter = 25;
 
-        Parallel.For(0, writerCount, writer =>
+        _ = Parallel.For(0, writerCount, writer =>
         {
             BronzeStore store = new(eventsRepo);
             for (int sequence = 0; sequence < eventsPerWriter; sequence++)
             {
-                store.Append(new[] { Event($"2026-08-11T15:{writer:00}:{sequence:00}Z") });
+                store.Append(new[] { Event(string.Create(CultureInfo.InvariantCulture, $"2026-08-11T15:{writer:00}:{sequence:00}Z")) });
             }
         });
 
         string monthFile = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         string[] lines = File.ReadAllLines(monthFile);
-        Assert.Equal(1 + writerCount * eventsPerWriter, lines.Length);
+        Assert.Equal(1 + (writerCount * eventsPerWriter), lines.Length);
         Assert.All(lines, line => Assert.NotNull(JsonNode.Parse(line)));
     }
 
@@ -209,7 +195,7 @@ public class BronzeStoreTests : IDisposable
 
         using FileStream heldLock = new(lockFile, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
 
-        Assert.Throws<IOException>(() => store.Append(new[] { Event("2026-08-11T15:00:01Z") }));
+        _ = Assert.Throws<IOException>(() => store.Append(new[] { Event("2026-08-11T15:00:01Z") }));
     }
 
     [Fact]
@@ -220,7 +206,7 @@ public class BronzeStoreTests : IDisposable
 
         string gitignore = Path.Combine(eventsRepo, ".gitignore");
         Assert.True(File.Exists(gitignore));
-        Assert.Contains("*.lock", File.ReadAllLines(gitignore));
+        Assert.Contains("*.lock", File.ReadAllLines(gitignore), StringComparer.Ordinal);
     }
 
     [Fact]
@@ -245,7 +231,7 @@ public class BronzeStoreTests : IDisposable
     {
         int attempts = 0;
 
-        Assert.Throws<IOException>(() => BronzeStore.RetryTransientIO(() =>
+        _ = Assert.Throws<IOException>(() => BronzeStore.RetryTransientIO(() =>
         {
             attempts++;
             throw new IOException("file stays locked");
@@ -264,7 +250,7 @@ public class BronzeStoreTests : IDisposable
         string august = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-08.ndjsonl");
         string september = Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code", "2026-09.ndjsonl");
         Assert.Equal(2, File.ReadAllLines(august).Length);
-        Assert.Single(File.ReadAllLines(september));
+        _ = Assert.Single(File.ReadAllLines(september));
     }
 
     private static JsonObject GraphMetricsEvent(string date, string source)
@@ -309,7 +295,7 @@ public class BronzeStoreTests : IDisposable
         IReadOnlySet<string> keys = store.GraphMetricsKeys();
 
         Assert.Equal(
-            new HashSet<string> { "2026-08-27|knowledge", "2026-08-28|knowledge", "2026-08-28|other-source" },
+            new HashSet<string>(StringComparer.Ordinal) { "2026-08-27|knowledge", "2026-08-28|knowledge", "2026-08-28|other-source" },
             keys);
     }
 }

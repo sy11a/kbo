@@ -15,7 +15,7 @@ public class TranscriptMinerTests : IDisposable
     {
         workspace = Directory.CreateTempSubdirectory("kbo-miner-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             taskPattern: 'AC-\d+'
@@ -26,10 +26,7 @@ public class TranscriptMinerTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private static string MetaJson(string type, string timestamp, string cwd, string branch)
     {
@@ -93,8 +90,8 @@ public class TranscriptMinerTests : IDisposable
     private List<JsonObject> MineSample()
     {
         string vaultNote = Path.Combine(vaultRoot, "note.md");
-        List<string> lines = new()
-        {
+        List<string> lines =
+        [
             MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
             "{{{ not json at all",
             AssistantToolUse("Read", new JsonObject { ["file_path"] = vaultNote }, "tu-1", "req-1",
@@ -110,7 +107,7 @@ public class TranscriptMinerTests : IDisposable
             AssistantToolUse("Write", new JsonObject { ["file_path"] = vaultNote }, "tu-3", "req-2",
                 new JsonObject { ["input_tokens"] = 50, ["cache_read_input_tokens"] = 500, ["output_tokens"] = 5 }),
             AssistantToolUse("Bash", new JsonObject { ["command"] = "ls" }, "tu-4", "req-3"),
-        };
+        ];
         return TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
     }
 
@@ -143,8 +140,8 @@ public class TranscriptMinerTests : IDisposable
         List<JsonObject> events = MineSample();
         EventValidator validator = new();
 
-        List<string?> types = events.Select(e => (string?)e["type"]).ToList();
-        Assert.Equal(new[] { "session.started", "knowledge.read", "knowledge.searched", "knowledge.written" }, types);
+        List<string?> types = [.. events.Select(e => (string?)e["type"])];
+        Assert.Equal(new[] { "session.started", "knowledge.read", "knowledge.searched", "knowledge.written" }, types, StringComparer.Ordinal);
 
         foreach (JsonObject minedEvent in events)
         {
@@ -173,11 +170,11 @@ public class TranscriptMinerTests : IDisposable
     [Fact]
     public void Mine_EmitsSkillInvoked_ForTheSkillTool()
     {
-        List<string> lines = new()
-        {
+        List<string> lines =
+        [
             MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
             AssistantToolUse("Skill", new JsonObject { ["skill"] = "tdd" }, "tu-s", "req-1"),
-        };
+        ];
 
         List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
 
@@ -194,15 +191,15 @@ public class TranscriptMinerTests : IDisposable
     public void Mine_WrittenEvent_StripsContentFromRaw_KeepsContenthashNull()
     {
         string vaultNote = Path.Combine(vaultRoot, "mined-note.md");
-        List<string> lines = new()
-        {
+        List<string> lines =
+        [
             MetaJson("user", "2026-07-01T10:00:00.000Z", workspace, "feature/AC-12-reports"),
             AssistantToolUse("Write", new JsonObject
             {
                 ["file_path"] = vaultNote,
                 ["content"] = "historical body",
             }, "tu-w", "req-1"),
-        };
+        ];
 
         List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", registry, new Random(42));
 
@@ -221,8 +218,5 @@ public class TranscriptMinerTests : IDisposable
     }
 
     [Fact]
-    public void Mine_EmptyTranscript_YieldsNoEvents()
-    {
-        Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", registry, new Random(42)));
-    }
+    public void Mine_EmptyTranscript_YieldsNoEvents() => Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", registry, new Random(42)));
 }

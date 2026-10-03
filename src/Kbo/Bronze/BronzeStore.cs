@@ -13,10 +13,7 @@ public sealed class BronzeStore
 
     private readonly string repositoryRoot;
 
-    public BronzeStore(string repositoryRoot)
-    {
-        this.repositoryRoot = repositoryRoot;
-    }
+    public BronzeStore(string repositoryRoot) => this.repositoryRoot = repositoryRoot;
 
     public void Append(IEnumerable<JsonObject> events)
     {
@@ -29,11 +26,11 @@ public sealed class BronzeStore
             string month = RequiredField(envelopeEvent, EnvelopeFields.Time)[..7];
 
             string directory = Path.Combine(repositoryRoot, BronzeDirectory, machine, agent);
-            Directory.CreateDirectory(directory);
+            _ = Directory.CreateDirectory(directory);
             string monthFile = Path.Combine(directory, month + MonthFileExtension);
 
             string lockDirectory = Path.Combine(repositoryRoot, LockDirectory);
-            Directory.CreateDirectory(lockDirectory);
+            _ = Directory.CreateDirectory(lockDirectory);
             string lockFile = Path.Combine(lockDirectory, $"{machine}-{agent}-{month}.lock");
 
             byte[] line = Encoding.UTF8.GetBytes(envelopeEvent.ToJsonString() + "\n");
@@ -74,7 +71,7 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> HarvestedTranscripts()
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             JsonNode? data = envelopeEvent[EnvelopeFields.Data];
@@ -82,7 +79,7 @@ public sealed class BronzeStore
                 && (string?)data[EventDataFields.Origin] == EventDataFields.OriginHarvest
                 && (string?)data[EventDataFields.Transcript] is string transcript)
             {
-                transcripts.Add(transcript);
+                _ = transcripts.Add(transcript);
             }
         }
 
@@ -91,13 +88,13 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> TranscriptsWithType(string eventType)
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] == eventType
                 && (string?)envelopeEvent[EnvelopeFields.Data]?[EventDataFields.Transcript] is string transcript)
             {
-                transcripts.Add(transcript);
+                _ = transcripts.Add(transcript);
             }
         }
 
@@ -106,7 +103,7 @@ public sealed class BronzeStore
 
     public IReadOnlySet<string> SeenTranscripts()
     {
-        HashSet<string> transcripts = new();
+        HashSet<string> transcripts = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             JsonNode? data = envelopeEvent[EnvelopeFields.Data];
@@ -116,11 +113,11 @@ public sealed class BronzeStore
             }
             if ((string?)data[EventDataFields.Transcript] is string stamped)
             {
-                transcripts.Add(stamped);
+                _ = transcripts.Add(stamped);
             }
             else if ((string?)data[EventDataFields.Raw]?["transcript_path"] is string transcriptPath)
             {
-                transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
+                _ = transcripts.Add(Path.GetFileNameWithoutExtension(transcriptPath));
             }
         }
 
@@ -129,7 +126,7 @@ public sealed class BronzeStore
 
     public Dictionary<string, DateTimeOffset> LastCompletedJobs()
     {
-        Dictionary<string, DateTimeOffset> lastCompleted = new();
+        Dictionary<string, DateTimeOffset> lastCompleted = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.JobCompleted
@@ -159,7 +156,7 @@ public sealed class BronzeStore
     /// </summary>
     public IReadOnlySet<string> GraphMetricsKeys()
     {
-        HashSet<string> keys = new();
+        HashSet<string> keys = [];
         foreach (JsonObject envelopeEvent in ReadEvents())
         {
             if ((string?)envelopeEvent[EnvelopeFields.Type] != EventTypes.GraphMetrics)
@@ -171,7 +168,7 @@ public sealed class BronzeStore
             if ((string?)data?[EventDataFields.Date] is string date
                 && (string?)data?[EventDataFields.Source] is string source)
             {
-                keys.Add(date + "|" + source);
+                _ = keys.Add(date + "|" + source);
             }
         }
 
@@ -225,7 +222,7 @@ public sealed class BronzeStore
             return;
         }
 
-        Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(repositoryRoot);
         ProcessStartInfo startInfo = new("git", "init --quiet")
         {
             WorkingDirectory = repositoryRoot,
@@ -244,12 +241,12 @@ public sealed class BronzeStore
     private void EnsureLockFilesIgnored()
     {
         string gitignore = Path.Combine(repositoryRoot, ".gitignore");
-        if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock"))
+        if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock", StringComparer.Ordinal))
         {
             return;
         }
 
-        Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(repositoryRoot);
         File.AppendAllText(gitignore, "*.lock\n");
     }
 }

@@ -9,9 +9,8 @@ namespace Kbo.Adapters;
 /// transclusion embeds (<c>![[target]]</c>) count as references. Pure, no
 /// I/O — the live adapters feed it the file content they read after a write.
 /// </summary>
-public static class Wikilinks
+public static partial class Wikilinks
 {
-    private static readonly Regex Target = new(@"\[\[([^\[\]]+)\]\]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static int CountDistinct(string content)
     {
@@ -19,12 +18,12 @@ public static class Wikilinks
         foreach (Match match in Target.Matches(content))
         {
             string target = match.Groups[1].Value;
-            int aliasSeparator = target.IndexOf('|');
+            int aliasSeparator = target.IndexOf('|', StringComparison.Ordinal);
             if (aliasSeparator >= 0)
             {
                 target = target[..aliasSeparator];
             }
-            int anchorSeparator = target.IndexOf('#');
+            int anchorSeparator = target.IndexOf('#', StringComparison.Ordinal);
             if (anchorSeparator >= 0)
             {
                 target = target[..anchorSeparator];
@@ -32,9 +31,12 @@ public static class Wikilinks
             target = target.Trim();
             if (target.Length > 0)
             {
-                targets.Add(target);
+                _ = targets.Add(target);
             }
         }
         return targets.Count;
     }
+
+    [GeneratedRegex(@"\[\[([^\[\]]+)\]\]", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    private static partial Regex Target { get; }
 }

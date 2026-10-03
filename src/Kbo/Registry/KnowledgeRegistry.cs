@@ -83,7 +83,7 @@ public sealed class KnowledgeRegistry
             throw new RegistryFormatException($"registry is not valid YAML: {exception.Message}", exception);
         }
 
-        List<string> errors = new();
+        List<string> errors = [];
         if (document is null || string.IsNullOrWhiteSpace(document.Machine))
         {
             errors.Add("'machine' is missing");
@@ -93,9 +93,9 @@ public sealed class KnowledgeRegistry
             errors.Add("'sources' is missing or empty");
         }
 
-        List<KnowledgeSource> sources = new();
-        HashSet<string> seenIds = new();
-        foreach (SourceEntry entry in document?.Sources ?? new List<SourceEntry>())
+        List<KnowledgeSource> sources = [];
+        HashSet<string> seenIds = [];
+        foreach (SourceEntry entry in document?.Sources ?? [])
         {
             if (string.IsNullOrWhiteSpace(entry.Id))
             {
@@ -129,17 +129,17 @@ public sealed class KnowledgeRegistry
 
             string normalizedRoot = entry.Root.Length > 1 ? entry.Root.TrimEnd('/') : entry.Root;
             bool hasExclude = entry.Exclude is { Count: > 0 };
-            if (hasExclude && !normalizedRoot.Contains('*'))
+            if (hasExclude && !normalizedRoot.Contains('*', StringComparison.Ordinal))
             {
                 errors.Add($"source '{entry.Id}': 'exclude' requires a glob root");
                 continue;
             }
 
-            List<string> excludePaths = new();
+            List<string> excludePaths = [];
             bool excludePathsValid = true;
-            foreach (string excludePath in entry.ExcludePaths ?? new List<string>())
+            foreach (string excludePath in entry.ExcludePaths ?? [])
             {
-                if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath) || excludePath.Contains('*'))
+                if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath) || excludePath.Contains('*', StringComparison.Ordinal))
                 {
                     errors.Add($"source '{entry.Id}': excludePaths entry '{excludePath}' must be a relative path without '*'");
                     excludePathsValid = false;
@@ -159,17 +159,17 @@ public sealed class KnowledgeRegistry
                     errors.Add($"source '{entry.Id}': metricsArtifact '{entry.MetricsArtifact}' is not an absolute path");
                     continue;
                 }
-                if (normalizedRoot.Contains('*'))
+                if (normalizedRoot.Contains('*', StringComparison.Ordinal))
                 {
                     errors.Add($"source '{entry.Id}': metricsArtifact is not allowed on a glob root");
                     continue;
                 }
             }
 
-            if (normalizedRoot.Contains('*'))
+            if (normalizedRoot.Contains('*', StringComparison.Ordinal))
             {
                 string? globError = ExpandGlob(entry.Id, layer, normalizedRoot,
-                    entry.Exclude ?? (IReadOnlyCollection<string>)Array.Empty<string>(), excludePaths, sources, seenIds);
+                    entry.Exclude ?? (IReadOnlyCollection<string>)[], excludePaths, sources, seenIds);
                 if (globError is not null)
                 {
                     errors.Add(globError);
@@ -202,8 +202,8 @@ public sealed class KnowledgeRegistry
         {
             return null;
         }
-        List<string> skills = new();
-        foreach (string skill in entry.Skills ?? new List<string>())
+        List<string> skills = [];
+        foreach (string skill in entry.Skills ?? [])
         {
             if (string.IsNullOrWhiteSpace(skill))
             {
@@ -242,8 +242,8 @@ public sealed class KnowledgeRegistry
             errors.Add("constitution: 'scanRoots' is missing or empty");
             valid = false;
         }
-        List<string> scanRoots = new();
-        foreach (string root in entry.ScanRoots ?? new List<string>())
+        List<string> scanRoots = [];
+        foreach (string root in entry.ScanRoots ?? [])
         {
             if (string.IsNullOrWhiteSpace(root) || !Path.IsPathRooted(root))
             {
@@ -253,10 +253,10 @@ public sealed class KnowledgeRegistry
             }
             scanRoots.Add(root.Length > 1 ? root.TrimEnd('/') : root);
         }
-        List<string> excludeNames = new();
-        foreach (string name in entry.Exclude ?? new List<string>())
+        List<string> excludeNames = [];
+        foreach (string name in entry.Exclude ?? [])
         {
-            if (string.IsNullOrWhiteSpace(name) || name.Contains('/') || name.Contains('*'))
+            if (string.IsNullOrWhiteSpace(name) || name.Contains('/', StringComparison.Ordinal) || name.Contains('*', StringComparison.Ordinal))
             {
                 errors.Add($"constitution: exclude entry '{name}' must be a plain directory name");
                 valid = false;
@@ -289,15 +289,15 @@ public sealed class KnowledgeRegistry
         List<KnowledgeSource> sources, HashSet<string> seenIds)
     {
         string[] segments = root.Split('/');
-        if (segments.Any(segment => segment.Contains('*') && segment != "*"))
+        if (segments.Any(segment => segment.Contains('*', StringComparison.Ordinal) && segment != "*"))
         {
             return $"source '{id}': root '{root}' — only a whole '*' segment is supported (e.g. /home/u/Repository/*/docs)";
         }
 
-        List<(string Path, List<string> Matched)> candidates = new() { ("/", new List<string>()) };
+        List<(string Path, List<string> Matched)> candidates = [("/", new List<string>())];
         foreach (string segment in segments.Where(segment => segment.Length > 0))
         {
-            List<(string, List<string>)> next = new();
+            List<(string, List<string>)> next = [];
             foreach ((string path, List<string> matched) in candidates)
             {
                 if (segment == "*")
@@ -319,11 +319,11 @@ public sealed class KnowledgeRegistry
 
         foreach ((string path, List<string> matched) in candidates.Where(candidate => Directory.Exists(candidate.Path)))
         {
-            if (matched.Any(exclude.Contains))
+            if (matched.Exists(exclude.Contains))
             {
                 continue;
             }
-            string expandedId = id + "-" + string.Join("-", matched);
+            string expandedId = id + "-" + string.Join('-', matched);
             if (!seenIds.Add(expandedId))
             {
                 return $"duplicate source id '{expandedId}' (expanded from glob '{root}')";

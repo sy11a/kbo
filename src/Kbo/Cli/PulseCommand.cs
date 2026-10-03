@@ -26,7 +26,7 @@ public static class PulseCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -43,7 +43,7 @@ public static class PulseCommand
             ?? Path.Combine(homeDirectory, "Backups", "kb-restic");
         string resticPasswordFile = Path.Combine(homeDirectory, ".config", "kb-observability", "restic-password");
 
-        List<string> backupPaths = new() { archiveRoot, };
+        List<string> backupPaths = [archiveRoot,];
         KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
         if (vault is not null)
         {
@@ -55,24 +55,24 @@ public static class PulseCommand
         }
 
         ProcessRunner processRunner = new();
-        List<IPulseJob> jobs = new()
-        {
+        List<IPulseJob> jobs =
+        [
             new CommandJob("harvest", JobCadence.Daily,
                 (jobOutput, jobError) => HarvestCommand.Run(
-                    new[] { ClaudeCodeAdapter.AgentName }, jobOutput, jobError, environment, homeDirectory)),
+                    [ClaudeCodeAdapter.AgentName], jobOutput, jobError, environment, homeDirectory)),
             new CommandJob("harvest-opencode", JobCadence.Daily,
                 (jobOutput, jobError) => HarvestCommand.Run(
-                    new[] { OpencodeRetention.AgentName }, jobOutput, jobError, environment, homeDirectory)),
+                    [OpencodeRetention.AgentName], jobOutput, jobError, environment, homeDirectory)),
             new CommandJob("rebuild", JobCadence.Daily,
                 (jobOutput, jobError) => RebuildCommand.Run(
-                    Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)),
+                    [], jobOutput, jobError, environment, homeDirectory)),
             new IngestGraphMetricsJob(registry, eventsRepo, TimeProvider.System, Random.Shared),
             new ArchiveJob(
                 archiveRoot,
                 new[] { ClaudeCodeRetention.Manifest(homeDirectory), OpencodeRetention.Manifest(homeDirectory) },
                 TimeProvider.System,
                 processRunner),
-        };
+        ];
         if (vault is not null)
         {
             jobs.Add(new GitCommitJob("vault-git", vault.Root, processRunner, TimeProvider.System));
@@ -84,10 +84,10 @@ public static class PulseCommand
         jobs.Add(new BackupJob(resticRepo, resticPasswordFile, backupPaths, processRunner));
         jobs.Add(new CommandJob("report", JobDeadMan.CadenceOf("report"),
             (jobOutput, jobError) => ReportCommand.Run(
-                Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)));
+                [], jobOutput, jobError, environment, homeDirectory)));
         jobs.Add(new CommandJob("audit", JobDeadMan.CadenceOf("audit"),
             (jobOutput, jobError) => AuditCommand.Run(
-                Array.Empty<string>(), jobOutput, jobError, environment, homeDirectory)));
+                [], jobOutput, jobError, environment, homeDirectory)));
 
         int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, Random.Shared, output);
         return failures == 0 ? 0 : 1;

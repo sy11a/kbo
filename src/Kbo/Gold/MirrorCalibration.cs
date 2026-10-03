@@ -58,7 +58,7 @@ public static class MirrorCalibration
         int weeks = history.Count;
         if (weeks < RequiredHistoryWeeks)
         {
-            return new MirrorVerdict(StateWaiting, ClassWait, null, null, null, null, null, null, weeks);
+            return new MirrorVerdict(StateWaiting, ClassWait, CorridorLow: null, CorridorHigh: null, Median: null, Mad: null, SlopePerWeek: null, RobustZ: null, weeks);
         }
 
         double median = Percentile(history, 0.5);
@@ -112,11 +112,11 @@ public static class MirrorCalibration
     /// between the two neighbouring order statistics.</summary>
     public static double Percentile(IReadOnlyList<double> values, double p)
     {
-        double[] sorted = [.. values.OrderBy(value => value)];
+        double[] sorted = [.. values.Order()];
         double position = p * (sorted.Length - 1);
         int lower = (int)Math.Floor(position);
         int upper = (int)Math.Ceiling(position);
-        return lower == upper ? sorted[lower] : sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+        return lower == upper ? sorted[lower] : sorted[lower] + ((sorted[upper] - sorted[lower]) * (position - lower));
     }
 
     public static double MedianAbsoluteDeviation(IReadOnlyList<double> values, double median)

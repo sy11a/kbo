@@ -6,7 +6,7 @@ public class BackupJobTests
 {
     private sealed class FakeRunner(int exitCode = 0, string stderr = "") : IProcessRunner
     {
-        public List<(string FileName, IReadOnlyList<string> Arguments)> Invocations { get; } = new();
+        public List<(string FileName, IReadOnlyList<string> Arguments)> Invocations { get; } = [];
 
         public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
         {
@@ -27,15 +27,15 @@ public class BackupJobTests
         Assert.All(runner.Invocations, invocation => Assert.Equal("restic", invocation.FileName));
 
         IReadOnlyList<string> backupArguments = runner.Invocations[0].Arguments;
-        Assert.Contains("backup", backupArguments);
-        Assert.Contains("/archive", backupArguments);
-        Assert.Contains("/vault", backupArguments);
-        Assert.Contains("/backups/repo", backupArguments);
+        Assert.Contains("backup", backupArguments, StringComparer.Ordinal);
+        Assert.Contains("/archive", backupArguments, StringComparer.Ordinal);
+        Assert.Contains("/vault", backupArguments, StringComparer.Ordinal);
+        Assert.Contains("/backups/repo", backupArguments, StringComparer.Ordinal);
 
         IReadOnlyList<string> forgetArguments = runner.Invocations[1].Arguments;
-        Assert.Contains("forget", forgetArguments);
-        Assert.Contains("--prune", forgetArguments);
-        Assert.Contains("paths=2", summary);
+        Assert.Contains("forget", forgetArguments, StringComparer.Ordinal);
+        Assert.Contains("--prune", forgetArguments, StringComparer.Ordinal);
+        Assert.Contains("paths=2", summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -45,6 +45,6 @@ public class BackupJobTests
         BackupJob job = new("/backups/repo", "/secrets/pw", new[] { "/archive" }, runner);
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => job.Run());
-        Assert.Contains("repository locked", exception.Message);
+        Assert.Contains("repository locked", exception.Message, StringComparison.Ordinal);
     }
 }

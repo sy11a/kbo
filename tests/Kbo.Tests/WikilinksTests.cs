@@ -7,7 +7,7 @@ public class WikilinksTests
     [Fact]
     public void CountDistinct_NormalizesAliasesAnchorsAndDedupes()
     {
-        string body = "[[Alpha]] [[Alpha|shown differently]] [[Alpha#section]] [[Beta#heading]] ![[Gamma]]";
+        const string body = "[[Alpha]] [[Alpha|shown differently]] [[Alpha#section]] [[Beta#heading]] ![[Gamma]]";
 
         Assert.Equal(3, Wikilinks.CountDistinct(body));
     }
@@ -20,10 +20,7 @@ public class WikilinksTests
     }
 
     [Fact]
-    public void CountDistinct_IgnoresBareAnchorSelfReferences()
-    {
-        Assert.Equal(0, Wikilinks.CountDistinct("see [[#next-section]]"));
-    }
+    public void CountDistinct_IgnoresBareAnchorSelfReferences() => Assert.Equal(0, Wikilinks.CountDistinct("see [[#next-section]]"));
 
     [Fact]
     public void CountDistinct_ReturnsZeroWithoutWikilinks()
@@ -33,8 +30,5 @@ public class WikilinksTests
     }
 
     [Fact]
-    public void CountDistinct_KeepsAliasBeforeAnchorStripping()
-    {
-        Assert.Equal(1, Wikilinks.CountDistinct("[[Alpha#section|alias]] [[Alpha]]"));
-    }
+    public void CountDistinct_KeepsAliasBeforeAnchorStripping() => Assert.Equal(1, Wikilinks.CountDistinct("[[Alpha#section|alias]] [[Alpha]]"));
 }

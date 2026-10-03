@@ -22,15 +22,12 @@ public class ArchiveJobTests : IDisposable
         workspace = Directory.CreateTempSubdirectory("kbo-archive-tests").FullName;
         sourceRoot = Path.Combine(workspace, "projects");
         archiveRoot = Path.Combine(workspace, "archive");
-        Directory.CreateDirectory(Path.Combine(sourceRoot, "proj-a"));
-        File.WriteAllText(Path.Combine(sourceRoot, "proj-a", "sess-1.jsonl"), "{\"a\":1}\n");
+        _ = Directory.CreateDirectory(Path.Combine(sourceRoot, "proj-a"));
+        File.WriteAllText(Path.Combine(sourceRoot, "proj-a", "sess-1.jsonl"), /*lang=json,strict*/ "{\"a\":1}\n");
         File.WriteAllText(Path.Combine(sourceRoot, "proj-a", "notes.txt"), "not a transcript");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private ArchiveJob Job(params ArchiveEntry[] entries)
     {
@@ -52,22 +49,22 @@ public class ArchiveJobTests : IDisposable
         string archived = Path.Combine(archiveRoot, "test-agent", "projects", "proj-a", "sess-1.jsonl.zst");
         Assert.True(File.Exists(archived));
         Assert.False(File.Exists(Path.Combine(archiveRoot, "test-agent", "projects", "proj-a", "notes.txt.zst")));
-        Assert.Contains("copied=1", firstSummary);
-        Assert.Contains("copied=0", secondSummary);
+        Assert.Contains("copied=1", firstSummary, StringComparison.Ordinal);
+        Assert.Contains("copied=0", secondSummary, StringComparison.Ordinal);
     }
 
     [Fact]
     public void FileTree_ChangedSource_IsRecompressed()
     {
         ArchiveJob job = Job(new FileTreeEntry(sourceRoot, "*.jsonl", "test-agent/projects"));
-        job.Run();
+        _ = job.Run();
         string sourceFile = Path.Combine(sourceRoot, "proj-a", "sess-1.jsonl");
-        File.WriteAllText(sourceFile, "{\"a\":2}\n");
+        File.WriteAllText(sourceFile, /*lang=json,strict*/ "{\"a\":2}\n");
         File.SetLastWriteTimeUtc(sourceFile, DateTime.UtcNow.AddMinutes(5));
 
         string summary = job.Run();
 
-        Assert.Contains("copied=1", summary);
+        Assert.Contains("copied=1", summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -79,7 +76,7 @@ public class ArchiveJobTests : IDisposable
             connection.Open();
             using SqliteCommand command = connection.CreateCommand();
             command.CommandText = "CREATE TABLE sessions (id TEXT); INSERT INTO sessions VALUES ('s1');";
-            command.ExecuteNonQuery();
+            _ = command.ExecuteNonQuery();
         }
         SqliteConnection.ClearAllPools();
 
@@ -88,9 +85,9 @@ public class ArchiveJobTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(archiveRoot, "opencode", "opencode-latest.db.zst")));
         Assert.True(File.Exists(Path.Combine(archiveRoot, "opencode", "opencode-2026-W33.db.zst")));
-        Assert.Contains("copied=2", summary);
+        Assert.Contains("copied=2", summary, StringComparison.Ordinal);
 
-        Assert.Contains("copied=0", job.Run());
+        Assert.Contains("copied=0", job.Run(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,6 +98,6 @@ public class ArchiveJobTests : IDisposable
             new SqliteEntry(Path.Combine(workspace, "no.db"), "y", "latest.db", "y-"),
             new SingleFileEntry(Path.Combine(workspace, "no-file.jsonl"), "z/history.jsonl"));
 
-        Assert.Contains("copied=0", job.Run());
+        Assert.Contains("copied=0", job.Run(), StringComparison.Ordinal);
     }
 }

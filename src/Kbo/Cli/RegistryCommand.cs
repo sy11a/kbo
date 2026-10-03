@@ -13,7 +13,7 @@ public static class RegistryCommand
         Func<string, string?> environment,
         string homeDirectory)
     {
-        List<string> positional = new();
+        List<string> positional = [];
         string? explicitRegistryPath = null;
         for (int index = 0; index < args.Length; index++)
         {

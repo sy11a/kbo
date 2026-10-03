@@ -22,7 +22,7 @@ public class HarvestCommandTests : IDisposable
         eventsRepo = Path.Combine(workspace, "kb-events");
         registryPath = Path.Combine(workspace, "registry.yaml");
         string vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         File.WriteAllText(registryPath, $"""
             machine: test-machine
             sources:
@@ -41,7 +41,7 @@ public class HarvestCommandTests : IDisposable
     private void WriteTranscript(string project, string sessionId, string toolName, string filePath, string? fileName = null)
     {
         string directory = Path.Combine(transcriptsRoot, project);
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         string line = new JsonObject
         {
             ["type"] = "assistant",
@@ -69,7 +69,7 @@ public class HarvestCommandTests : IDisposable
     private void WriteReadAndSkillTranscript(string project, string sessionId, string skillName)
     {
         string directory = Path.Combine(transcriptsRoot, project);
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         string line = new JsonObject
         {
             ["type"] = "assistant",
@@ -116,15 +116,15 @@ public class HarvestCommandTests : IDisposable
                 id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT NOT NULL,
                 time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL);
             """;
-        create.ExecuteNonQuery();
+        _ = create.ExecuteNonQuery();
 
         long baseMs = DateTimeOffset.Parse("2026-07-01T10:00:00Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
         using SqliteCommand insertSession = connection.CreateCommand();
         insertSession.CommandText = "INSERT INTO session VALUES (@id, @dir, 'build', '{\"id\":\"glm-5.1\"}', 0, 0, 0, @t, @t)";
-        insertSession.Parameters.AddWithValue("@id", sessionId);
-        insertSession.Parameters.AddWithValue("@dir", workspace);
-        insertSession.Parameters.AddWithValue("@t", baseMs);
-        insertSession.ExecuteNonQuery();
+        _ = insertSession.Parameters.AddWithValue("@id", sessionId);
+        _ = insertSession.Parameters.AddWithValue("@dir", workspace);
+        _ = insertSession.Parameters.AddWithValue("@t", baseMs);
+        _ = insertSession.ExecuteNonQuery();
 
         JsonObject skillPart = new()
         {
@@ -140,10 +140,10 @@ public class HarvestCommandTests : IDisposable
         };
         using SqliteCommand insertPart = connection.CreateCommand();
         insertPart.CommandText = "INSERT INTO part VALUES ('prt_1', 'msg_1', @session, @t, @t, @data)";
-        insertPart.Parameters.AddWithValue("@session", sessionId);
-        insertPart.Parameters.AddWithValue("@t", baseMs + 60_000);
-        insertPart.Parameters.AddWithValue("@data", skillPart.ToJsonString());
-        insertPart.ExecuteNonQuery();
+        _ = insertPart.Parameters.AddWithValue("@session", sessionId);
+        _ = insertPart.Parameters.AddWithValue("@t", baseMs + 60_000);
+        _ = insertPart.Parameters.AddWithValue("@data", skillPart.ToJsonString());
+        _ = insertPart.ExecuteNonQuery();
 
         JsonObject writePart = new()
         {
@@ -163,10 +163,10 @@ public class HarvestCommandTests : IDisposable
         };
         using SqliteCommand insertWrite = connection.CreateCommand();
         insertWrite.CommandText = "INSERT INTO part VALUES ('prt_2', 'msg_1', @session, @t, @t, @data)";
-        insertWrite.Parameters.AddWithValue("@session", sessionId);
-        insertWrite.Parameters.AddWithValue("@t", baseMs + 90_000);
-        insertWrite.Parameters.AddWithValue("@data", writePart.ToJsonString());
-        insertWrite.ExecuteNonQuery();
+        _ = insertWrite.Parameters.AddWithValue("@session", sessionId);
+        _ = insertWrite.Parameters.AddWithValue("@t", baseMs + 90_000);
+        _ = insertWrite.Parameters.AddWithValue("@data", writePart.ToJsonString());
+        _ = insertWrite.ExecuteNonQuery();
     }
 
     private int RunOpencode(string databasePath, params string[] extraArgs)
@@ -177,7 +177,7 @@ public class HarvestCommandTests : IDisposable
             "KBO_EVENTS_REPO" => eventsRepo,
             _ => null,
         };
-        string[] args = new[] { "opencode", "--db", databasePath }.Concat(extraArgs).ToArray();
+        string[] args = ["opencode", "--db", databasePath, .. extraArgs];
         return HarvestCommand.Run(args, output, error, Environment, workspace);
     }
 
@@ -189,7 +189,7 @@ public class HarvestCommandTests : IDisposable
             "KBO_EVENTS_REPO" => eventsRepo,
             _ => null,
         };
-        string[] args = new[] { "claude-code", "--transcripts", transcriptsRoot }.Concat(extraArgs).ToArray();
+        string[] args = ["claude-code", "--transcripts", transcriptsRoot, .. extraArgs];
         return HarvestCommand.Run(args, output, error, Environment, workspace);
     }
 
@@ -207,22 +207,22 @@ public class HarvestCommandTests : IDisposable
         string[] lines = File.ReadAllLines(monthFile);
         EventValidator validator = new();
         Assert.All(lines, line => Assert.True(validator.Validate(line).IsValid));
-        Assert.Equal(2, lines.Count(l => l.Contains("\"session.started\"")));
-        Assert.Contains(lines, l => l.Contains("\"knowledge.read\"") && l.Contains("sess-a"));
+        Assert.Equal(2, lines.Count(l => l.Contains("\"session.started\"", StringComparison.Ordinal)));
+        Assert.Contains(lines, l => l.Contains("\"knowledge.read\"", StringComparison.Ordinal) && l.Contains("sess-a", StringComparison.Ordinal));
         // per R-005 — the mined write rides v2 end-to-end into bronze with a
         // null linkcount, and the validator accepts it there.
-        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"")
-            && l.Contains("\"knowledge.written/2\"")
-            && l.Contains("\"linkcount\":null")
-            && l.Contains("sess-b"));
-        Assert.Contains("2 session", output.ToString());
+        Assert.Contains(lines, l => l.Contains("\"knowledge.written\"", StringComparison.Ordinal)
+            && l.Contains("\"knowledge.written/2\"", StringComparison.Ordinal)
+            && l.Contains("\"linkcount\":null", StringComparison.Ordinal)
+            && l.Contains("sess-b", StringComparison.Ordinal));
+        Assert.Contains("2 session", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void Harvest_Rerun_SkipsAlreadyHarvestedSessions()
     {
         WriteTranscript("proj-a", "sess-a", "Read", Path.Combine(workspace, "Knowledge", "note.md"));
-        Run();
+        _ = Run();
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         int linesAfterFirstRun = File.ReadAllLines(monthFile).Length;
@@ -238,7 +238,7 @@ public class HarvestCommandTests : IDisposable
     {
         WriteTranscript("proj-a", "sess-original", "Read",
             Path.Combine(workspace, "Knowledge", "note.md"), fileName: "continuation-file");
-        Run();
+        _ = Run();
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         int linesAfterFirstRun = File.ReadAllLines(monthFile).Length;
@@ -248,7 +248,7 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, exitCode);
         Assert.Equal(linesAfterFirstRun, File.ReadAllLines(monthFile).Length);
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"transcript\":\"continuation-file\"") && l.Contains("sess-original"));
+            l => l.Contains("\"transcript\":\"continuation-file\"", StringComparison.Ordinal) && l.Contains("sess-original", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public class HarvestCommandTests : IDisposable
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
-        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"origin\":\"harvest\"") && l.Contains("sess-a"));
+        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"origin\":\"harvest\"", StringComparison.Ordinal) && l.Contains("sess-a", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public class HarvestCommandTests : IDisposable
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"tdd\""));
+            l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"tdd\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -302,9 +302,9 @@ public class HarvestCommandTests : IDisposable
         // per R-005 — the opencode miner stamps v2 and never counts links,
         // even though the transcript carries the written content.
         Assert.Contains(File.ReadAllLines(monthFile),
-            l => l.Contains("\"knowledge.written\"")
-                && l.Contains("\"knowledge.written/2\"")
-                && l.Contains("\"linkcount\":null"));
+            l => l.Contains("\"knowledge.written\"", StringComparison.Ordinal)
+                && l.Contains("\"knowledge.written/2\"", StringComparison.Ordinal)
+                && l.Contains("\"linkcount\":null", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -331,9 +331,9 @@ public class HarvestCommandTests : IDisposable
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         string[] afterBackfill = File.ReadAllLines(monthFile);
-        Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"tdd\""));
+        _ = Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"tdd\"", StringComparison.Ordinal));
         // The read/session events were NOT re-mined (only skill.invoked is additive).
-        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\""));
+        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\"", StringComparison.Ordinal));
 
         Assert.Equal(0, Run("--backfill-skills"));
         Assert.Equal(afterBackfill.Length, File.ReadAllLines(monthFile).Length);
@@ -364,9 +364,9 @@ public class HarvestCommandTests : IDisposable
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "opencode")).Single();
         string[] afterBackfill = File.ReadAllLines(monthFile);
-        Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"") && l.Contains("\"skill\":\"grilling\""));
+        _ = Assert.Single(afterBackfill, l => l.Contains("\"skill.invoked\"", StringComparison.Ordinal) && l.Contains("\"skill\":\"grilling\"", StringComparison.Ordinal));
         // The session.started event was NOT re-mined (only skill.invoked is additive).
-        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\""));
+        Assert.DoesNotContain(afterBackfill, l => l.Contains("\"session.started\"", StringComparison.Ordinal));
 
         Assert.Equal(0, RunOpencode(databasePath, "--backfill-skills"));
         Assert.Equal(afterBackfill.Length, File.ReadAllLines(monthFile).Length);
@@ -376,10 +376,10 @@ public class HarvestCommandTests : IDisposable
     public void Harvest_NoTranscriptsDirectory_FailsWithError()
     {
         int exitCode = HarvestCommand.Run(
-            new[] { "claude-code", "--transcripts", Path.Combine(workspace, "missing") },
+            ["claude-code", "--transcripts", Path.Combine(workspace, "missing")],
             output, error, _ => registryPath, workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("missing", error.ToString());
+        Assert.Contains("missing", error.ToString(), StringComparison.Ordinal);
     }
 }

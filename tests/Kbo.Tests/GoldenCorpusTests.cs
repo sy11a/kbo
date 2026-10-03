@@ -1,3 +1,4 @@
+using System.Globalization;
 using Kbo.Schemas;
 
 namespace Kbo.Tests;
@@ -10,8 +11,8 @@ public class GoldenCorpusTests
 
     public static TheoryData<string, int, string> GoldenEvents()
     {
-        TheoryData<string, int, string> data = new();
-        foreach (string file in Directory.EnumerateFiles(GoldenDirectory, "*.ndjson").Order())
+        TheoryData<string, int, string> data = [];
+        foreach (string file in Directory.EnumerateFiles(GoldenDirectory, "*.ndjson").Order(StringComparer.Ordinal))
         {
             string[] lines = File.ReadAllLines(file);
             for (int lineNumber = 1; lineNumber <= lines.Length; lineNumber++)
@@ -32,17 +33,16 @@ public class GoldenCorpusTests
         // per R-008 — old-version golden lines stay valid after every bump.
         EventValidationResult result = Validator.Validate(eventJson);
 
-        Assert.True(result.IsValid, $"{file}:{lineNumber} failed validation: {string.Join("; ", result.Errors)}");
+        Assert.True(result.IsValid, string.Create(CultureInfo.InvariantCulture, $"{file}:{lineNumber} failed validation: {string.Join("; ", result.Errors)}"));
     }
 
     [Fact]
     public void Every_schema_version_has_golden_coverage()
     {
         // per R-006 — a new schema version without golden coverage fails here.
-        HashSet<string> coveredRefs = GoldenEvents()
+        HashSet<string> coveredRefs = [.. GoldenEvents()
             .Select(row => Path.GetFileNameWithoutExtension((string)row[0]))
-            .Select(name => name[..name.LastIndexOf('.')] + "/" + name[(name.LastIndexOf('.') + 1)..])
-            .ToHashSet();
+            .Select(name => name[..name.LastIndexOf('.')] + "/" + name[(name.LastIndexOf('.') + 1)..])];
 
         foreach (string knownRef in Validator.KnownSchemaRefs)
         {

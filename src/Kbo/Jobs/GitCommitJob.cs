@@ -35,10 +35,10 @@ public sealed class GitCommitJob : IPulseJob
 
         if (!Directory.Exists(Path.Combine(root, ".git")))
         {
-            Git("init", "--quiet");
+            _ = Git("init", "--quiet");
         }
 
-        Git("add", "-A");
+        _ = Git("add", "-A");
 
         ProcessResult status = Git("status", "--porcelain");
         if (status.StandardOutput.Trim().Length == 0)
@@ -47,16 +47,15 @@ public sealed class GitCommitJob : IPulseJob
         }
 
         string message = "kbo auto-commit " + clock.GetUtcNow().UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        Git("-c", "user.name=kbo", "-c", "user.email=kbo@localhost", "commit", "--quiet", "-m", message);
+        _ = Git("-c", "user.name=kbo", "-c", "user.email=kbo@localhost", "commit", "--quiet", "-m", message);
 
         int changedFiles = status.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
-        return $"committed {changedFiles} change(s)";
+        return string.Create(CultureInfo.InvariantCulture, $"committed {changedFiles} change(s)");
     }
 
     private ProcessResult Git(params string[] arguments)
     {
-        List<string> fullArguments = new() { "-C", root };
-        fullArguments.AddRange(arguments);
+        List<string> fullArguments = ["-C", root, .. arguments];
         ProcessResult result = processRunner.Run("git", fullArguments);
         if (result.ExitCode != 0)
         {

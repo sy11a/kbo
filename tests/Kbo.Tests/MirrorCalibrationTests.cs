@@ -59,10 +59,10 @@ public class MirrorCalibrationTests
 
         Assert.Equal(MirrorCalibration.StateStableSick, verdict.State);
         Assert.Equal(MirrorCalibration.ClassSick, verdict.StatusClass);
-        Assert.NotEqual(MirrorCalibration.ClassAcute, verdict.StatusClass);
+        Assert.NotEqual(MirrorCalibration.ClassAcute, verdict.StatusClass, StringComparer.Ordinal);
         Assert.Equal(0.227, verdict.CorridorLow!.Value, 4);
         Assert.Equal(0.294, verdict.CorridorHigh!.Value, 4);
-        Assert.True(verdict.RobustZ is null || verdict.RobustZ <= MirrorCalibration.AcuteZThreshold);
+        Assert.True(verdict.RobustZ is null or <= MirrorCalibration.AcuteZThreshold);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class MirrorCalibrationTests
     [Fact]
     public void Evaluate_SaturatedSeries_UsesAbsoluteFloor()
     {
-        double[] saturated = { 0, 0, 0, 0, 0, 0, 0 };
+        double[] saturated = [0, 0, 0, 0, 0, 0, 0];
 
         MirrorVerdict jolt = MirrorCalibration.Evaluate(saturated, 0.05, DownGoal, trust: true);
         Assert.Equal(MirrorCalibration.StateAcute, jolt.State);
@@ -118,7 +118,7 @@ public class MirrorCalibrationTests
     {
         // A steady ramp that would flag 📈 on a goal-bearing tile stays 🟢 on a
         // trust tile — only an acute break may alarm (design session 2026-08-27).
-        double[] ramp = { 0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96 };
+        double[] ramp = [0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96];
 
         MirrorVerdict trust = MirrorCalibration.Evaluate(ramp, 0.96, goal: null, trust: true);
         Assert.Equal(MirrorCalibration.StateStableGood, trust.State);
@@ -136,7 +136,7 @@ public class MirrorCalibrationTests
         MirrorVerdict verdict = MirrorCalibration.Evaluate(
             new double[] { 0.198, 0.318, 0.217, 0.270, 0.237, 0.366, 0.270 }, 0.28, DownGoal, trust: false);
 
-        Assert.NotEqual(MirrorCalibration.ClassTrend, verdict.StatusClass);
+        Assert.NotEqual(MirrorCalibration.ClassTrend, verdict.StatusClass, StringComparer.Ordinal);
     }
 
     [Fact]

@@ -12,7 +12,7 @@ public class InitCommandTests : IDisposable
 
     private sealed class FakeRunner : IProcessRunner
     {
-        public List<(string FileName, IReadOnlyList<string> Arguments)> Invocations { get; } = new();
+        public List<(string FileName, IReadOnlyList<string> Arguments)> Invocations { get; } = [];
 
         public ProcessResult Run(string fileName, IReadOnlyList<string> arguments)
         {
@@ -27,7 +27,7 @@ public class InitCommandTests : IDisposable
     {
         home = Directory.CreateTempSubdirectory("kbo-init-tests").FullName;
         string vaultRoot = Path.Combine(home, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         registryPath = Path.Combine(home, "registry.yaml");
         File.WriteAllText(registryPath, $"""
             machine: test-machine
@@ -38,15 +38,12 @@ public class InitCommandTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(home, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(home, recursive: true);
 
     private int Run()
     {
         return InitCommand.Run(
-            Array.Empty<string>(), output, error,
+            [], output, error,
             name => name == "KBO_REGISTRY" ? registryPath : null,
             home, runner);
     }
@@ -61,27 +58,27 @@ public class InitCommandTests : IDisposable
         string service = File.ReadAllText(Path.Combine(unitDirectory, "kbo-pulse.service"));
         string timer = File.ReadAllText(Path.Combine(unitDirectory, "kbo-pulse.timer"));
 
-        Assert.Contains("kbo pulse", service);
-        Assert.Contains("Type=oneshot", service);
-        Assert.Contains("OnCalendar=hourly", timer);
-        Assert.Contains("Persistent=true", timer);
+        Assert.Contains("kbo pulse", service, StringComparison.Ordinal);
+        Assert.Contains("Type=oneshot", service, StringComparison.Ordinal);
+        Assert.Contains("OnCalendar=hourly", timer, StringComparison.Ordinal);
+        Assert.Contains("Persistent=true", timer, StringComparison.Ordinal);
 
-        Assert.Contains(runner.Invocations, i => i.FileName == "systemctl" && i.Arguments.Contains("daemon-reload"));
+        Assert.Contains(runner.Invocations, i => i.FileName == "systemctl" && i.Arguments.Contains("daemon-reload", StringComparer.Ordinal));
         Assert.Contains(runner.Invocations,
-            i => i.FileName == "systemctl" && i.Arguments.Contains("enable") && i.Arguments.Contains("kbo-pulse.timer"));
+            i => i.FileName == "systemctl" && i.Arguments.Contains("enable", StringComparer.Ordinal) && i.Arguments.Contains("kbo-pulse.timer", StringComparer.Ordinal));
 
         string doctor = File.ReadAllText(Path.Combine(unitDirectory, "kbo-doctor.service"));
-        Assert.Contains("kbo doctor --notify", doctor);
-        Assert.Contains("WantedBy=default.target", doctor);
+        Assert.Contains("kbo doctor --notify", doctor, StringComparison.Ordinal);
+        Assert.Contains("WantedBy=default.target", doctor, StringComparison.Ordinal);
         Assert.Contains(runner.Invocations,
-            i => i.FileName == "systemctl" && i.Arguments.Contains("enable") && i.Arguments.Contains("kbo-doctor.service"));
+            i => i.FileName == "systemctl" && i.Arguments.Contains("enable", StringComparer.Ordinal) && i.Arguments.Contains("kbo-doctor.service", StringComparer.Ordinal));
     }
 
     [Fact]
     public void Init_DisablesPhaseZeroTimers_WhenPresent()
     {
         string unitDirectory = Path.Combine(home, ".config", "systemd", "user");
-        Directory.CreateDirectory(unitDirectory);
+        _ = Directory.CreateDirectory(unitDirectory);
         File.WriteAllText(Path.Combine(unitDirectory, "kb-archive.timer"), "[Timer]");
         File.WriteAllText(Path.Combine(unitDirectory, "kb-backup.timer"), "[Timer]");
 
@@ -89,17 +86,17 @@ public class InitCommandTests : IDisposable
 
         Assert.Equal(0, exitCode);
         Assert.Contains(runner.Invocations,
-            i => i.FileName == "systemctl" && i.Arguments.Contains("disable") && i.Arguments.Contains("kb-archive.timer"));
+            i => i.FileName == "systemctl" && i.Arguments.Contains("disable", StringComparer.Ordinal) && i.Arguments.Contains("kb-archive.timer", StringComparer.Ordinal));
         Assert.Contains(runner.Invocations,
-            i => i.FileName == "systemctl" && i.Arguments.Contains("disable") && i.Arguments.Contains("kb-backup.timer"));
+            i => i.FileName == "systemctl" && i.Arguments.Contains("disable", StringComparer.Ordinal) && i.Arguments.Contains("kb-backup.timer", StringComparer.Ordinal));
     }
 
     [Fact]
     public void Init_NoPhaseZeroTimers_DoesNotTryToDisable()
     {
-        Run();
+        _ = Run();
 
-        Assert.DoesNotContain(runner.Invocations, i => i.Arguments.Contains("disable"));
+        Assert.DoesNotContain(runner.Invocations, i => i.Arguments.Contains("disable", StringComparer.Ordinal));
     }
 
     [Fact]

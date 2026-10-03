@@ -39,7 +39,7 @@ public static class DoctorCommand
             }
         }
 
-        List<string> problems = new();
+        List<string> problems = [];
 
         ProcessResult timerState = processRunner.Run("systemctl", new[] { "--user", "is-active", "kbo-pulse.timer" });
         string timerStatus = timerState.StandardOutput.Trim();
@@ -63,7 +63,7 @@ public static class DoctorCommand
             double daysSilent = (now - last).TotalDays;
             if (daysSilent > JobDeadMan.ThresholdDays(job))
             {
-                string line = $"{job}: SILENT {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d (last {last:yyyy-MM-dd})";
+                string line = string.Create(CultureInfo.InvariantCulture, $"{job}: SILENT {daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d (last {last:yyyy-MM-dd})");
                 output.WriteLine(line);
                 problems.Add(line);
             }
@@ -102,9 +102,7 @@ public static class DoctorCommand
             return;
         }
 
-        string[] drops = File.ReadAllLines(captureLog)
-            .Where(line => line.Trim().Length > 0)
-            .ToArray();
+        string[] drops = [.. File.ReadAllLines(captureLog).Where(line => line.Trim().Length > 0)];
         if (drops.Length == 0)
         {
             return;
@@ -137,25 +135,25 @@ public static class DoctorCommand
         List<string> arguments;
         if (problems.Count == 0)
         {
-            arguments = new List<string>
-            {
+            arguments =
+            [
                 "--app-name=kbo", "--urgency", "normal",
                 "kbo: healthy", "pulse timer armed; all jobs within the dead-man threshold",
-            };
+            ];
         }
         else
         {
             StringBuilder body = new();
             foreach (string problem in problems)
             {
-                body.AppendLine(problem);
+                _ = body.AppendLine(problem);
             }
-            arguments = new List<string>
-            {
+            arguments =
+            [
                 "--app-name=kbo", "--urgency", "critical",
                 $"kbo: {problems.Count} problem(s)", body.ToString().Trim(),
-            };
+            ];
         }
-        processRunner.Run("notify-send", arguments);
+        _ = processRunner.Run("notify-send", arguments);
     }
 }

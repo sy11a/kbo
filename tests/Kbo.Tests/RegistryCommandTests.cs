@@ -23,15 +23,9 @@ public class RegistryCommandTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        File.Delete(registryPath);
-    }
+    public void Dispose() => File.Delete(registryPath);
 
-    private int Run(params string[] args)
-    {
-        return RegistryCommand.Run(args, output, error, _ => null, "/home/nobody");
-    }
+    private int Run(params string[] args) => RegistryCommand.Run(args, output, error, _ => null, "/home/nobody");
 
     [Fact]
     public void Show_PrintsMachineAndSources()
@@ -39,9 +33,9 @@ public class RegistryCommandTests : IDisposable
         int exitCode = Run("show", "--registry", registryPath);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("example-machine", output.ToString());
-        Assert.Contains("knowledge", output.ToString());
-        Assert.Contains("/home/admin/.claude/skills", output.ToString());
+        Assert.Contains("example-machine", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("knowledge", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("/home/admin/.claude/skills", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -68,7 +62,7 @@ public class RegistryCommandTests : IDisposable
         int exitCode = Run("show", "--registry", "/nonexistent/registry.yaml");
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("/nonexistent/registry.yaml", error.ToString());
+        Assert.Contains("/nonexistent/registry.yaml", error.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,7 +78,7 @@ public class RegistryCommandTests : IDisposable
     public void EnvironmentVariable_LocatesRegistry()
     {
         int exitCode = RegistryCommand.Run(
-            new[] { "resolve", "/home/admin/Knowledge/a.md" },
+            ["resolve", "/home/admin/Knowledge/a.md"],
             output,
             error,
             name => name == "KBO_REGISTRY" ? registryPath : null,

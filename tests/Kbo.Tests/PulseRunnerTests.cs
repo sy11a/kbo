@@ -24,7 +24,7 @@ public class PulseRunnerTests : IDisposable
     {
         public string Name => name;
         public JobCadence Cadence => cadence;
-        public List<DateTimeOffset> Runs { get; } = new();
+        public List<DateTimeOffset> Runs { get; } = [];
 
         public string Run()
         {
@@ -40,40 +40,33 @@ public class PulseRunnerTests : IDisposable
         eventsRepo = Path.Combine(workspace, "kb-events");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
-    private int RunPulse(params IPulseJob[] jobs)
-    {
-        return PulseRunner.Run(jobs, eventsRepo, "test-machine", new FixedTimeProvider(Now), new Random(42), output);
-    }
+    private int RunPulse(params IPulseJob[] jobs) => PulseRunner.Run(jobs, eventsRepo, "test-machine", new FixedTimeProvider(Now), new Random(42), output);
 
     private List<JsonObject> BronzeEvents()
     {
         string directory = Path.Combine(eventsRepo, "bronze", "test-machine", "kbo");
         if (!Directory.Exists(directory))
         {
-            return new List<JsonObject>();
+            return [];
         }
-        return Directory.EnumerateFiles(directory)
+        return [.. Directory.EnumerateFiles(directory)
             .SelectMany(File.ReadLines)
-            .Select(line => (JsonObject)JsonNode.Parse(line)!)
-            .ToList();
+            .Select(line => (JsonObject)JsonNode.Parse(line)!)];
     }
 
     [Fact]
     public void DailyJobs_RunInOrder_AndEmitValidCompletedEvents()
     {
-        List<string> order = new();
+        List<string> order = [];
         FakeJob first = new("harvest", JobCadence.Daily, () => order.Add("harvest"));
         FakeJob second = new("rebuild", JobCadence.Daily, () => order.Add("rebuild"));
 
         int failures = RunPulse(first, second);
 
         Assert.Equal(0, failures);
-        Assert.Equal(new[] { "harvest", "rebuild" }, order);
+        Assert.Equal(new[] { "harvest", "rebuild" }, order, StringComparer.Ordinal);
 
         List<JsonObject> events = BronzeEvents();
         Assert.Equal(2, events.Count);
@@ -96,11 +89,11 @@ public class PulseRunnerTests : IDisposable
         int failures = RunPulse(failing, after);
 
         Assert.Equal(1, failures);
-        Assert.Single(after.Runs);
+        _ = Assert.Single(after.Runs);
 
         JsonObject failed = BronzeEvents().Single(e => (string?)e["type"] == "job.failed");
         Assert.Equal("archive", (string?)failed["subject"]);
-        Assert.Contains("zstd not found", (string?)failed["data"]!["error"]);
+        Assert.Contains("zstd not found", (string?)failed["data"]!["error"], StringComparison.Ordinal);
         Assert.True(new EventValidator().Validate(failed.ToJsonString()).IsValid);
     }
 
@@ -110,9 +103,9 @@ public class PulseRunnerTests : IDisposable
         new BronzeStore(eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
-                "job.completed", "harvest", null,
+                "job.completed", "harvest", kbroot: null,
                 new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 },
-                "test-machine", "kbo", null, null, null, null,
+                "test-machine", "kbo", session: null, repo: null, task: null, model: null,
                 Now.AddHours(-3), new Random(1)),
         });
         FakeJob harvest = new("harvest", JobCadence.Daily);
@@ -129,16 +122,16 @@ public class PulseRunnerTests : IDisposable
         new BronzeStore(eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
-                "job.completed", "harvest", null,
+                "job.completed", "harvest", kbroot: null,
                 new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 },
-                "test-machine", "kbo", null, null, null, null,
+                "test-machine", "kbo", session: null, repo: null, task: null, model: null,
                 Now.AddHours(-20), new Random(1)),
         });
         FakeJob harvest = new("harvest", JobCadence.Daily);
 
-        RunPulse(harvest);
+        _ = RunPulse(harvest);
 
-        Assert.Single(harvest.Runs);
+        _ = Assert.Single(harvest.Runs);
     }
 
     [Fact]
@@ -147,16 +140,16 @@ public class PulseRunnerTests : IDisposable
         new BronzeStore(eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
-                "job.failed", "backup", null,
+                "job.failed", "backup", kbroot: null,
                 new JsonObject { ["job"] = "backup", ["duration_ms"] = null, ["error"] = "locked" },
-                "test-machine", "kbo", null, null, null, null,
+                "test-machine", "kbo", session: null, repo: null, task: null, model: null,
                 Now.AddHours(-1), new Random(1)),
         });
         FakeJob backup = new("backup", JobCadence.Daily);
 
-        RunPulse(backup);
+        _ = RunPulse(backup);
 
-        Assert.Single(backup.Runs);
+        _ = Assert.Single(backup.Runs);
     }
 
     [Fact]
@@ -165,9 +158,9 @@ public class PulseRunnerTests : IDisposable
         new BronzeStore(eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
-                "job.completed", "report", null,
+                "job.completed", "report", kbroot: null,
                 new JsonObject { ["job"] = "report", ["duration_ms"] = 5 },
-                "test-machine", "kbo", null, null, null, null,
+                "test-machine", "kbo", session: null, repo: null, task: null, model: null,
                 Now.AddDays(-2), new Random(1)),
         });
         FakeJob report = new("report", JobCadence.Weekly);
@@ -184,9 +177,9 @@ public class PulseRunnerTests : IDisposable
         new BronzeStore(eventsRepo).Append(new[]
         {
             EventEnvelope.Create(
-                "job.completed", "report", null,
+                "job.completed", "report", kbroot: null,
                 new JsonObject { ["job"] = "report", ["duration_ms"] = 5 },
-                "test-machine", "kbo", null, null, null, null,
+                "test-machine", "kbo", session: null, repo: null, task: null, model: null,
                 Now.AddDays(-8), new Random(1)),
         });
         FakeJob report = new("report", JobCadence.Weekly);
@@ -195,7 +188,7 @@ public class PulseRunnerTests : IDisposable
         int failures = RunPulse(report, fresh);
 
         Assert.Equal(0, failures);
-        Assert.Single(report.Runs);
-        Assert.Single(fresh.Runs);
+        _ = Assert.Single(report.Runs);
+        _ = Assert.Single(fresh.Runs);
     }
 }

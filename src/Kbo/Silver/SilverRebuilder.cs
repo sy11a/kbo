@@ -85,7 +85,7 @@ public static class SilverRebuilder
     public static RebuildResult Rebuild(string eventsRepoRoot, string silverPath)
     {
         string silverDirectory = Path.GetDirectoryName(Path.GetFullPath(silverPath))!;
-        Directory.CreateDirectory(silverDirectory);
+        _ = Directory.CreateDirectory(silverDirectory);
         string silverFileName = Path.GetFileName(silverPath);
         SweepStaleTempFiles(silverDirectory, silverFileName);
 
@@ -161,7 +161,7 @@ public static class SilverRebuilder
             using DuckDBAppender appender = connection.CreateAppender("events");
             foreach (string monthFile in Directory
                 .EnumerateFiles(bronzeRoot, "*.ndjsonl", SearchOption.AllDirectories)
-                .Order())
+                .Order(StringComparer.Ordinal))
             {
                 foreach (string line in File.ReadLines(monthFile))
                 {
@@ -241,6 +241,6 @@ public static class SilverRebuilder
     {
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = sql;
-        command.ExecuteNonQuery();
+        _ = command.ExecuteNonQuery();
     }
 }

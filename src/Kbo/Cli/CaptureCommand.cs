@@ -67,7 +67,7 @@ public static class CaptureCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -76,7 +76,7 @@ public static class CaptureCommand
             return;
         }
 
-        List<JsonObject> events = new();
+        List<JsonObject> events = [];
         string? hookEventName = (string?)payload[HookPayload.HookEventName];
         switch (agent, hookEventName)
         {
@@ -116,7 +116,7 @@ public static class CaptureCommand
         // Append the valid events and log any that fail validation, rather than
         // dropping a whole SessionStart batch for one bad member (mirrors harvest).
         EventValidator validator = new();
-        List<JsonObject> validEvents = new();
+        List<JsonObject> validEvents = [];
         foreach (JsonObject envelopeEvent in events)
         {
             EventValidationResult result = validator.Validate(envelopeEvent.ToJsonString());
@@ -145,7 +145,7 @@ public static class CaptureCommand
         try
         {
             string logPath = KboEnvironment.CaptureErrorLog(homeDirectory);
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
             string line = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:yyyy-MM-dd'T'HH:mm:ss'Z'}\t{1}\t{2}\n",

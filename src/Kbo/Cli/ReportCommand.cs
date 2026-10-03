@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Kbo.Gold;
 using Kbo.Registry;
@@ -39,7 +40,7 @@ public static class ReportCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -79,7 +80,7 @@ public static class ReportCommand
         IReadOnlyList<DayDigest> digests = DailyDigestComputer.Compute(silverPath, registry, TimeProvider.System);
 
         string outputDirectory = explicitOut ?? Path.Combine(vault.Root, "_generated");
-        Directory.CreateDirectory(outputDirectory);
+        _ = Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(
             Path.Combine(outputDirectory, "README.md"),
             "# GENERATED — do not edit\n\nEverything in this folder is written by `kbo report` and overwritten on every run.\n");
@@ -100,16 +101,16 @@ public static class ReportCommand
 
         string fleetSummary = fleet is null
             ? string.Empty
-            : $"; fleet: {fleet.Repos.Count} repo(s), {fleet.Behind} behind v{fleet.CurrentVersion}";
+            : string.Create(CultureInfo.InvariantCulture, $"; fleet: {fleet.Repos.Count} repo(s), {fleet.Behind} behind v{fleet.CurrentVersion}");
         output.WriteLine(
-            $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status == "red")} red{fleetSummary}; {digests.Count} day page(s)");
+            string.Create(CultureInfo.InvariantCulture, $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status == "red")} red{fleetSummary}; {digests.Count} day page(s)"));
         return 0;
     }
 
     private static void WriteDailyDigests(string outputDirectory, IReadOnlyList<DayDigest> digests)
     {
         string daysDirectory = Path.Combine(outputDirectory, "days");
-        Directory.CreateDirectory(daysDirectory);
+        _ = Directory.CreateDirectory(daysDirectory);
         File.WriteAllText(Path.Combine(daysDirectory, "index.md"), DailyDigestRenderer.RenderIndex(digests));
         foreach (DayDigest day in digests)
         {

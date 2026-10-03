@@ -23,7 +23,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
     {
         workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
@@ -33,10 +33,7 @@ public class ClaudeCodeSearchAndWriteTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private JsonObject? Map(string toolName, JsonObject toolInput, JsonNode? toolResponse = null)
     {

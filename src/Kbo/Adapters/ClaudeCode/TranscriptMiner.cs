@@ -21,9 +21,9 @@ public static class TranscriptMiner
         string? cwd = null;
         string? branch = null;
         string? firstModel = null;
-        Dictionary<string, JsonObject> usageByRequest = new();
-        Dictionary<string, JsonNode> resultsByToolUseId = new();
-        List<MinedToolUse> toolUses = new();
+        Dictionary<string, JsonObject> usageByRequest = [];
+        Dictionary<string, JsonNode> resultsByToolUseId = [];
+        List<MinedToolUse> toolUses = [];
 
         foreach (string line in transcriptLines)
         {
@@ -93,17 +93,17 @@ public static class TranscriptMiner
 
         if (sessionId is null && sessionTime is null && toolUses.Count == 0)
         {
-            return new List<JsonObject>();
+            return [];
         }
 
         string session = sessionId ?? transcriptId;
         string? repo = GitContext.Discover(cwd, registry.TaskPattern).RepoRoot ?? cwd;
         string? task = GitContext.TaskFromBranch(branch, registry.TaskPattern);
 
-        List<JsonObject> events = new()
-        {
+        List<JsonObject> events =
+        [
             SessionStartedEvent(session, sessionTime, cwd, branch, firstModel, usageByRequest, repo, task, registry, random),
-        };
+        ];
 
         foreach (MinedToolUse toolUse in toolUses)
         {
@@ -182,84 +182,84 @@ public static class TranscriptMiner
         switch (toolUse.ToolName)
         {
             case HookPayload.Tools.Read:
-            {
-                string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)toolUse.Input[HookPayload.FilePath], toolUse.Cwd);
-                if (filePath is null)
                 {
-                    return null;
+                    string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)toolUse.Input[HookPayload.FilePath], toolUse.Cwd);
+                    if (filePath is null)
+                    {
+                        return null;
+                    }
+                    JsonObject data = new()
+                    {
+                        [EventDataFields.Path] = filePath,
+                        [EventDataFields.ContentHash] = null,
+                        [EventDataFields.Raw] = raw,
+                        [EventDataFields.Origin] = EventDataFields.OriginHarvest,
+                    };
+                    return Envelope(EventTypes.KnowledgeRead, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random);
                 }
-                JsonObject data = new()
-                {
-                    [EventDataFields.Path] = filePath,
-                    [EventDataFields.ContentHash] = null,
-                    [EventDataFields.Raw] = raw,
-                    [EventDataFields.Origin] = EventDataFields.OriginHarvest,
-                };
-                return Envelope(EventTypes.KnowledgeRead, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random);
-            }
             case HookPayload.Tools.Grep:
             case HookPayload.Tools.Glob:
-            {
-                string? pattern = (string?)toolUse.Input[HookPayload.Pattern];
-                if (pattern is null)
                 {
-                    return null;
+                    string? pattern = (string?)toolUse.Input[HookPayload.Pattern];
+                    if (pattern is null)
+                    {
+                        return null;
+                    }
+                    string? root = ClaudeCodeAdapter.AbsolutePath((string?)toolUse.Input[HookPayload.Path], toolUse.Cwd)
+                        ?? ClaudeCodeAdapter.AbsolutePath(toolUse.Cwd, cwd: null);
+                    JsonNode? toolUseResult = toolUse.ToolUseId is not null
+                        ? resultsByToolUseId.GetValueOrDefault(toolUse.ToolUseId)
+                        : null;
+                    JsonObject data = new()
+                    {
+                        [EventDataFields.Pattern] = pattern,
+                        [EventDataFields.Root] = root,
+                        [EventDataFields.Hits] = AuthoritativeHits(toolUseResult),
+                        [EventDataFields.Raw] = raw,
+                        [EventDataFields.Origin] = EventDataFields.OriginHarvest,
+                    };
+                    string? kbroot = root is null ? null : registry.Resolve(root);
+                    return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, toolUse, session, repo, task, registry, random);
                 }
-                string? root = ClaudeCodeAdapter.AbsolutePath((string?)toolUse.Input[HookPayload.Path], toolUse.Cwd)
-                    ?? ClaudeCodeAdapter.AbsolutePath(toolUse.Cwd, null);
-                JsonNode? toolUseResult = toolUse.ToolUseId is not null
-                    ? resultsByToolUseId.GetValueOrDefault(toolUse.ToolUseId)
-                    : null;
-                JsonObject data = new()
-                {
-                    [EventDataFields.Pattern] = pattern,
-                    [EventDataFields.Root] = root,
-                    [EventDataFields.Hits] = AuthoritativeHits(toolUseResult),
-                    [EventDataFields.Raw] = raw,
-                    [EventDataFields.Origin] = EventDataFields.OriginHarvest,
-                };
-                string? kbroot = root is null ? null : registry.Resolve(root);
-                return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, toolUse, session, repo, task, registry, random);
-            }
             case HookPayload.Tools.Skill:
-            {
-                string? skill = (string?)toolUse.Input[HookPayload.Skill];
-                if (skill is null)
                 {
-                    return null;
+                    string? skill = (string?)toolUse.Input[HookPayload.Skill];
+                    if (skill is null)
+                    {
+                        return null;
+                    }
+                    JsonObject data = new()
+                    {
+                        [EventDataFields.Skill] = skill,
+                        [EventDataFields.Raw] = raw,
+                        [EventDataFields.Origin] = EventDataFields.OriginHarvest,
+                    };
+                    return Envelope(EventTypes.SkillInvoked, skill, kbroot: null, data, toolUse, session, repo, task, registry, random);
                 }
-                JsonObject data = new()
-                {
-                    [EventDataFields.Skill] = skill,
-                    [EventDataFields.Raw] = raw,
-                    [EventDataFields.Origin] = EventDataFields.OriginHarvest,
-                };
-                return Envelope(EventTypes.SkillInvoked, skill, null, data, toolUse, session, repo, task, registry, random);
-            }
             case HookPayload.Tools.Write:
             case HookPayload.Tools.Edit:
             case HookPayload.Tools.NotebookEdit:
-            {
-                string? filePath = ClaudeCodeAdapter.AbsolutePath(
-                    (string?)toolUse.Input[HookPayload.FilePath] ?? (string?)toolUse.Input[HookPayload.NotebookPath], toolUse.Cwd);
-                if (filePath is null)
                 {
-                    return null;
+                    string? filePath = ClaudeCodeAdapter.AbsolutePath(
+                        (string?)toolUse.Input[HookPayload.FilePath] ?? (string?)toolUse.Input[HookPayload.NotebookPath], toolUse.Cwd);
+                    if (filePath is null)
+                    {
+                        return null;
+                    }
+                    if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
+                    {
+                        ClaudeCodeAdapter.StripWrittenContent(rawToolInput);
+                    }
+                    JsonObject data = new()
+                    {
+                        [EventDataFields.Path] = filePath,
+                        [EventDataFields.ContentHash] = null,
+                        [EventDataFields.Linkcount] = null,
+                        [EventDataFields.Raw] = raw,
+                        [EventDataFields.Origin] = EventDataFields.OriginHarvest,
+                    };
+                    return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random, EventTypes.KnowledgeWrittenV2);
                 }
-                if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
-                {
-                    ClaudeCodeAdapter.StripWrittenContent(rawToolInput);
-                }
-                JsonObject data = new()
-                {
-                    [EventDataFields.Path] = filePath,
-                    [EventDataFields.ContentHash] = null,
-                    [EventDataFields.Linkcount] = null,
-                    [EventDataFields.Raw] = raw,
-                    [EventDataFields.Origin] = EventDataFields.OriginHarvest,
-                };
-                return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random, EventTypes.KnowledgeWrittenV2);
-            }
             default:
                 return null;
         }

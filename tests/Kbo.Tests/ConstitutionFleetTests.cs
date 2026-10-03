@@ -15,33 +15,27 @@ public class ConstitutionFleetTests : IDisposable
         versionFile = Path.Combine(workspace, "VERSION");
         File.WriteAllText(versionFile, "15\n");
         scanRoot = Path.Combine(workspace, "repos");
-        AddRepo("repo-current", """{"legislatorVersion": 15, "profiles": ["dotnet"]}""");
-        AddRepo("repo-behind", """{"legislatorVersion": 14}""");
+        AddRepo("repo-current", /*lang=json,strict*/ """{"legislatorVersion": 15, "profiles": ["dotnet"]}""");
+        AddRepo("repo-behind", /*lang=json,strict*/ """{"legislatorVersion": 14}""");
         AddRepo("repo-broken", "not json at all");
-        Directory.CreateDirectory(Path.Combine(scanRoot, "not-legislated", "docs"));
+        _ = Directory.CreateDirectory(Path.Combine(scanRoot, "not-legislated", "docs"));
         // Nested one level deeper than a scan root's direct children — out of scope.
-        AddRepo(Path.Combine("nested", "deep-repo"), """{"legislatorVersion": 14}""");
+        AddRepo(Path.Combine("nested", "deep-repo"), /*lang=json,strict*/ """{"legislatorVersion": 14}""");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private void AddRepo(string name, string manifestJson)
     {
         string manifestDirectory = Path.Combine(scanRoot, name, "docs", "ai");
-        Directory.CreateDirectory(manifestDirectory);
+        _ = Directory.CreateDirectory(manifestDirectory);
         File.WriteAllText(Path.Combine(manifestDirectory, "manifest.json"), manifestJson);
     }
 
     private ConstitutionConfig Config() => new(versionFile, [scanRoot]);
 
     [Fact]
-    public void Scan_NullConfig_ReturnsNull()
-    {
-        Assert.Null(ConstitutionFleet.Scan(null));
-    }
+    public void Scan_NullConfig_ReturnsNull() => Assert.Null(ConstitutionFleet.Scan(config: null));
 
     [Fact]
     public void Scan_ReadsVersionsFromDirectChildManifests()
@@ -105,7 +99,7 @@ public class ConstitutionFleetTests : IDisposable
 
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => ConstitutionFleet.Scan(config));
 
-        Assert.Contains("versionFile", exception.Message);
+        Assert.Contains("versionFile", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -117,6 +111,6 @@ public class ConstitutionFleetTests : IDisposable
 
         RegistryFormatException exception = Assert.Throws<RegistryFormatException>(() => ConstitutionFleet.Scan(config));
 
-        Assert.Contains("integer", exception.Message);
+        Assert.Contains("integer", exception.Message, StringComparison.Ordinal);
     }
 }

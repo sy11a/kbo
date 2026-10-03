@@ -15,8 +15,7 @@ public static class ClaudeCodeAdapter
     public static JsonObject? MapPostToolUse(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, Random random)
     {
         string? toolName = (string?)payload[HookPayload.ToolName];
-        JsonObject? toolInput = payload[HookPayload.ToolInput] as JsonObject;
-        if (toolName is null || toolInput is null)
+        if (toolName is null || payload[HookPayload.ToolInput] is not JsonObject toolInput)
         {
             return null;
         }
@@ -26,59 +25,59 @@ public static class ClaudeCodeAdapter
         switch (toolName)
         {
             case HookPayload.Tools.Read:
-            {
-                string? filePath = AbsolutePath((string?)toolInput[HookPayload.FilePath], cwd);
-                if (filePath is null)
                 {
-                    return null;
+                    string? filePath = AbsolutePath((string?)toolInput[HookPayload.FilePath], cwd);
+                    if (filePath is null)
+                    {
+                        return null;
+                    }
+                    string? kbroot = registry.Resolve(filePath);
+                    JsonObject data = new() { [EventDataFields.Path] = filePath };
+                    AddContentHash(data, filePath, kbroot);
+                    data[EventDataFields.Raw] = RawPayload(payload);
+                    return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
                 }
-                string? kbroot = registry.Resolve(filePath);
-                JsonObject data = new() { [EventDataFields.Path] = filePath };
-                AddContentHash(data, filePath, kbroot);
-                data[EventDataFields.Raw] = RawPayload(payload);
-                return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
-            }
             case HookPayload.Tools.Grep:
             case HookPayload.Tools.Glob:
-            {
-                string? pattern = (string?)toolInput[HookPayload.Pattern];
-                if (pattern is null)
                 {
-                    return null;
+                    string? pattern = (string?)toolInput[HookPayload.Pattern];
+                    if (pattern is null)
+                    {
+                        return null;
+                    }
+                    string? root = AbsolutePath((string?)toolInput[HookPayload.Path], cwd) ?? AbsolutePath(cwd, cwd: null);
+                    string? kbroot = root is null ? null : registry.Resolve(root);
+                    JsonObject data = new()
+                    {
+                        [EventDataFields.Pattern] = pattern,
+                        [EventDataFields.Root] = root,
+                        [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
+                        [EventDataFields.Raw] = RawPayload(payload),
+                    };
+                    return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
                 }
-                string? root = AbsolutePath((string?)toolInput[HookPayload.Path], cwd) ?? AbsolutePath(cwd, null);
-                string? kbroot = root is null ? null : registry.Resolve(root);
-                JsonObject data = new()
-                {
-                    [EventDataFields.Pattern] = pattern,
-                    [EventDataFields.Root] = root,
-                    [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
-                    [EventDataFields.Raw] = RawPayload(payload),
-                };
-                return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
-            }
             case HookPayload.Tools.Write:
             case HookPayload.Tools.Edit:
             case HookPayload.Tools.NotebookEdit:
-            {
-                string? filePath = AbsolutePath(
-                    (string?)toolInput[HookPayload.FilePath] ?? (string?)toolInput[HookPayload.NotebookPath], cwd);
-                if (filePath is null)
                 {
-                    return null;
+                    string? filePath = AbsolutePath(
+                        (string?)toolInput[HookPayload.FilePath] ?? (string?)toolInput[HookPayload.NotebookPath], cwd);
+                    if (filePath is null)
+                    {
+                        return null;
+                    }
+                    string? kbroot = registry.Resolve(filePath);
+                    JsonObject data = new() { [EventDataFields.Path] = filePath };
+                    AddContentHash(data, filePath, kbroot);
+                    AddLinkcount(data, filePath, kbroot);
+                    JsonObject raw = RawPayload(payload);
+                    if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
+                    {
+                        StripWrittenContent(rawToolInput);
+                    }
+                    data[EventDataFields.Raw] = raw;
+                    return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
                 }
-                string? kbroot = registry.Resolve(filePath);
-                JsonObject data = new() { [EventDataFields.Path] = filePath };
-                AddContentHash(data, filePath, kbroot);
-                AddLinkcount(data, filePath, kbroot);
-                JsonObject raw = RawPayload(payload);
-                if (raw[HookPayload.ToolInput] is JsonObject rawToolInput)
-                {
-                    StripWrittenContent(rawToolInput);
-                }
-                data[EventDataFields.Raw] = raw;
-                return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
-            }
             default:
                 return null;
         }
@@ -91,7 +90,7 @@ public static class ClaudeCodeAdapter
         Random random,
         string homeDirectory)
     {
-        List<JsonObject> events = new();
+        List<JsonObject> events = [];
         string? cwd = (string?)payload[HookPayload.Cwd];
 
         GitContext git = GitContext.Discover(cwd, registry.TaskPattern);
@@ -102,7 +101,7 @@ public static class ClaudeCodeAdapter
             [EventDataFields.Raw] = RawPayload(payload),
         };
         events.Add(Envelope(
-            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], null, sessionData, payload, git, registry, clock, random));
+            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], kbroot: null, sessionData, payload, git, registry, clock, random));
 
         foreach ((string path, string kind) in ImplicitContextFiles(cwd, homeDirectory))
         {
@@ -140,7 +139,7 @@ public static class ClaudeCodeAdapter
         string rulesDirectory = Path.Combine(cwd, ".claude", "rules");
         if (Directory.Exists(rulesDirectory))
         {
-            foreach (string rulePath in Directory.EnumerateFiles(rulesDirectory, "*.md").Order())
+            foreach (string rulePath in Directory.EnumerateFiles(rulesDirectory, "*.md").Order(StringComparer.Ordinal))
             {
                 yield return (rulePath, HookPayload.ContextKinds.Rules);
             }
@@ -201,7 +200,7 @@ public static class ClaudeCodeAdapter
         {
             if ((string?)toolInput[field] is string text)
             {
-                toolInput.Remove(field);
+                _ = toolInput.Remove(field);
                 toolInput[field + HookPayload.SizeSuffix] = Encoding.UTF8.GetByteCount(text);
             }
         }
@@ -227,7 +226,7 @@ public static class ClaudeCodeAdapter
     private static JsonObject RawPayload(JsonObject payload)
     {
         JsonObject raw = (JsonObject)payload.DeepClone();
-        raw.Remove(HookPayload.ToolResponse);
+        _ = raw.Remove(HookPayload.ToolResponse);
         return raw;
     }
 

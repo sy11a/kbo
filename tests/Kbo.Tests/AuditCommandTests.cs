@@ -16,7 +16,7 @@ public class AuditCommandTests : IDisposable
     {
         home = Directory.CreateTempSubdirectory("kbo-audit-cmd-tests").FullName;
         vaultRoot = Path.Combine(home, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         File.WriteAllText(Path.Combine(home, "registry.yaml"), $"""
             machine: test-machine
             sources:
@@ -25,7 +25,7 @@ public class AuditCommandTests : IDisposable
                 root: {vaultRoot}
             """);
 
-        Directory.CreateDirectory(Path.Combine(home, ".claude", "projects", "proj-a"));
+        _ = Directory.CreateDirectory(Path.Combine(home, ".claude", "projects", "proj-a"));
         File.WriteAllText(Path.Combine(home, ".claude", "projects", "proj-a", "never-captured.jsonl"), "{}\n");
 
         string eventsRepo = Path.Combine(home, "Repository", "kb-events");
@@ -43,32 +43,29 @@ public class AuditCommandTests : IDisposable
                 ["data"] = new JsonObject { ["origin"] = "harvest", ["transcript"] = "some-other-file" },
             },
         });
-        SilverRebuilder.Rebuild(eventsRepo, Path.Combine(home, ".local", "share", "kbo", "silver.duckdb"));
+        _ = SilverRebuilder.Rebuild(eventsRepo, Path.Combine(home, ".local", "share", "kbo", "silver.duckdb"));
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(home, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(home, recursive: true);
 
     [Fact]
     public void Audit_FlagsMissingSessionAndUnregisteredSource_InBothTwins()
     {
         int exitCode = AuditCommand.Run(
-            Array.Empty<string>(), output, error,
+            [], output, error,
             name => name == "KBO_REGISTRY" ? Path.Combine(home, "registry.yaml") : null,
             home);
 
         Assert.Equal(0, exitCode);
         string markdown = File.ReadAllText(Path.Combine(vaultRoot, "_generated", "kbo-audit.md"));
-        Assert.Contains("never-captured", markdown);
-        Assert.Contains("claude-code", markdown);
-        Assert.Contains("kbo harvest", markdown);
-        Assert.Contains("/somewhere/unregistered", markdown);
-        Assert.DoesNotContain("Not session-auditable", markdown);
+        Assert.Contains("never-captured", markdown, StringComparison.Ordinal);
+        Assert.Contains("claude-code", markdown, StringComparison.Ordinal);
+        Assert.Contains("kbo harvest", markdown, StringComparison.Ordinal);
+        Assert.Contains("/somewhere/unregistered", markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("Not session-auditable", markdown, StringComparison.Ordinal);
 
         string gold = File.ReadAllText(Path.Combine(vaultRoot, "_generated", "kbo-audit.gold.json"));
-        Assert.Contains("\"missingSessions\"", gold);
-        Assert.Contains("never-captured", gold);
+        Assert.Contains("\"missingSessions\"", gold, StringComparison.Ordinal);
+        Assert.Contains("never-captured", gold, StringComparison.Ordinal);
     }
 }

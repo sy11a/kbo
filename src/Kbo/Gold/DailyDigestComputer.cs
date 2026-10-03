@@ -22,8 +22,8 @@ public static class DailyDigestComputer
         DateTime cutoff = clock.GetUtcNow().AddDays(-WindowDays).UtcDateTime;
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
 
-        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
-        HashSet<string> registeredIds = sourcesById.Keys.ToHashSet();
+        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id, StringComparer.Ordinal);
+        HashSet<string> registeredIds = [.. sourcesById.Keys];
         HashSet<string> touchedSessions = TouchedSessions(connection, registry, registeredIds);
 
         Dictionary<string, long[]> countsBySession = SessionEventCounts(connection, cutoff);
@@ -128,7 +128,7 @@ public static class DailyDigestComputer
 
     private static Dictionary<string, long[]> SessionEventCounts(DuckDBConnection connection, DateTime cutoff)
     {
-        Dictionary<string, long[]> counts = new();
+        Dictionary<string, long[]> counts = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, type, count(*)
             FROM events_preferred
@@ -157,7 +157,7 @@ public static class DailyDigestComputer
 
     private static HashSet<string> TouchedSessions(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> registeredIds)
     {
-        HashSet<string> touched = new();
+        HashSet<string> touched = [];
         foreach (object?[] row in Query(connection, """
             SELECT DISTINCT session, subject, kbroot
             FROM events_preferred
@@ -173,7 +173,7 @@ public static class DailyDigestComputer
             bool stampStillRegistered = row[2] is string kbroot && registeredIds.Contains(kbroot);
             if (resolvesNow || stampStillRegistered)
             {
-                touched.Add(session);
+                _ = touched.Add(session);
             }
         }
         return touched;
@@ -189,12 +189,12 @@ public static class DailyDigestComputer
         public long ZeroHits;
         public long InputTokens;
         public long CacheReadTokens;
-        public Dictionary<string, long> ByAgent { get; } = new();
-        public Dictionary<string, long> ByRepo { get; } = new();
-        public Dictionary<string, long> ReadsByLayer { get; } = new();
-        public Dictionary<string, long> ZeroHitQueries { get; } = new();
-        public Dictionary<string, long> Skills { get; } = new();
-        public List<DaySession> SessionRows { get; } = new();
+        public Dictionary<string, long> ByAgent { get; } = [];
+        public Dictionary<string, long> ByRepo { get; } = [];
+        public Dictionary<string, long> ReadsByLayer { get; } = [];
+        public Dictionary<string, long> ZeroHitQueries { get; } = [];
+        public Dictionary<string, long> Skills { get; } = [];
+        public List<DaySession> SessionRows { get; } = [];
 
         public DayDigest Build(string date)
         {
@@ -219,11 +219,10 @@ public static class DailyDigestComputer
 
         private static List<DayCount> Rank(Dictionary<string, long> counts)
         {
-            return counts
+            return [.. counts
                 .OrderByDescending(entry => entry.Value)
                 .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-                .Select(entry => new DayCount(entry.Key, entry.Value))
-                .ToList();
+                .Select(entry => new DayCount(entry.Key, entry.Value))];
         }
     }
 
@@ -233,9 +232,9 @@ public static class DailyDigestComputer
         command.CommandText = sql;
         foreach ((string name, object value) in parameters)
         {
-            command.Parameters.Add(new DuckDBParameter(name, value));
+            _ = command.Parameters.Add(new DuckDBParameter(name, value));
         }
-        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
             object?[] values = new object?[reader.FieldCount];

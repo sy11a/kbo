@@ -16,13 +16,7 @@ public static class JobDeadMan
 
     private static readonly HashSet<string> WeeklyJobs = ["report", "audit"];
 
-    public static JobCadence CadenceOf(string jobName)
-    {
-        return WeeklyJobs.Contains(jobName) ? JobCadence.Weekly : JobCadence.Daily;
-    }
+    public static JobCadence CadenceOf(string jobName) => WeeklyJobs.Contains(jobName) ? JobCadence.Weekly : JobCadence.Daily;
 
-    public static double ThresholdDays(string jobName)
-    {
-        return CadenceOf(jobName) == JobCadence.Weekly ? WeeklyThresholdDays : DailyThresholdDays;
-    }
+    public static double ThresholdDays(string jobName) => CadenceOf(jobName) == JobCadence.Weekly ? WeeklyThresholdDays : DailyThresholdDays;
 }

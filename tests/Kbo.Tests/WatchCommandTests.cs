@@ -22,7 +22,7 @@ public class WatchCommandTests : IDisposable
         silverPath = Path.Combine(workspace, "silver.duckdb");
         eventsRepo = Path.Combine(workspace, "kb-events");
         registryPath = Path.Combine(workspace, "registry.yaml");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         File.WriteAllText(registryPath, $"""
             machine: test-machine
             sources:
@@ -47,10 +47,7 @@ public class WatchCommandTests : IDisposable
         });
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private Task<int> Run(CancellationToken cancellationToken, params string[] args)
     {
@@ -64,10 +61,7 @@ public class WatchCommandTests : IDisposable
         return WatchCommand.Run(args, output, error, Environment, workspace, cancellationToken);
     }
 
-    private static CancellationToken Cancelled()
-    {
-        return new CancellationToken(canceled: true);
-    }
+    private static CancellationToken Cancelled() => new(canceled: true);
 
     [Fact]
     public async Task Watch_CancelledToken_RendersDashboardOnce_WithAutoReloadAndStops()
@@ -77,8 +71,8 @@ public class WatchCommandTests : IDisposable
         Assert.Equal(0, exitCode);
         string dashboard = Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html");
         Assert.True(File.Exists(dashboard));
-        Assert.Contains("http-equiv=\"refresh\" content=\"30\"", File.ReadAllText(dashboard));
-        Assert.Contains("kbo watch stopped", output.ToString());
+        Assert.Contains("http-equiv=\"refresh\" content=\"30\"", await File.ReadAllTextAsync(dashboard), StringComparison.Ordinal);
+        Assert.Contains("kbo watch stopped", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -87,8 +81,8 @@ public class WatchCommandTests : IDisposable
         int exitCode = await Run(Cancelled(), "--interval", "10");
 
         Assert.Equal(0, exitCode);
-        string dashboard = File.ReadAllText(Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html"));
-        Assert.Contains("http-equiv=\"refresh\" content=\"10\"", dashboard);
+        string dashboard = await File.ReadAllTextAsync(Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html"));
+        Assert.Contains("http-equiv=\"refresh\" content=\"10\"", dashboard, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,7 +91,7 @@ public class WatchCommandTests : IDisposable
         int exitCode = await Run(Cancelled(), "--interval", "1");
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("interval", error.ToString());
+        Assert.Contains("interval", error.ToString(), StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(vaultRoot, "_generated", "kbo-dashboard.html")));
     }
 
@@ -107,6 +101,6 @@ public class WatchCommandTests : IDisposable
         int exitCode = await Run(Cancelled(), "--bogus");
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("usage: kbo watch", error.ToString());
+        Assert.Contains("usage: kbo watch", error.ToString(), StringComparison.Ordinal);
     }
 }

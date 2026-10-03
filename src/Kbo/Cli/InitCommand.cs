@@ -26,7 +26,7 @@ public static class InitCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -37,7 +37,7 @@ public static class InitCommand
         output.WriteLine($"registry ok: machine '{registry.Machine}', {registry.Sources.Count} source(s)");
 
         string unitDirectory = Path.Combine(homeDirectory, ".config", "systemd", "user");
-        Directory.CreateDirectory(unitDirectory);
+        _ = Directory.CreateDirectory(unitDirectory);
         File.WriteAllText(Path.Combine(unitDirectory, "kbo-pulse.service"), $"""
             [Unit]
             Description=kbo pulse — Practice Observability daily jobs
@@ -90,8 +90,7 @@ public static class InitCommand
 
     private static void Systemctl(IProcessRunner processRunner, TextWriter error, params string[] arguments)
     {
-        List<string> fullArguments = new() { "--user" };
-        fullArguments.AddRange(arguments);
+        List<string> fullArguments = ["--user", .. arguments];
         ProcessResult result = processRunner.Run("systemctl", fullArguments);
         if (result.ExitCode != 0)
         {

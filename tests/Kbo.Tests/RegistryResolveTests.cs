@@ -4,9 +4,7 @@ namespace Kbo.Tests;
 
 public class RegistryResolveTests
 {
-    private static KnowledgeRegistry BuildRegistry()
-    {
-        return KnowledgeRegistry.Parse("""
+    private static KnowledgeRegistry BuildRegistry() => KnowledgeRegistry.Parse("""
             machine: example-machine
             sources:
               - id: knowledge
@@ -19,31 +17,18 @@ public class RegistryResolveTests
                 layer: framework
                 root: /home/user/Repository/SampleApp/docs/framework
             """);
-    }
 
     [Fact]
-    public void Resolve_PathUnderRoot_ReturnsSourceId()
-    {
-        Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge/rituals/2026-08-11.md"));
-    }
+    public void Resolve_PathUnderRoot_ReturnsSourceId() => Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge/rituals/2026-08-11.md"));
 
     [Fact]
-    public void Resolve_PathOutsideAllRoots_ReturnsNull()
-    {
-        Assert.Null(BuildRegistry().Resolve("/home/user/Downloads/notes.md"));
-    }
+    public void Resolve_PathOutsideAllRoots_ReturnsNull() => Assert.Null(BuildRegistry().Resolve("/home/user/Downloads/notes.md"));
 
     [Fact]
-    public void Resolve_RootItself_ReturnsSourceId()
-    {
-        Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge"));
-    }
+    public void Resolve_RootItself_ReturnsSourceId() => Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge"));
 
     [Fact]
-    public void Resolve_SiblingWithRootAsPrefix_ReturnsNull()
-    {
-        Assert.Null(BuildRegistry().Resolve("/home/user/KnowledgeBackup/old.md"));
-    }
+    public void Resolve_SiblingWithRootAsPrefix_ReturnsNull() => Assert.Null(BuildRegistry().Resolve("/home/user/KnowledgeBackup/old.md"));
 
     [Fact]
     public void Resolve_NestedRoots_LongestRootWins()
@@ -57,8 +42,5 @@ public class RegistryResolveTests
     }
 
     [Fact]
-    public void Resolve_TrailingSlashOnPath_StillResolves()
-    {
-        Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge/"));
-    }
+    public void Resolve_TrailingSlashOnPath_StillResolves() => Assert.Equal("knowledge", BuildRegistry().Resolve("/home/user/Knowledge/"));
 }

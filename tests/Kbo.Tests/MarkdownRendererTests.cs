@@ -21,9 +21,9 @@ public class MarkdownRendererTests
             StaleMinReads: 3,
             StaleUnmodifiedDays: 90,
             DormantAfterDays: 21,
-            new Dictionary<string, int> { ["vault"] = 10, ["skills"] = 4 },
-            lifecycle ?? new Dictionary<string, int>(),
-            machineManaged ?? new Dictionary<string, int>(),
+            new Dictionary<string, int>(StringComparer.Ordinal) { ["vault"] = 10, ["skills"] = 4 },
+            lifecycle ?? new Dictionary<string, int>(StringComparer.Ordinal),
+            machineManaged ?? new Dictionary<string, int>(StringComparer.Ordinal),
             dormant ?? [],
             dead ?? [],
             hot ?? [],
@@ -35,24 +35,24 @@ public class MarkdownRendererTests
     {
         string markdown = MarkdownRenderer.Render(Report(), "/home/u/Knowledge");
 
-        Assert.Contains("GENERATED", markdown);
-        Assert.Contains("2026-08-12T12:00:00Z", markdown);
-        Assert.Contains("test-machine", markdown);
+        Assert.Contains("GENERATED", markdown, StringComparison.Ordinal);
+        Assert.Contains("2026-08-12T12:00:00Z", markdown, StringComparison.Ordinal);
+        Assert.Contains("test-machine", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Render_VaultNotesBecomeWikilinks_SkillPathsStayPlain()
     {
         DeadNote vaultNote = new(
-            "/home/u/Knowledge/homelab/Hardening Audit.md", "vault", "global", 120, null, ["archive"]);
+            "/home/u/Knowledge/homelab/Hardening Audit.md", "vault", "global", 120, LastRead: null, ["archive"]);
         DeadNote skillNote = new(
-            "/home/u/.claude/skills/tdd/SKILL.md", "skills", "skills", 95, null, ["retire"]);
+            "/home/u/.claude/skills/tdd/SKILL.md", "skills", "skills", 95, LastRead: null, ["retire"]);
 
         string markdown = MarkdownRenderer.Render(Report(dead: [vaultNote, skillNote]), "/home/u/Knowledge");
 
-        Assert.Contains("[[homelab/Hardening Audit]]", markdown);
-        Assert.Contains("`/home/u/.claude/skills/tdd/SKILL.md`", markdown);
-        Assert.Contains("archive", markdown);
+        Assert.Contains("[[homelab/Hardening Audit]]", markdown, StringComparison.Ordinal);
+        Assert.Contains("`/home/u/.claude/skills/tdd/SKILL.md`", markdown, StringComparison.Ordinal);
+        Assert.Contains("archive", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -67,11 +67,11 @@ public class MarkdownRendererTests
     public void Render_LifecycleCountsSection_ListsPerSourceCounts()
     {
         string markdown = MarkdownRenderer.Render(
-            Report(lifecycle: new Dictionary<string, int> { ["repo-SomeApp"] = 46 }),
+            Report(lifecycle: new Dictionary<string, int>(StringComparer.Ordinal) { ["repo-SomeApp"] = 46 }),
             "/home/u/Knowledge");
 
-        Assert.Contains("## Lifecycle artifacts", markdown);
-        Assert.Contains("`repo-SomeApp`: 46 note(s)", markdown);
+        Assert.Contains("## Lifecycle artifacts", markdown, StringComparison.Ordinal);
+        Assert.Contains("`repo-SomeApp`: 46 note(s)", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,20 +84,20 @@ public class MarkdownRendererTests
 
         string markdown = MarkdownRenderer.Render(Report(dormant: [dormant]), "/home/u/Knowledge");
 
-        Assert.Contains("## Dormant sources", markdown);
-        Assert.Contains("`repo-SomeApp`", markdown);
-        Assert.Contains("| 70 |", markdown);
+        Assert.Contains("## Dormant sources", markdown, StringComparison.Ordinal);
+        Assert.Contains("`repo-SomeApp`", markdown, StringComparison.Ordinal);
+        Assert.Contains("| 70 |", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Render_MachineManagedSection_ListsPerSourceCounts()
     {
         string markdown = MarkdownRenderer.Render(
-            Report(machineManaged: new Dictionary<string, int> { ["repo-app"] = 12 }),
+            Report(machineManaged: new Dictionary<string, int>(StringComparer.Ordinal) { ["repo-app"] = 12 }),
             "/home/u/Knowledge");
 
-        Assert.Contains("## Machine-managed files", markdown);
-        Assert.Contains("`repo-app`: 12 file(s)", markdown);
+        Assert.Contains("## Machine-managed files", markdown, StringComparison.Ordinal);
+        Assert.Contains("`repo-app`: 12 file(s)", markdown, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -109,9 +109,9 @@ public class MarkdownRendererTests
 
         string markdown = MarkdownRenderer.Render(Report(hot: [hot], stale: [stale]), "/home/u/Knowledge");
 
-        Assert.Contains("[[hot]]", markdown);
-        Assert.Contains("12", markdown);
-        Assert.Contains("[[stale]]", markdown);
-        Assert.Contains("200", markdown);
+        Assert.Contains("[[hot]]", markdown, StringComparison.Ordinal);
+        Assert.Contains("12", markdown, StringComparison.Ordinal);
+        Assert.Contains("[[stale]]", markdown, StringComparison.Ordinal);
+        Assert.Contains("200", markdown, StringComparison.Ordinal);
     }
 }

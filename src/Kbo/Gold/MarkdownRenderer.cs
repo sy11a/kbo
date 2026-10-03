@@ -11,117 +11,117 @@ public static class MarkdownRenderer
     public static string Render(GoldReport report, string vaultRoot)
     {
         StringBuilder markdown = new();
-        markdown.AppendLine("# kbo report — knowledge worklists");
-        markdown.AppendLine();
-        markdown.AppendLine(CultureInfo.InvariantCulture, $"> **GENERATED** by `kbo report` at **{Timestamp(report.GeneratedAt)}** on `{report.Machine}` — hand-edits die on the next run.");
-        markdown.AppendLine();
-        markdown.AppendLine("## Inventory");
-        markdown.AppendLine();
+        _ = markdown.AppendLine("# kbo report — knowledge worklists");
+        _ = markdown.AppendLine();
+        _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"> **GENERATED** by `kbo report` at **{Timestamp(report.GeneratedAt)}** on `{report.Machine}` — hand-edits die on the next run.");
+        _ = markdown.AppendLine();
+        _ = markdown.AppendLine("## Inventory");
+        _ = markdown.AppendLine();
         foreach (KeyValuePair<string, int> entry in report.InventoryCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
-            markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s)");
+            _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s)");
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine("## Lifecycle artifacts — die on completion, excluded from the dead worklist");
-        markdown.AppendLine();
+        _ = markdown.AppendLine("## Lifecycle artifacts — die on completion, excluded from the dead worklist");
+        _ = markdown.AppendLine();
         if (report.LifecycleCounts.Count == 0)
         {
-            markdown.AppendLine("none");
+            _ = markdown.AppendLine("none");
         }
         else
         {
             foreach (KeyValuePair<string, int> entry in report.LifecycleCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
             {
-                markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s) (plans / specs / journal)");
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} note(s) (plans / specs / journal)");
             }
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine("## Machine-managed files — tool-owned, excluded from the dead worklist");
-        markdown.AppendLine();
+        _ = markdown.AppendLine("## Machine-managed files — tool-owned, excluded from the dead worklist");
+        _ = markdown.AppendLine();
         if (report.MachineManagedCounts.Count == 0)
         {
-            markdown.AppendLine("none");
+            _ = markdown.AppendLine("none");
         }
         else
         {
             foreach (KeyValuePair<string, int> entry in report.MachineManagedCounts.OrderBy(e => e.Key, StringComparer.Ordinal))
             {
-                markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} file(s) (fleet law / templates)");
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"- `{entry.Key}`: {entry.Value} file(s) (fleet law / templates)");
             }
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
-        markdown.AppendLine();
+        _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
+        _ = markdown.AppendLine();
         if (report.DormantSources.Count == 0)
         {
-            markdown.AppendLine("none");
+            _ = markdown.AppendLine("none");
         }
         else
         {
-            markdown.AppendLine("| Source | Last activity | Dead notes withheld |");
-            markdown.AppendLine("|--------|---------------|--------------------:|");
+            _ = markdown.AppendLine("| Source | Last activity | Dead notes withheld |");
+            _ = markdown.AppendLine("|--------|---------------|--------------------:|");
             foreach (DormantSource source in report.DormantSources)
             {
                 string lastActivity = source.LastActivity is null ? "never" : Timestamp(source.LastActivity.Value);
-                markdown.AppendLine(CultureInfo.InvariantCulture,
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture,
                     $"| `{source.SourceId}` | {lastActivity} | {source.WithheldDeadNotes} |");
             }
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dead notes — in inventory ≥ {report.MinInventoryAgeDays}d, zero reads in {report.ReadWindowDays}d");
-        markdown.AppendLine();
+        _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dead notes — in inventory ≥ {report.MinInventoryAgeDays}d, zero reads in {report.ReadWindowDays}d");
+        _ = markdown.AppendLine();
         if (report.DeadNotes.Count == 0)
         {
-            markdown.AppendLine("none 🎉");
+            _ = markdown.AppendLine("none 🎉");
         }
         else
         {
-            markdown.AppendLine("| Note | Source | Unmodified | Last read | Suggested |");
-            markdown.AppendLine("|------|--------|-----------:|-----------|-----------|");
+            _ = markdown.AppendLine("| Note | Source | Unmodified | Last read | Suggested |");
+            _ = markdown.AppendLine("|------|--------|-----------:|-----------|-----------|");
             foreach (DeadNote note in report.DeadNotes)
             {
                 string lastRead = note.LastRead is null ? "never" : Timestamp(note.LastRead.Value);
-                markdown.AppendLine(CultureInfo.InvariantCulture,
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture,
                     $"| {Link(note.Path, vaultRoot)} | {note.SourceId} | {note.DaysSinceModified}d | {lastRead} | {string.Join(" / ", note.SuggestedActions)} |");
             }
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine(CultureInfo.InvariantCulture, $"## Hot notes — top reads in the last {report.ReadWindowDays}d");
-        markdown.AppendLine();
+        _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Hot notes — top reads in the last {report.ReadWindowDays}d");
+        _ = markdown.AppendLine();
         if (report.HotNotes.Count == 0)
         {
-            markdown.AppendLine("none");
+            _ = markdown.AppendLine("none");
         }
         else
         {
-            markdown.AppendLine("| Note | Source | Reads (window) | Reads (total) | Last read |");
-            markdown.AppendLine("|------|--------|---------------:|--------------:|-----------|");
+            _ = markdown.AppendLine("| Note | Source | Reads (window) | Reads (total) | Last read |");
+            _ = markdown.AppendLine("|------|--------|---------------:|--------------:|-----------|");
             foreach (HotNote note in report.HotNotes)
             {
-                markdown.AppendLine(CultureInfo.InvariantCulture,
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture,
                     $"| {Link(note.Path, vaultRoot)} | {note.SourceId} | {note.ReadsInWindow} | {note.ReadsTotal} | {Timestamp(note.LastRead)} |");
             }
         }
-        markdown.AppendLine();
+        _ = markdown.AppendLine();
 
-        markdown.AppendLine(CultureInfo.InvariantCulture, $"## Staleness — ≥ {report.StaleMinReads} reads in {report.ReadWindowDays}d, unmodified > {report.StaleUnmodifiedDays}d");
-        markdown.AppendLine();
+        _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Staleness — ≥ {report.StaleMinReads} reads in {report.ReadWindowDays}d, unmodified > {report.StaleUnmodifiedDays}d");
+        _ = markdown.AppendLine();
         if (report.StaleNotes.Count == 0)
         {
-            markdown.AppendLine("none");
+            _ = markdown.AppendLine("none");
         }
         else
         {
-            markdown.AppendLine("| Note | Source | Reads (window) | Unmodified |");
-            markdown.AppendLine("|------|--------|---------------:|-----------:|");
+            _ = markdown.AppendLine("| Note | Source | Reads (window) | Unmodified |");
+            _ = markdown.AppendLine("|------|--------|---------------:|-----------:|");
             foreach (StaleNote note in report.StaleNotes)
             {
-                markdown.AppendLine(CultureInfo.InvariantCulture,
+                _ = markdown.AppendLine(CultureInfo.InvariantCulture,
                     $"| {Link(note.Path, vaultRoot)} | {note.SourceId} | {note.ReadsInWindow} | {note.DaysSinceModified}d |");
             }
         }
@@ -144,8 +144,5 @@ public static class MarkdownRenderer
         return $"`{path}`";
     }
 
-    private static string Timestamp(DateTimeOffset value)
-    {
-        return value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-    }
+    private static string Timestamp(DateTimeOffset value) => value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 }

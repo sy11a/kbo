@@ -33,10 +33,7 @@ public class RebuildCommandTests : IDisposable
         });
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private int Run(params string[] args)
     {
@@ -56,8 +53,8 @@ public class RebuildCommandTests : IDisposable
 
         Assert.Equal(0, exitCode);
         Assert.True(File.Exists(silverPath));
-        Assert.Contains("1 event", output.ToString());
-        Assert.Contains("1 session", output.ToString());
+        Assert.Contains("1 event", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("1 session", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -71,10 +68,10 @@ public class RebuildCommandTests : IDisposable
     public void Rebuild_MissingEventsRepo_FailsWithError()
     {
         int exitCode = RebuildCommand.Run(
-            new[] { "--events-repo", Path.Combine(workspace, "nope") },
+            ["--events-repo", Path.Combine(workspace, "nope")],
             output, error, _ => silverPath, workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("nope", error.ToString());
+        Assert.Contains("nope", error.ToString(), StringComparison.Ordinal);
     }
 }

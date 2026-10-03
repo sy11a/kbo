@@ -1,3 +1,4 @@
+using System.Globalization;
 using Kbo.Schemas;
 
 namespace Kbo.Tests;
@@ -14,8 +15,8 @@ public class BrokenFixtureTests
 
     public static TheoryData<string, int, string> BrokenEvents()
     {
-        TheoryData<string, int, string> data = new();
-        foreach (string file in Directory.EnumerateFiles(BrokenDirectory, "*.ndjson").Order())
+        TheoryData<string, int, string> data = [];
+        foreach (string file in Directory.EnumerateFiles(BrokenDirectory, "*.ndjson").Order(StringComparer.Ordinal))
         {
             string[] lines = File.ReadAllLines(file);
             for (int lineNumber = 1; lineNumber <= lines.Length; lineNumber++)
@@ -30,10 +31,7 @@ public class BrokenFixtureTests
     }
 
     [Fact]
-    public void Broken_fixtures_exist()
-    {
-        Assert.NotEmpty(BrokenEvents());
-    }
+    public void Broken_fixtures_exist() => Assert.NotEmpty(BrokenEvents());
 
     [Theory]
     [MemberData(nameof(BrokenEvents))]
@@ -41,7 +39,7 @@ public class BrokenFixtureTests
     {
         EventValidationResult result = Validator.Validate(eventJson);
 
-        Assert.False(result.IsValid, $"{file}:{lineNumber} validated but is deliberately broken — the gate is not working.");
+        Assert.False(result.IsValid, string.Create(CultureInfo.InvariantCulture, $"{file}:{lineNumber} validated but is deliberately broken — the gate is not working."));
         Assert.NotEmpty(result.Errors);
     }
 }

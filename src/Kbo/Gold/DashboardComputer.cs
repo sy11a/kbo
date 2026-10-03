@@ -60,10 +60,9 @@ public static class DashboardComputer
     {
         DateTime nowUtc = now.UtcDateTime;
         DateTime currentWeekStart = StartOfIsoWeek(nowUtc);
-        List<DateTime> grid = Enumerable.Range(1, MirrorSnapshotWeeks)
+        List<DateTime> grid = [.. Enumerable.Range(1, MirrorSnapshotWeeks)
             .Select(weeksBack => currentWeekStart.AddDays(-7 * weeksBack))
-            .OrderBy(snapshot => snapshot)
-            .ToList();
+            .Order()];
 
         double? CacheAt(DateTime start, DateTime end)
         {
@@ -115,7 +114,7 @@ public static class DashboardComputer
 
         double? LoopAt(DateTime start, DateTime end)
         {
-            Dictionary<string, DateTime> firstWrite = new();
+            Dictionary<string, DateTime> firstWrite = [];
             foreach (object?[] row in Query(connection, """
                 SELECT subject, min(time) AS first_write
                 FROM practice_events
@@ -148,7 +147,7 @@ public static class DashboardComputer
                 if (firstWrite.TryGetValue(subject, out DateTime writtenAt) && (DateTime)row[1]! > writtenAt)
                 {
                     reused++;
-                    firstWrite.Remove(subject);
+                    _ = firstWrite.Remove(subject);
                 }
             }
             return (double)reused / written;
@@ -181,7 +180,7 @@ public static class DashboardComputer
 
         double? SddAt(DateTime start, DateTime end)
         {
-            Dictionary<string, DateTime> firstSpec = new();
+            Dictionary<string, DateTime> firstSpec = [];
             foreach (object?[] row in Query(connection, """
                 SELECT session, min(time) AS first_spec
                 FROM practice_events
@@ -195,7 +194,7 @@ public static class DashboardComputer
                 firstSpec[(string)row[0]!] = (DateTime)row[1]!;
             }
 
-            Dictionary<string, DateTime> firstCode = new();
+            Dictionary<string, DateTime> firstCode = [];
             foreach (object?[] row in Query(connection, """
                 SELECT session, subject, time
                 FROM practice_events
@@ -234,7 +233,7 @@ public static class DashboardComputer
             string chronicHint)
         {
             double? current = valueAt(nowUtc.AddDays(-windowDays), nowUtc);
-            List<double> history = new();
+            List<double> history = [];
             foreach (DateTime snapshotEnd in grid)
             {
                 double? value = valueAt(snapshotEnd.AddDays(-windowDays), snapshotEnd);
@@ -292,20 +291,18 @@ public static class DashboardComputer
         {
             if (calibration.StatusClass == MirrorCalibration.ClassWait)
             {
-                return FormattableString.Invariant(
-                    $"история {calibration.HistoryWeeks}/{MirrorCalibration.RequiredHistoryWeeks} нед");
+                return string.Create(CultureInfo.InvariantCulture, $"история {calibration.HistoryWeeks}/{MirrorCalibration.RequiredHistoryWeeks} нед");
             }
             if (calibration.StatusClass == MirrorCalibration.ClassAcute)
             {
                 return calibration.RobustZ.HasValue
-                    ? FormattableString.Invariant($"острый выход: z = {calibration.RobustZ.Value:0.0}")
-                    : "вне насыщенной нормы";
+                    ? string.Create(CultureInfo.InvariantCulture, $"острый выход: z = {calibration.RobustZ.Value:0.0}") : "вне насыщенной нормы";
             }
             if (calibration.StatusClass == MirrorCalibration.ClassTrend && calibration.SlopePerWeek.HasValue)
             {
                 double ppPerWeek = calibration.SlopePerWeek.Value * 100;
                 string sign = ppPerWeek > 0 ? "+" : "−";
-                return FormattableString.Invariant($"наклон {sign}{Math.Abs(ppPerWeek):0.0}пп/нед");
+                return string.Create(CultureInfo.InvariantCulture, $"наклон {sign}{Math.Abs(ppPerWeek):0.0}пп/нед");
             }
             string low = calibration.CorridorLow?.ToString("0%", CultureInfo.InvariantCulture) ?? "—";
             string high = calibration.CorridorHigh?.ToString("0%", CultureInfo.InvariantCulture) ?? "—";
@@ -331,14 +328,13 @@ public static class DashboardComputer
                 return null;
             }
             string target = goal.Direction == MirrorDirection.UpIsBetter
-                ? FormattableString.Invariant($"цель ≥{goal.Value:0%}")
-                : FormattableString.Invariant($"цель ≤{goal.Value:0%}");
+                ? string.Create(CultureInfo.InvariantCulture, $"цель ≥{goal.Value:0%}") : string.Create(CultureInfo.InvariantCulture, $"цель ≤{goal.Value:0%}");
             double gapPp = goal.Direction == MirrorDirection.UpIsBetter
                 ? (goal.Value - current) * 100
                 : (current - goal.Value) * 100;
             return gapPp <= 0
                 ? target + " · достигнута"
-                : FormattableString.Invariant($"{target} · до цели −{gapPp:0}пп");
+                : string.Create(CultureInfo.InvariantCulture, $"{target} · до цели −{gapPp:0}пп");
         }
     }
 
@@ -355,7 +351,7 @@ public static class DashboardComputer
 
         // Session → repo (sessions view; '(unknown)' when absent —
         // same coalesce convention silver's sessions view uses).
-        Dictionary<string, string> repoBySession = new();
+        Dictionary<string, string> repoBySession = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, coalesce(repo, '(unknown)') AS repo
             FROM sessions
@@ -367,7 +363,7 @@ public static class DashboardComputer
         }
 
         // Ordering: per session, earliest spec activity vs first code write.
-        Dictionary<string, DateTime> firstSpec = new();
+        Dictionary<string, DateTime> firstSpec = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, min(time) AS first_spec
             FROM practice_events
@@ -381,9 +377,9 @@ public static class DashboardComputer
             firstSpec[(string)row[0]!] = (DateTime)row[1]!;
         }
 
-        Dictionary<string, DateTime> firstCodeWrite = new();
+        Dictionary<string, DateTime> firstCodeWrite = [];
         long machineManagedWrites = 0;
-        Dictionary<string, long> writesByKind = new();
+        Dictionary<string, long> writesByKind = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, subject, time
             FROM practice_events
@@ -411,7 +407,7 @@ public static class DashboardComputer
         }
 
         // Ordering rows per repo × ISO week of the first code write.
-        Dictionary<(string Week, string Repo), long[]> ordering = new();
+        Dictionary<(string Week, string Repo), long[]> ordering = [];
         long codeSessions = 0;
         long specFirst = 0;
         foreach (KeyValuePair<string, DateTime> entry in firstCodeWrite)
@@ -424,8 +420,8 @@ public static class DashboardComputer
             }
             DateTime firstWrite = entry.Value;
             int weekYear = IsoWeekYear(firstWrite);
-            int week = System.Globalization.ISOWeek.GetWeekOfYear(firstWrite);
-            string key = FormattableString.Invariant($"{weekYear:D4}-W{week:D2}");
+            int week = ISOWeek.GetWeekOfYear(firstWrite);
+            string key = string.Create(CultureInfo.InvariantCulture, $"{weekYear:D4}-W{week:D2}");
             string repo = repoBySession.GetValueOrDefault(entry.Key, "(unknown)");
             long[] slot = ordering.TryGetValue((key, repo), out long[]? existing)
                 ? existing : ordering[(key, repo)] = new long[2];
@@ -436,32 +432,30 @@ public static class DashboardComputer
             }
         }
 
-        List<SddOrderingRow> orderingRows = ordering
+        List<SddOrderingRow> orderingRows = [.. ordering
             .OrderByDescending(entry => entry.Key.Week, StringComparer.Ordinal)
             .ThenBy(entry => entry.Key.Repo, StringComparer.Ordinal)
             .Take(RepoListCap)
             .Select(entry => new SddOrderingRow(
                 entry.Key.Week, entry.Key.Repo, entry.Value[0], entry.Value[1],
-                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))
-            .ToList();
+                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))];
         SddOrderingSummary orderingSummary = new(
             codeSessions, specFirst, codeSessions == 0 ? 0 : (double)specFirst / codeSessions);
 
-        List<SddWritesRow> writesRows = writesByKind
+        List<SddWritesRow> writesRows = [.. writesByKind
             .OrderByDescending(entry => entry.Value)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-            .Select(entry => new SddWritesRow(entry.Key, entry.Value))
-            .ToList();
+            .Select(entry => new SddWritesRow(entry.Key, entry.Value))];
 
         // Skill rate: configured skill names only (ADR-0031 pattern);
         // an unconfigured block is stated, never silently omitted.
-        List<SddSkillRateRow> skillRows = new();
+        List<SddSkillRateRow> skillRows = [];
         bool skillConfigured = registry.Sdd is not null;
         if (registry.Sdd is not null)
         {
             HashSet<string> skills = new(registry.Sdd.Skills, StringComparer.Ordinal);
-            Dictionary<string, long> sessionsTotal = new();
-            Dictionary<string, long> sessionsWithSddSkill = new();
+            Dictionary<string, long> sessionsTotal = [];
+            Dictionary<string, long> sessionsWithSddSkill = [];
             foreach (object?[] row in Query(connection, """
                 SELECT session, json_extract_string(data, '$.skill') AS skill
                 FROM practice_events
@@ -470,10 +464,10 @@ public static class DashboardComputer
                 """, ("cutoff", cutoff)))
             {
                 string session = (string)row[0]!;
-                sessionsTotal.TryAdd(session, 0);
+                _ = sessionsTotal.TryAdd(session, 0);
                 if (skills.Contains((string)row[1]!))
                 {
-                    sessionsWithSddSkill.TryAdd(session, 0);
+                    _ = sessionsWithSddSkill.TryAdd(session, 0);
                 }
             }
             foreach (object?[] row in Query(connection, """
@@ -481,10 +475,10 @@ public static class DashboardComputer
                 WHERE session IS NOT NULL AND time >= $cutoff
                 """, ("cutoff", cutoff)))
             {
-                sessionsTotal.TryAdd((string)row[0]!, 0);
+                _ = sessionsTotal.TryAdd((string)row[0]!, 0);
             }
 
-            Dictionary<string, long[]> byRepo = new();
+            Dictionary<string, long[]> byRepo = [];
             foreach (string session in sessionsTotal.Keys)
             {
                 string repo = repoBySession.GetValueOrDefault(session, "(unknown)");
@@ -496,23 +490,23 @@ public static class DashboardComputer
                     slot[1]++;
                 }
             }
-            skillRows = byRepo
+            skillRows = [.. byRepo
                 .OrderByDescending(entry => entry.Value[0])
                 .ThenBy(entry => entry.Key, StringComparer.Ordinal)
                 .Take(RepoListCap)
                 .Select(entry => new SddSkillRateRow(
                     entry.Key, entry.Value[0], entry.Value[1],
-                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))
-                .ToList();
+                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))];
         }
 
         return new SddPanelGold(orderingRows, orderingSummary, writesRows, machineManagedWrites, skillRows, skillConfigured);
     }
 
     private static (List<WriteReadRow> Top, WriteReadSummary Summary) WriteReadLoop(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
-    {        DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
+    {
+        DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
 
-        Dictionary<string, DateTime> firstWrite = new();
+        Dictionary<string, DateTime> firstWrite = [];
         foreach (object?[] row in Query(connection, """
             SELECT subject, min(time) AS first_write
             FROM practice_events
@@ -528,7 +522,7 @@ public static class DashboardComputer
             firstWrite[subject] = (DateTime)row[1]!;
         }
 
-        Dictionary<string, long> laterReads = new();
+        Dictionary<string, long> laterReads = [];
         foreach (object?[] row in Query(connection, """
             SELECT subject, time
             FROM practice_events
@@ -542,19 +536,18 @@ public static class DashboardComputer
             }
         }
 
-        List<WriteReadRow> top = laterReads
+        List<WriteReadRow> top = [.. laterReads
             .OrderByDescending(entry => entry.Value)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal)
             .Take(TopListCap)
-            .Select(entry => new WriteReadRow(entry.Key, entry.Value))
-            .ToList();
+            .Select(entry => new WriteReadRow(entry.Key, entry.Value))];
         long writtenCount = firstWrite.Count;
         return (top, new WriteReadSummary(writtenCount, laterReads.Count, writtenCount == 0 ? 0 : (double)laterReads.Count / writtenCount));
     }
 
     private static (List<ReuseRow> Top, ReuseSummary Summary) NoteReuse(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
     {
-        List<ReuseRow> notes = new();
+        List<ReuseRow> notes = [];
         foreach (object?[] row in Query(connection, """
             SELECT subject, count(*) AS reads, count(DISTINCT session) AS sessions
             FROM practice_events
@@ -571,18 +564,17 @@ public static class DashboardComputer
         }
 
         long singleUse = notes.Count(note => note.Sessions <= 1);
-        List<ReuseRow> top = notes
+        List<ReuseRow> top = [.. notes
             .OrderByDescending(note => note.Sessions)
             .ThenByDescending(note => note.Reads)
             .ThenBy(note => note.Path, StringComparer.Ordinal)
-            .Take(TopListCap)
-            .ToList();
+            .Take(TopListCap)];
         return (top, new ReuseSummary(notes.Count, singleUse, notes.Count == 0 ? 0 : (double)singleUse / notes.Count));
     }
 
     private static List<DayCount> TopFailedSearches(DuckDBConnection connection, DateTimeOffset now)
     {
-        List<DayCount> rows = new();
+        List<DayCount> rows = [];
         foreach (object?[] row in Query(connection, $"""
             SELECT subject, count(*)
             FROM practice_events
@@ -601,8 +593,8 @@ public static class DashboardComputer
 
     private static HashSet<string> TouchedSessions(DuckDBConnection connection, KnowledgeRegistry registry)
     {
-        HashSet<string> registeredIds = registry.Sources.Select(source => source.Id).ToHashSet();
-        HashSet<string> touchedSessions = new();
+        HashSet<string> registeredIds = [.. registry.Sources.Select(source => source.Id)];
+        HashSet<string> touchedSessions = [];
         foreach (object?[] row in Query(connection, """
             SELECT DISTINCT session, subject, kbroot
             FROM events_preferred
@@ -618,7 +610,7 @@ public static class DashboardComputer
             bool stampStillRegistered = row[2] is string kbroot && registeredIds.Contains(kbroot);
             if (resolvesNow || stampStillRegistered)
             {
-                touchedSessions.Add(session);
+                _ = touchedSessions.Add(session);
             }
         }
         return touchedSessions;
@@ -626,7 +618,7 @@ public static class DashboardComputer
 
     private static List<RecentSessionRow> RecentSessions(DuckDBConnection connection, HashSet<string> touchedSessions)
     {
-        Dictionary<string, long[]> countsBySession = new();
+        Dictionary<string, long[]> countsBySession = [];
         foreach (object?[] row in Query(connection, """
             SELECT session, type, count(*)
             FROM events_preferred
@@ -651,7 +643,7 @@ public static class DashboardComputer
             }
         }
 
-        List<RecentSessionRow> rows = new();
+        List<RecentSessionRow> rows = [];
         foreach (object?[] row in Query(connection, $"""
             SELECT session, agent, coalesce(repo, '(unknown)') AS repo, started_at,
                    coalesce(input_tokens, 0), coalesce(cache_read_tokens, 0)
@@ -675,7 +667,7 @@ public static class DashboardComputer
 
     private static List<JobHealthTile> JobHealth(DuckDBConnection connection, DateTimeOffset now)
     {
-        List<JobHealthTile> tiles = new();
+        List<JobHealthTile> tiles = [];
         foreach (object?[] row in Query(connection, """
             SELECT machine, agent, subject, max(time)
             FROM events
@@ -689,7 +681,7 @@ public static class DashboardComputer
             double daysSilent = (now - last).TotalDays;
             tiles.Add(new JobHealthTile(
                 (string)row[0]!, (string)row[1]!, job, last,
-                Math.Round(daysSilent, 1),
+                Math.Round(daysSilent, 1, MidpointRounding.ToEven),
                 daysSilent > JobDeadMan.ThresholdDays(job) ? "red" : "ok"));
         }
         return tiles;
@@ -697,7 +689,7 @@ public static class DashboardComputer
 
     private static List<LastSeenTile> LastSeen(DuckDBConnection connection, DateTimeOffset now)
     {
-        List<LastSeenTile> tiles = new();
+        List<LastSeenTile> tiles = [];
         foreach (object?[] row in Query(connection, """
             SELECT machine, agent, max(time)
             FROM events
@@ -709,7 +701,7 @@ public static class DashboardComputer
             double daysSilent = (now - last).TotalDays;
             tiles.Add(new LastSeenTile(
                 (string)row[0]!, (string)row[1]!, last,
-                Math.Round(daysSilent, 1),
+                Math.Round(daysSilent, 1, MidpointRounding.ToEven),
                 daysSilent > DeadManThresholdDays ? "red" : "ok"));
         }
         return tiles;
@@ -737,7 +729,7 @@ public static class DashboardComputer
 
     private static List<FailedSearchRow> FailedSearches(DuckDBConnection connection)
     {
-        List<FailedSearchRow> rows = new();
+        List<FailedSearchRow> rows = [];
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    count(*) AS searches,
@@ -758,7 +750,7 @@ public static class DashboardComputer
 
     private static List<TokensRow> Tokens(DuckDBConnection connection)
     {
-        List<TokensRow> rows = new();
+        List<TokensRow> rows = [];
         foreach (object?[] row in Query(connection, """
             SELECT strftime(date_trunc('day', started_at), '%Y-%m-%d') AS day,
                    coalesce(sum(input_tokens), 0),
@@ -776,9 +768,9 @@ public static class DashboardComputer
     private static List<ThemeReadsRow> ReadsByTheme(
         DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
     {
-        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id);
+        Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id, StringComparer.Ordinal);
 
-        Dictionary<(string Source, string Theme), long> reads = new();
+        Dictionary<(string Source, string Theme), long> reads = [];
         foreach (object?[] row in Query(connection, """
             SELECT subject, count(*)
             FROM practice_events
@@ -798,29 +790,27 @@ public static class DashboardComputer
             reads[key] = reads.GetValueOrDefault(key) + AsLong(row[1]);
         }
 
-        Dictionary<(string Source, string Theme), long> notes = new();
+        Dictionary<(string Source, string Theme), long> notes = [];
         foreach (InventoryNote note in NoteInventory.Scan(registry))
         {
             (string, string) key = (note.SourceId, ThemeOf(sourcesById[note.SourceId], note.Path));
             notes[key] = notes.GetValueOrDefault(key) + 1;
         }
 
-        List<ThemeReadsRow> rows = reads.Keys.Union(notes.Keys)
+        List<ThemeReadsRow> rows = [.. reads.Keys.Union(notes.Keys)
             .Select(key => new ThemeReadsRow(
                 key.Theme.Length == 0 ? key.Source : $"{key.Source}/{key.Theme}",
                 key.Source,
                 reads.GetValueOrDefault(key),
-                notes.GetValueOrDefault(key)))
-            .ToList();
-        return rows.Where(row => row.Reads == 0)
-            .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal)
-            .ToList();
+                notes.GetValueOrDefault(key)))];
+        return [.. rows.Where(row => row.Reads == 0)
+            .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal)];
     }
 
     private static string ThemeOf(KnowledgeSource source, string path)
     {
         string relative = Path.GetRelativePath(source.Root, path);
-        int separator = relative.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+        int separator = relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
         return separator < 0 ? "" : relative[..separator];
     }
 
@@ -830,9 +820,9 @@ public static class DashboardComputer
         command.CommandText = sql;
         foreach ((string name, object value) in parameters)
         {
-            command.Parameters.Add(new DuckDBParameter(name, value));
+            _ = command.Parameters.Add(new DuckDBParameter(name, value));
         }
-        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
             object?[] values = new object?[reader.FieldCount];

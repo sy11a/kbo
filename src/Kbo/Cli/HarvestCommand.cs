@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
 using Kbo.Adapters.Opencode;
@@ -64,7 +65,7 @@ public static class HarvestCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -83,7 +84,7 @@ public static class HarvestCommand
 
         List<JsonObject> FilterForBackfill(List<JsonObject> mined) =>
             backfillSkills
-                ? mined.Where(minedEvent => (string?)minedEvent[EnvelopeFields.Type] == EventTypes.SkillInvoked).ToList()
+                ? [.. mined.Where(minedEvent => (string?)minedEvent[EnvelopeFields.Type] == EventTypes.SkillInvoked)]
                 : mined;
 
         int harvestedCount = 0;
@@ -97,7 +98,7 @@ public static class HarvestCommand
             {
                 return;
             }
-            List<JsonObject> validEvents = new();
+            List<JsonObject> validEvents = [];
             foreach (JsonObject minedEvent in events)
             {
                 EventValidationResult result = validator.Validate(minedEvent.ToJsonString());
@@ -120,7 +121,7 @@ public static class HarvestCommand
         {
             foreach (string transcriptPath in Directory
                 .EnumerateFiles(transcriptsRoot, "*.jsonl", SearchOption.AllDirectories)
-                .Order())
+                .Order(StringComparer.Ordinal))
             {
                 string transcriptId = Path.GetFileNameWithoutExtension(transcriptPath);
                 if (harvestedTranscripts.Contains(transcriptId))
@@ -134,7 +135,7 @@ public static class HarvestCommand
         }
         else
         {
-            List<string> pendingSessions = new();
+            List<string> pendingSessions = [];
             foreach (string sessionId in OpencodeMiner.EnumerateSessionIds(databasePath))
             {
                 if (harvestedTranscripts.Contains(sessionId))
@@ -153,7 +154,7 @@ public static class HarvestCommand
         }
 
         output.WriteLine(
-            $"harvested {harvestedCount} session(s), {eventCount} event(s); skipped {skippedCount} already-harvested; {invalidCount} invalid event(s) dropped");
+            string.Create(CultureInfo.InvariantCulture, $"harvested {harvestedCount} session(s), {eventCount} event(s); skipped {skippedCount} already-harvested; {invalidCount} invalid event(s) dropped"));
         return 0;
     }
 }

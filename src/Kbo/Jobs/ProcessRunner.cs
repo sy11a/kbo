@@ -6,7 +6,7 @@ public sealed record ProcessResult(int ExitCode, string StandardOutput, string S
 
 public interface IProcessRunner
 {
-    ProcessResult Run(string fileName, IReadOnlyList<string> arguments);
+    public ProcessResult Run(string fileName, IReadOnlyList<string> arguments);
 }
 
 public sealed class ProcessRunner : IProcessRunner

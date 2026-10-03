@@ -18,7 +18,7 @@ public class CaptureCommandTests : IDisposable
         workspace = Directory.CreateTempSubdirectory("kbo-capture-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
         eventsRepo = Path.Combine(workspace, "kb-events");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "hello\n");
 
         registryPath = Path.Combine(workspace, "registry.yaml");
@@ -31,10 +31,7 @@ public class CaptureCommandTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private string CaptureLog => Path.Combine(workspace, ".local", "state", "kbo", "capture-errors.log");
 
@@ -47,7 +44,7 @@ public class CaptureCommandTests : IDisposable
             _ => null,
         };
         using StringReader input = new(payload.ToJsonString());
-        return CaptureCommand.Run(new[] { "claude-code" }, input, output, error, Environment, workspace);
+        return CaptureCommand.Run(["claude-code"], input, output, error, Environment, workspace);
     }
 
     [Fact]
@@ -68,8 +65,8 @@ public class CaptureCommandTests : IDisposable
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
         string line = File.ReadAllLines(monthFile).Single();
         Assert.True(new EventValidator().Validate(line).IsValid);
-        Assert.Contains("\"knowledge.read\"", line);
-        Assert.DoesNotContain("tool_response", line);
+        Assert.Contains("\"knowledge.read\"", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("tool_response", line, StringComparison.Ordinal);
         Assert.False(File.Exists(CaptureLog));
     }
 
@@ -87,7 +84,7 @@ public class CaptureCommandTests : IDisposable
         Assert.Equal(0, exitCode);
         string monthFile = Directory.EnumerateFiles(
             Path.Combine(eventsRepo, "bronze", "test-machine", "claude-code")).Single();
-        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"session.started\""));
+        Assert.Contains(File.ReadAllLines(monthFile), l => l.Contains("\"session.started\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -111,12 +108,12 @@ public class CaptureCommandTests : IDisposable
     {
         using StringReader input = new("this is not json");
         int exitCode = CaptureCommand.Run(
-            new[] { "claude-code" }, input, output, error, _ => registryPath, workspace);
+            ["claude-code"], input, output, error, _ => registryPath, workspace);
 
         Assert.Equal(0, exitCode);
         Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
         Assert.True(File.Exists(CaptureLog));
-        Assert.Contains("claude-code", File.ReadAllText(CaptureLog));
+        Assert.Contains("claude-code", File.ReadAllText(CaptureLog), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -137,7 +134,7 @@ public class CaptureCommandTests : IDisposable
             ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(vaultRoot, "note.md") },
         };
         using StringReader input = new(payload.ToJsonString());
-        int exitCode = CaptureCommand.Run(new[] { "claude-code" }, input, output, error, Environment, workspace);
+        int exitCode = CaptureCommand.Run(["claude-code"], input, output, error, Environment, workspace);
 
         Assert.Equal(0, exitCode);
         Assert.False(Directory.Exists(Path.Combine(eventsRepo, "bronze")));
@@ -149,9 +146,9 @@ public class CaptureCommandTests : IDisposable
     {
         using StringReader input = new("{}");
         int exitCode = CaptureCommand.Run(
-            new[] { "some-agent" }, input, output, error, _ => null, workspace);
+            ["some-agent"], input, output, error, _ => null, workspace);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("claude-code", error.ToString());
+        Assert.Contains("claude-code", error.ToString(), StringComparison.Ordinal);
     }
 }

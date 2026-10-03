@@ -1,3 +1,4 @@
+using System.Globalization;
 using Kbo.Silver;
 
 namespace Kbo.Cli;
@@ -46,7 +47,7 @@ public static class RebuildCommand
 
         RebuildResult result = SilverRebuilder.Rebuild(eventsRepo, silverPath);
         output.WriteLine(
-            $"rebuilt {silverPath}: {result.EventCount} event(s), {result.SessionCount} session(s); {result.SkippedLines} unparseable line(s) skipped");
+            string.Create(CultureInfo.InvariantCulture, $"rebuilt {silverPath}: {result.EventCount} event(s), {result.SessionCount} session(s); {result.SkippedLines} unparseable line(s) skipped"));
         return 0;
     }
 }

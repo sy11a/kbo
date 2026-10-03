@@ -32,7 +32,7 @@ public sealed class ArchiveJob : IPulseJob
     {
         copied = 0;
         skipped = 0;
-        Directory.CreateDirectory(archiveRoot);
+        _ = Directory.CreateDirectory(archiveRoot);
 
         foreach (RetentionManifest manifest in manifests)
         {
@@ -53,7 +53,7 @@ public sealed class ArchiveJob : IPulseJob
             }
         }
 
-        return $"copied={copied} skipped={skipped} root={archiveRoot}";
+        return string.Create(CultureInfo.InvariantCulture, $"copied={copied} skipped={skipped} root={archiveRoot}");
     }
 
     private void ArchiveTree(FileTreeEntry tree)
@@ -62,7 +62,7 @@ public sealed class ArchiveJob : IPulseJob
         {
             return;
         }
-        foreach (string source in Directory.EnumerateFiles(tree.Root, tree.Pattern, SearchOption.AllDirectories).Order())
+        foreach (string source in Directory.EnumerateFiles(tree.Root, tree.Pattern, SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             string relative = Path.GetRelativePath(tree.Root, source);
             ArchiveFile(source, Path.Combine(archiveRoot, tree.DestinationPrefix, relative + ".zst"));
@@ -81,7 +81,7 @@ public sealed class ArchiveJob : IPulseJob
             return;
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         ProcessResult result = processRunner.Run("zstd", new[] { "-q", "-f", "-o", destination, "--", source });
         if (result.ExitCode != 0)
         {
@@ -112,7 +112,7 @@ public sealed class ArchiveJob : IPulseJob
                 }
                 SqliteConnection.ClearAllPools();
 
-                Directory.CreateDirectory(Path.GetDirectoryName(latest)!);
+                _ = Directory.CreateDirectory(Path.GetDirectoryName(latest)!);
                 ProcessResult result = processRunner.Run("zstd", new[] { "-q", "-f", "-o", latest, "--", temporaryCopy });
                 if (result.ExitCode != 0)
                 {
@@ -131,8 +131,8 @@ public sealed class ArchiveJob : IPulseJob
         }
 
         DateTimeOffset now = clock.GetUtcNow();
-        int isoYear = System.Globalization.ISOWeek.GetYear(now.UtcDateTime);
-        int isoWeek = System.Globalization.ISOWeek.GetWeekOfYear(now.UtcDateTime);
+        int isoYear = ISOWeek.GetYear(now.UtcDateTime);
+        int isoWeek = ISOWeek.GetWeekOfYear(now.UtcDateTime);
         string weeklyName = string.Create(
             CultureInfo.InvariantCulture, $"{sqlite.WeeklySnapshotPrefix}{isoYear}-W{isoWeek:D2}.db.zst");
         string weekly = Path.Combine(archiveRoot, sqlite.DestinationPrefix, weeklyName);

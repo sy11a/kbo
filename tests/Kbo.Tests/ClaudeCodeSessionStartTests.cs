@@ -26,17 +26,17 @@ public class ClaudeCodeSessionStartTests : IDisposable
         home = Path.Combine(workspace, "home");
         repoRoot = Path.Combine(workspace, "repo");
 
-        Directory.CreateDirectory(Path.Combine(home, ".claude"));
+        _ = Directory.CreateDirectory(Path.Combine(home, ".claude"));
         File.WriteAllText(Path.Combine(home, ".claude", "CLAUDE.md"), "global instructions\n");
 
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
+        _ = Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
         File.WriteAllText(Path.Combine(repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-9-hook\n");
         File.WriteAllText(Path.Combine(repoRoot, "CLAUDE.md"), "hello\n");
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".claude", "rules"));
+        _ = Directory.CreateDirectory(Path.Combine(repoRoot, ".claude", "rules"));
         File.WriteAllText(Path.Combine(repoRoot, ".claude", "rules", "skills.md"), "rules\n");
 
         string memoryDirectory = Path.Combine(home, ".claude", "projects", repoRoot.Replace('/', '-'), "memory");
-        Directory.CreateDirectory(memoryDirectory);
+        _ = Directory.CreateDirectory(memoryDirectory);
         File.WriteAllText(Path.Combine(memoryDirectory, "MEMORY.md"), "memory index\n");
 
         registry = KnowledgeRegistry.Parse($"""
@@ -49,10 +49,7 @@ public class ClaudeCodeSessionStartTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private List<JsonObject> MapSessionStart()
     {
@@ -112,7 +109,7 @@ public class ClaudeCodeSessionStartTests : IDisposable
     public void EmitsContextLoaded_ForEachExistingImplicitFile()
     {
         List<JsonObject> events = MapSessionStart();
-        List<JsonObject> loaded = events.Where(e => (string?)e["type"] == "context.loaded").ToList();
+        List<JsonObject> loaded = [.. events.Where(e => (string?)e["type"] == "context.loaded")];
 
         EventValidator validator = new();
         foreach (JsonObject contextEvent in loaded)
@@ -121,11 +118,11 @@ public class ClaudeCodeSessionStartTests : IDisposable
             Assert.True(result.IsValid, string.Join("; ", result.Errors));
         }
 
-        List<string?> paths = loaded.Select(e => (string?)e["subject"]).ToList();
-        Assert.Contains(Path.Combine(home, ".claude", "CLAUDE.md"), paths);
-        Assert.Contains(Path.Combine(repoRoot, "CLAUDE.md"), paths);
-        Assert.Contains(Path.Combine(repoRoot, ".claude", "rules", "skills.md"), paths);
-        Assert.Contains(paths, p => p!.EndsWith("MEMORY.md"));
+        List<string?> paths = [.. loaded.Select(e => (string?)e["subject"])];
+        Assert.Contains(Path.Combine(home, ".claude", "CLAUDE.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(Path.Combine(repoRoot, "CLAUDE.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(Path.Combine(repoRoot, ".claude", "rules", "skills.md"), paths, StringComparer.Ordinal);
+        Assert.Contains(paths, p => p!.EndsWith("MEMORY.md", StringComparison.Ordinal));
 
         JsonObject projectInstructions = loaded.Single(e => (string?)e["subject"] == Path.Combine(repoRoot, "CLAUDE.md"));
         Assert.Equal("repo-kb", (string?)projectInstructions["kbroot"]);

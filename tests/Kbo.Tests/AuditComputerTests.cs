@@ -27,13 +27,10 @@ public class AuditComputerTests : IDisposable
         transcriptsRoot = Path.Combine(workspace, "projects");
         eventsRepo = Path.Combine(workspace, "kb-events");
         silverPath = Path.Combine(workspace, "silver.duckdb");
-        Directory.CreateDirectory(Path.Combine(transcriptsRoot, "proj-a"));
+        _ = Directory.CreateDirectory(Path.Combine(transcriptsRoot, "proj-a"));
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private void Transcript(string stem, int mtimeDaysAgo)
     {
@@ -69,12 +66,12 @@ public class AuditComputerTests : IDisposable
         {
             new BronzeStore(eventsRepo).Append(events);
         }
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
         RetentionManifest manifest = new(
             "claude-code",
             Array.Empty<ArchiveEntry>(),
             new FileTreeEntry(transcriptsRoot, "*.jsonl", "claude-code/projects"));
-        Kbo.Registry.KnowledgeRegistry registry = Kbo.Registry.KnowledgeRegistry.Parse($"""
+        Registry.KnowledgeRegistry registry = Registry.KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
               - id: now-registered
@@ -93,14 +90,14 @@ public class AuditComputerTests : IDisposable
         Transcript("missing-new", mtimeDaysAgo: 2);
 
         AuditReport report = Compute(
-            Event("01D00000000000000000000001", "knowledge.read", null, "/x.md", transcript: "seen-file"));
+            Event("01D00000000000000000000001", "knowledge.read", kbroot: null, "/x.md", transcript: "seen-file"));
 
         MissingSessionsFinding finding = Assert.Single(report.MissingSessions);
         Assert.Equal("claude-code", finding.Agent);
         Assert.Equal(2, finding.Count);
         Assert.Equal(Now.AddDays(-9).UtcDateTime.Date, finding.MissingSince.UtcDateTime.Date);
-        Assert.Contains("missing-old", finding.Transcripts);
-        Assert.Contains("missing-new", finding.Transcripts);
+        Assert.Contains("missing-old", finding.Transcripts, StringComparer.Ordinal);
+        Assert.Contains("missing-new", finding.Transcripts, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -109,7 +106,7 @@ public class AuditComputerTests : IDisposable
         Transcript("seen-file", mtimeDaysAgo: 3);
 
         AuditReport report = Compute(
-            Event("01D00000000000000000000002", "knowledge.read", null, "/x.md", transcript: "seen-file"));
+            Event("01D00000000000000000000002", "knowledge.read", kbroot: null, "/x.md", transcript: "seen-file"));
 
         Assert.Empty(report.MissingSessions);
     }
@@ -118,10 +115,10 @@ public class AuditComputerTests : IDisposable
     public void UnregisteredKnowledge_ExcludesDirsNowCoveredByARegisteredRoot()
     {
         string registeredDirectory = Path.Combine(workspace, "now-registered");
-        Directory.CreateDirectory(registeredDirectory);
+        _ = Directory.CreateDirectory(registeredDirectory);
         AuditReport report = Compute(
-            Event("01D00000000000000000000008", "knowledge.read", null, Path.Combine(registeredDirectory, "old.md"), transcript: "t9"),
-            Event("01D00000000000000000000009", "knowledge.read", null, "/still/unregistered/x.md", transcript: "t9"));
+            Event("01D00000000000000000000008", "knowledge.read", kbroot: null, Path.Combine(registeredDirectory, "old.md"), transcript: "t9"),
+            Event("01D00000000000000000000009", "knowledge.read", kbroot: null, "/still/unregistered/x.md", transcript: "t9"));
 
         Assert.DoesNotContain(report.UnregisteredSources, f => f.Directory == registeredDirectory);
         Assert.Contains(report.UnregisteredSources, f => f.Directory == "/still/unregistered");
@@ -131,11 +128,11 @@ public class AuditComputerTests : IDisposable
     public void UnregisteredKnowledge_GroupsNullKbrootMarkdownReadsByDirectory()
     {
         AuditReport report = Compute(
-            Event("01D00000000000000000000003", "knowledge.read", null, "/home/u/Notes/a.md", transcript: "t1"),
-            Event("01D00000000000000000000004", "knowledge.read", null, "/home/u/Notes/b.md", transcript: "t1"),
-            Event("01D00000000000000000000005", "knowledge.read", null, "/home/u/code/README.md", transcript: "t1"),
+            Event("01D00000000000000000000003", "knowledge.read", kbroot: null, "/home/u/Notes/a.md", transcript: "t1"),
+            Event("01D00000000000000000000004", "knowledge.read", kbroot: null, "/home/u/Notes/b.md", transcript: "t1"),
+            Event("01D00000000000000000000005", "knowledge.read", kbroot: null, "/home/u/code/README.md", transcript: "t1"),
             Event("01D00000000000000000000006", "knowledge.read", "vault", "/home/u/Knowledge/c.md", transcript: "t1"),
-            Event("01D00000000000000000000007", "knowledge.read", null, "/home/u/code/Program.cs", transcript: "t1"));
+            Event("01D00000000000000000000007", "knowledge.read", kbroot: null, "/home/u/code/Program.cs", transcript: "t1"));
 
         UnregisteredSourceFinding top = report.UnregisteredSources[0];
         Assert.Equal("/home/u/Notes", top.Directory);

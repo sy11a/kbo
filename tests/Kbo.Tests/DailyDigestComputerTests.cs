@@ -26,7 +26,7 @@ public class DailyDigestComputerTests : IDisposable
         workspace = Directory.CreateTempSubdirectory("kbo-digest-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
         silverPath = Path.Combine(workspace, "silver.duckdb");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
@@ -36,15 +36,12 @@ public class DailyDigestComputerTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private static JsonObject Event(string id, string type, string time, string? session, string agent = "claude-code",
         string? subject = null, JsonObject? data = null, string? repo = null)
     {
-        JsonObject eventData = data ?? new JsonObject();
+        JsonObject eventData = data ?? [];
         eventData["origin"] = "harvest";
         eventData["transcript"] = "t-" + id[^2..];
         return new JsonObject
@@ -66,7 +63,7 @@ public class DailyDigestComputerTests : IDisposable
     {
         string eventsRepo = Path.Combine(workspace, "kb-events");
         new BronzeStore(eventsRepo).Append(events);
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
         return DailyDigestComputer.Compute(silverPath, registry, new FixedTimeProvider(Now));
     }
 
@@ -76,11 +73,11 @@ public class DailyDigestComputerTests : IDisposable
         string notePath = Path.Combine(vaultRoot, "note.md");
         IReadOnlyList<DayDigest> digests = Compute(
             Event("01G00000000000000000000001", "session.started", "2026-08-12T09:00:00Z", "s-a", agent: "claude-code",
-                subject: "s-a", repo: "/home/u/RepoA", data: new JsonObject { ["branch"] = null, ["usage"] = null }),
+                subject: "s-a", data: new JsonObject { ["branch"] = null, ["usage"] = null }, repo: "/home/u/RepoA"),
             Event("01G00000000000000000000002", "knowledge.read", "2026-08-12T09:05:00Z", "s-a", agent: "claude-code",
                 subject: notePath),
             Event("01G00000000000000000000003", "session.started", "2026-08-12T10:00:00Z", "s-b", agent: "opencode",
-                subject: "s-b", repo: "/home/u/RepoB", data: new JsonObject { ["branch"] = null, ["usage"] = null }));
+                subject: "s-b", data: new JsonObject { ["branch"] = null, ["usage"] = null }, repo: "/home/u/RepoB"));
 
         DayDigest day = Assert.Single(digests, d => d.Date == "2026-08-12");
         Assert.Equal(2, day.Sessions);

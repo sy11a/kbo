@@ -21,7 +21,7 @@ public class ReportCommandTests : IDisposable
         vaultRoot = Path.Combine(workspace, "Knowledge");
         silverPath = Path.Combine(workspace, "silver.duckdb");
         registryPath = Path.Combine(workspace, "registry.yaml");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         File.WriteAllText(Path.Combine(vaultRoot, "old-note.md"), "# old\n");
         File.SetLastWriteTimeUtc(Path.Combine(vaultRoot, "old-note.md"), DateTime.UtcNow.AddDays(-200));
         File.WriteAllText(registryPath, $"""
@@ -48,13 +48,10 @@ public class ReportCommandTests : IDisposable
                 ["data"] = new JsonObject { ["origin"] = "hook" },
             },
         });
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private int Run(params string[] args)
     {
@@ -79,16 +76,16 @@ public class ReportCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(generated, "README.md")));
 
         string gold = File.ReadAllText(Path.Combine(generated, "kbo-report.gold.json"));
-        Assert.Contains("\"machine\": \"test-machine\"", gold);
-        Assert.Contains("\"hotNotes\"", gold);
+        Assert.Contains("\"machine\": \"test-machine\"", gold, StringComparison.Ordinal);
+        Assert.Contains("\"hotNotes\"", gold, StringComparison.Ordinal);
 
         Assert.True(File.Exists(Path.Combine(generated, "kbo-dashboard.html")));
         Assert.True(File.Exists(Path.Combine(generated, "kbo-dashboard.gold.json")));
-        Assert.Contains("\"jobHealth\"", File.ReadAllText(Path.Combine(generated, "kbo-dashboard.gold.json")));
+        Assert.Contains("\"jobHealth\"", File.ReadAllText(Path.Combine(generated, "kbo-dashboard.gold.json")), StringComparison.Ordinal);
 
         string days = Path.Combine(generated, "days");
         Assert.True(File.Exists(Path.Combine(days, "index.md")));
-        Assert.Contains("Daily digests", File.ReadAllText(Path.Combine(days, "index.md")));
+        Assert.Contains("Daily digests", File.ReadAllText(Path.Combine(days, "index.md")), StringComparison.Ordinal);
         Assert.NotEmpty(Directory.GetFiles(days, "2026-*.md"));
     }
 
@@ -100,7 +97,7 @@ public class ReportCommandTests : IDisposable
         int exitCode = Run();
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("kbo rebuild", error.ToString());
+        Assert.Contains("kbo rebuild", error.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

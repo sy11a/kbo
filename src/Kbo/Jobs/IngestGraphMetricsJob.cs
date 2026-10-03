@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Bronze;
 using Kbo.Registry;
@@ -35,20 +36,18 @@ public sealed class IngestGraphMetricsJob : IPulseJob
 
     public string Run()
     {
-        List<KnowledgeSource> publishing = registry.Sources
-            .Where(source => source.MetricsArtifact is not null)
-            .ToList();
+        List<KnowledgeSource> publishing = [.. registry.Sources.Where(source => source.MetricsArtifact is not null)];
         if (publishing.Count == 0)
         {
             return "no source carries metricsArtifact — nothing to ingest";
         }
 
         BronzeStore store = new(eventsRepo);
-        HashSet<string> seenKeys = new(store.GraphMetricsKeys());
+        HashSet<string> seenKeys = [.. store.GraphMetricsKeys()];
         EventValidator validator = new();
 
-        List<JsonObject> pending = new();
-        List<string> absent = new();
+        List<JsonObject> pending = [];
+        List<string> absent = [];
         int skipped = 0;
 
         foreach (KnowledgeSource source in publishing)
@@ -68,7 +67,7 @@ public sealed class IngestGraphMetricsJob : IPulseJob
             store.Append(pending);
         }
 
-        string summary = $"ingested {pending.Count} graph.metrics event(s), skipped {skipped} duplicate(s)";
+        string summary = string.Create(CultureInfo.InvariantCulture, $"ingested {pending.Count} graph.metrics event(s), skipped {skipped} duplicate(s)");
         if (absent.Count > 0)
         {
             summary += $"; artifact absent: {string.Join(", ", absent)}";
@@ -101,17 +100,17 @@ public sealed class IngestGraphMetricsJob : IPulseJob
             catch (System.Text.Json.JsonException exception)
             {
                 throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})");
+                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})"), exception);
             }
 
             JsonObject payload = parsed
-                ?? throw new InvalidOperationException($"{artifact} line {lineNumber}: not a JSON object");
+                ?? throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not a JSON object"));
 
             string? payloadSource = (string?)payload[EventDataFields.Source];
             if (payloadSource != source.Id)
             {
                 throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'");
+                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'"));
             }
 
             JsonObject envelope = EventEnvelope.Create(
@@ -132,7 +131,7 @@ public sealed class IngestGraphMetricsJob : IPulseJob
             if (!validation.IsValid)
             {
                 throw new InvalidOperationException(
-                    $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}");
+                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}"));
             }
 
             string dedupKey = (string?)payload[EventDataFields.Date] + "|" + payloadSource;

@@ -22,7 +22,7 @@ public sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
     {
         if (string.IsNullOrEmpty(cwd))
         {
-            return new GitContext(null, null, null);
+            return new GitContext(RepoRoot: null, Branch: null, Task: null);
         }
 
         string? directory = cwd;
@@ -57,7 +57,7 @@ public sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
             directory = Path.GetDirectoryName(directory);
         }
 
-        return new GitContext(null, null, null);
+        return new GitContext(RepoRoot: null, Branch: null, Task: null);
     }
 
     private static string? ReadBranch(string headPath)

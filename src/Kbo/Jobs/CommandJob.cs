@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Kbo.Jobs;
 
 /// <summary>
@@ -25,7 +27,7 @@ public sealed class CommandJob : IPulseJob
         int exitCode = command(output, error);
         if (exitCode != 0)
         {
-            throw new InvalidOperationException($"exit {exitCode}: {error.ToString().Trim()}");
+            throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"exit {exitCode}: {error.ToString().Trim()}"));
         }
 
         string[] lines = output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);

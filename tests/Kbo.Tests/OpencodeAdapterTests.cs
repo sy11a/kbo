@@ -25,8 +25,8 @@ public class OpencodeAdapterTests : IDisposable
         workspace = Directory.CreateTempSubdirectory("kbo-oc-adapter-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
         repoRoot = Path.Combine(workspace, "repo");
-        Directory.CreateDirectory(vaultRoot);
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
+        _ = Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
         File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "hello\n");
         File.WriteAllText(Path.Combine(repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-3-oc\n");
         File.WriteAllText(Path.Combine(repoRoot, "AGENTS.md"), "hello\n");
@@ -44,10 +44,7 @@ public class OpencodeAdapterTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private JsonObject? MapTool(string tool, JsonObject args)
     {
@@ -131,7 +128,7 @@ public class OpencodeAdapterTests : IDisposable
     public void SessionStart_EmitsSessionStartedAndImplicitAgentsMd()
     {
         string globalConfig = Path.Combine(workspace, "config-opencode");
-        Directory.CreateDirectory(globalConfig);
+        _ = Directory.CreateDirectory(globalConfig);
         File.WriteAllText(Path.Combine(globalConfig, "AGENTS.md"), "global rules\n");
 
         JsonObject payload = new()
@@ -150,10 +147,9 @@ public class OpencodeAdapterTests : IDisposable
         Assert.Equal("feature/AC-3-oc", (string?)started["data"]!["branch"]);
         Assert.Equal("ses_test2", (string?)started["data"]!["transcript"]);
 
-        List<string?> loaded = events.Where(e => (string?)e["type"] == "context.loaded")
-            .Select(e => (string?)e["subject"]).ToList();
-        Assert.Contains(Path.Combine(globalConfig, "AGENTS.md"), loaded);
-        Assert.Contains(Path.Combine(repoRoot, "AGENTS.md"), loaded);
+        List<string?> loaded = [.. events.Where(e => (string?)e["type"] == "context.loaded").Select(e => (string?)e["subject"])];
+        Assert.Contains(Path.Combine(globalConfig, "AGENTS.md"), loaded, StringComparer.Ordinal);
+        Assert.Contains(Path.Combine(repoRoot, "AGENTS.md"), loaded, StringComparer.Ordinal);
 
         JsonObject projectAgents = events.Single(e => (string?)e["subject"] == Path.Combine(repoRoot, "AGENTS.md"));
         Assert.Equal("repo-kb", (string?)projectAgents["kbroot"]);

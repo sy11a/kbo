@@ -35,12 +35,11 @@ public static class WatchCommand
     {
         if (!TryParseInterval(args, out int intervalSeconds, out string? parseError))
         {
-            error.WriteLine(parseError);
+            await error.WriteLineAsync(parseError);
             return 1;
         }
 
-        output.WriteLine(FormattableString.Invariant(
-            $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop"));
+        await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop"));
 
         int firstTick = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
         if (firstTick != 0)
@@ -53,14 +52,14 @@ public static class WatchCommand
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                RunOnce(output, error, environment, homeDirectory, intervalSeconds);
+                _ = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
             }
         }
         catch (OperationCanceledException)
         {
         }
 
-        output.WriteLine("kbo watch stopped");
+        await output.WriteLineAsync("kbo watch stopped");
         return 0;
     }
 
@@ -97,7 +96,7 @@ public static class WatchCommand
         string homeDirectory,
         int intervalSeconds)
     {
-        int rebuild = RebuildCommand.Run(Array.Empty<string>(), output, error, environment, homeDirectory);
+        int rebuild = RebuildCommand.Run([], output, error, environment, homeDirectory);
         if (rebuild != 0)
         {
             return rebuild;
@@ -107,7 +106,7 @@ public static class WatchCommand
         try
         {
             registry = KnowledgeRegistry.Load(
-                RegistryLocator.Locate(null, environment, homeDirectory),
+                RegistryLocator.Locate(explicitPath: null, environment, homeDirectory),
                 environment(KboEnvironment.TaskPatternVariable));
         }
         catch (RegistryFormatException exception)
@@ -139,7 +138,7 @@ public static class WatchCommand
         DashboardGold dashboard = DashboardComputer.Compute(silverPath, registry, TimeProvider.System, fleet);
 
         string outputDirectory = Path.Combine(vault.Root, "_generated");
-        Directory.CreateDirectory(outputDirectory);
+        _ = Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.gold.json"),
             JsonSerializer.Serialize(dashboard, GoldJsonOptions));
@@ -149,7 +148,7 @@ public static class WatchCommand
 
         string stamp = TimeProvider.System.GetUtcNow().UtcDateTime.ToString("HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         int red = dashboard.JobHealth.Count(tile => tile.Status == "red");
-        output.WriteLine(FormattableString.Invariant($"dashboard refreshed {stamp} — {red} red job tile(s)"));
+        output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"dashboard refreshed {stamp} — {red} red job tile(s)"));
         return 0;
     }
 }

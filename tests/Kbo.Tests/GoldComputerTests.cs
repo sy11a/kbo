@@ -28,8 +28,8 @@ public class GoldComputerTests : IDisposable
         vaultRoot = Path.Combine(workspace, "Knowledge");
         skillsRoot = Path.Combine(workspace, "skills");
         silverPath = Path.Combine(workspace, "silver.duckdb");
-        Directory.CreateDirectory(vaultRoot);
-        Directory.CreateDirectory(skillsRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(skillsRoot);
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
             sources:
@@ -43,15 +43,12 @@ public class GoldComputerTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private string Note(string relativePath, int modifiedDaysAgo)
     {
         string path = Path.Combine(vaultRoot, relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "# note\n");
         File.SetLastWriteTimeUtc(path, Now.AddDays(-modifiedDaysAgo).UtcDateTime);
         return path;
@@ -94,7 +91,7 @@ public class GoldComputerTests : IDisposable
     {
         string eventsRepo = Path.Combine(workspace, "kb-events");
         new BronzeStore(eventsRepo).Append(events);
-        SilverRebuilder.Rebuild(eventsRepo, silverPath);
+        _ = SilverRebuilder.Rebuild(eventsRepo, silverPath);
         return GoldComputer.Compute(silverPath, registry, new FixedTimeProvider(Now));
     }
 
@@ -102,15 +99,15 @@ public class GoldComputerTests : IDisposable
     public void DeadNotes_OldUnreadNoteIsDead_ReadOrYoungNotesAreNot()
     {
         string deadPath = Note("old-unread.md", modifiedDaysAgo: 200);
-        Note("young-unread.md", modifiedDaysAgo: 5);
+        _ = Note("young-unread.md", modifiedDaysAgo: 5);
         string readPath = Note("old-read.md", modifiedDaysAgo: 200);
 
         GoldReport report = Compute(ReadEvent("01B00000000000000000000001", readPath, daysAgo: 10));
 
-        List<string> deadPaths = report.DeadNotes.Select(n => n.Path).ToList();
-        Assert.Contains(deadPath, deadPaths);
-        Assert.DoesNotContain(readPath, deadPaths);
-        Assert.DoesNotContain(Path.Combine(vaultRoot, "young-unread.md"), deadPaths);
+        List<string> deadPaths = [.. report.DeadNotes.Select(n => n.Path)];
+        Assert.Contains(deadPath, deadPaths, StringComparer.Ordinal);
+        Assert.DoesNotContain(readPath, deadPaths, StringComparer.Ordinal);
+        Assert.DoesNotContain(Path.Combine(vaultRoot, "young-unread.md"), deadPaths, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -143,8 +140,8 @@ public class GoldComputerTests : IDisposable
             ReadEvent("01B00000000000000000000002", path, daysAgo: 100),
             ReadEvent("01B00000000000000000000010", activePath, daysAgo: 1));
 
-        Kbo.Gold.DeadNote dead = Assert.Single(report.DeadNotes, n => n.Path == path);
-        Assert.NotNull(dead.LastRead);
+        DeadNote dead = Assert.Single(report.DeadNotes, n => n.Path == path);
+        _ = Assert.NotNull(dead.LastRead);
     }
 
     [Fact]
@@ -157,7 +154,7 @@ public class GoldComputerTests : IDisposable
             ReadEvent("01B00000000000000000000004", path, daysAgo: 2),
             ReadEvent("01B00000000000000000000005", path, daysAgo: 100));
 
-        Kbo.Gold.HotNote hot = Assert.Single(report.HotNotes, n => n.Path == path);
+        HotNote hot = Assert.Single(report.HotNotes, n => n.Path == path);
         Assert.Equal(2, hot.ReadsInWindow);
         Assert.Equal(3, hot.ReadsTotal);
     }
@@ -176,7 +173,7 @@ public class GoldComputerTests : IDisposable
             ReadEvent("01B0000000000000000000000A", freshPath, daysAgo: 2),
             ReadEvent("01B0000000000000000000000B", freshPath, daysAgo: 3));
 
-        Assert.Single(report.StaleNotes, n => n.Path == stalePath);
+        _ = Assert.Single(report.StaleNotes, n => n.Path == stalePath);
         Assert.DoesNotContain(report.StaleNotes, n => n.Path == freshPath);
     }
 
@@ -196,14 +193,14 @@ public class GoldComputerTests : IDisposable
     [Fact]
     public void LifecycleNotes_AreCountedButNeverDead()
     {
-        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
-        Note("docs/superpowers/plans/2026-06-01-old-plan.md", modifiedDaysAgo: 40);
+        _ = Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        _ = Note("docs/superpowers/plans/2026-06-01-old-plan.md", modifiedDaysAgo: 40);
         string activePath = Note("active.md", modifiedDaysAgo: 5);
 
         GoldReport report = Compute(ReadEvent("01B00000000000000000000011", activePath, daysAgo: 1));
 
-        Assert.Single(report.DeadNotes);
-        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        _ = Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path, StringComparison.Ordinal);
         Assert.Equal(1, report.LifecycleCounts["vault"]);
     }
 
@@ -230,7 +227,7 @@ public class GoldComputerTests : IDisposable
         Assert.DoesNotContain(report.DeadNotes, note => note.Path == deadPath);
         DormantSource dormant = Assert.Single(report.DormantSources, source => source.SourceId == "vault");
         Assert.Equal(1, dormant.WithheldDeadNotes);
-        Assert.NotNull(dormant.LastActivity);
+        _ = Assert.NotNull(dormant.LastActivity);
     }
 
     [Fact]
@@ -277,15 +274,15 @@ public class GoldComputerTests : IDisposable
     [Fact]
     public void MachineManagedNotes_AreCountedButNeverDead()
     {
-        Note("Glossary/beacon.md", modifiedDaysAgo: 40);
-        Note("docs/ai/rules/core/okf.md", modifiedDaysAgo: 40);
-        Note("docs/adr/template.md", modifiedDaysAgo: 40);
+        _ = Note("Glossary/beacon.md", modifiedDaysAgo: 40);
+        _ = Note("docs/ai/rules/core/okf.md", modifiedDaysAgo: 40);
+        _ = Note("docs/adr/template.md", modifiedDaysAgo: 40);
         string activePath = Note("active.md", modifiedDaysAgo: 5);
 
         GoldReport report = Compute(ReadEvent("01B00000000000000000000015", activePath, daysAgo: 1));
 
-        Assert.Single(report.DeadNotes);
-        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path);
+        _ = Assert.Single(report.DeadNotes);
+        Assert.EndsWith("Glossary/beacon.md", report.DeadNotes[0].Path, StringComparison.Ordinal);
         Assert.Equal(2, report.MachineManagedCounts["vault"]);
     }
 
@@ -294,7 +291,7 @@ public class GoldComputerTests : IDisposable
     {
         File.WriteAllText(Path.Combine(skillsRoot, "SKILL.md"), "s");
         string fixturePath = Path.Combine(skillsRoot, "fixtures", "case.md");
-        Directory.CreateDirectory(Path.GetDirectoryName(fixturePath)!);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(fixturePath)!);
         File.WriteAllText(fixturePath, "f");
         File.SetLastWriteTimeUtc(fixturePath, Now.AddDays(-100).UtcDateTime);
         string activePath = Note("active.md", modifiedDaysAgo: 5);
@@ -308,8 +305,8 @@ public class GoldComputerTests : IDisposable
     [Fact]
     public void Report_CarriesInventoryTotalsAndGeneratedAt()
     {
-        Note("a.md", 200);
-        Note("sub/b.md", 5);
+        _ = Note("a.md", 200);
+        _ = Note("sub/b.md", 5);
         File.WriteAllText(Path.Combine(skillsRoot, "skill.md"), "s");
         File.WriteAllText(Path.Combine(vaultRoot, "not-a-note.canvas"), "x");
 

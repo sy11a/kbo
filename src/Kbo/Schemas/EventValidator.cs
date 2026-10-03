@@ -20,13 +20,12 @@ public sealed class EventValidator
     public EventValidator()
     {
         BuildOptions buildOptions = new() { SchemaRegistry = new SchemaRegistry() };
-        schemasByRef = new Dictionary<string, JsonSchema>();
+        schemasByRef = [];
 
         Assembly assembly = typeof(EventValidator).Assembly;
-        List<string> resourceNames = assembly.GetManifestResourceNames()
+        List<string> resourceNames = [.. assembly.GetManifestResourceNames()
             .Where(name => name.StartsWith(ResourcePrefix, StringComparison.Ordinal))
-            .OrderBy(name => name.StartsWith(ResourcePrefix + EnvelopePrefix, StringComparison.Ordinal) ? 0 : 1)
-            .ToList();
+            .OrderBy(name => name.StartsWith(ResourcePrefix + EnvelopePrefix, StringComparison.Ordinal) ? 0 : 1)];
 
         foreach (string resourceName in resourceNames)
         {
@@ -46,7 +45,7 @@ public sealed class EventValidator
         evaluationOptions = new EvaluationOptions
         {
             OutputFormat = OutputFormat.List,
-            RequireFormatValidation = true
+            RequireFormatValidation = true,
         };
     }
 
@@ -57,7 +56,7 @@ public sealed class EventValidator
         using JsonDocument eventDocument = ParseOrNull(eventJsonLine, out string? parseError);
         if (parseError is not null)
         {
-            return EventValidationResult.Invalid(null, $"Not valid JSON: {parseError}");
+            return EventValidationResult.Invalid(schemaRef: null, $"Not valid JSON: {parseError}");
         }
 
         JsonElement root = eventDocument.RootElement;
@@ -65,7 +64,7 @@ public sealed class EventValidator
             || !root.TryGetProperty(EnvelopeFields.SchemaRef, out JsonElement schemaRefElement)
             || schemaRefElement.ValueKind != JsonValueKind.String)
         {
-            return EventValidationResult.Invalid(null, "Event has no string 'schemaref' field; cannot select a schema.");
+            return EventValidationResult.Invalid(schemaRef: null, "Event has no string 'schemaref' field; cannot select a schema.");
         }
 
         string schemaRef = schemaRefElement.GetString()!;
@@ -80,10 +79,9 @@ public sealed class EventValidator
             return EventValidationResult.Valid(schemaRef);
         }
 
-        string[] errors = (evaluation.Details ?? [])
+        string[] errors = [.. (evaluation.Details ?? [])
             .Where(detail => detail.Errors is { Count: > 0 })
-            .SelectMany(detail => detail.Errors!.Select(error => $"{detail.InstanceLocation}: {error.Value}"))
-            .ToArray();
+            .SelectMany(detail => detail.Errors!.Select(error => $"{detail.InstanceLocation}: {error.Value}"))];
         return EventValidationResult.Invalid(schemaRef, errors.Length > 0 ? errors : ["Event does not conform to the schema."]);
     }
 

@@ -25,8 +25,8 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
         workspace = Directory.CreateTempSubdirectory("kbo-adapter-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
         repoRoot = Path.Combine(workspace, "repo");
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "notes"));
-        Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
+        _ = Directory.CreateDirectory(Path.Combine(vaultRoot, "notes"));
+        _ = Directory.CreateDirectory(Path.Combine(repoRoot, ".git"));
         File.WriteAllText(Path.Combine(vaultRoot, "notes", "duckdb.md"), "hello\n");
         File.WriteAllText(Path.Combine(repoRoot, ".git", "HEAD"), "ref: refs/heads/feature/AC-77-capture\n");
 
@@ -40,10 +40,7 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
             """);
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private JsonObject? Map(string toolName, JsonObject toolInput, JsonNode? toolResponse = null)
     {
@@ -126,8 +123,5 @@ public class ClaudeCodeMapPostToolUseTests : IDisposable
     }
 
     [Fact]
-    public void UnrelatedTool_MapsToNothing()
-    {
-        Assert.Null(Map("Bash", new JsonObject { ["command"] = "ls" }));
-    }
+    public void UnrelatedTool_MapsToNothing() => Assert.Null(Map("Bash", new JsonObject { ["command"] = "ls" }));
 }

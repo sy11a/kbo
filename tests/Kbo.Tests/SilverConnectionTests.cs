@@ -15,10 +15,7 @@ public class SilverConnectionTests : IDisposable
         silverPath = Path.Combine(workspace, "silver.duckdb");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(workspace, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(workspace, recursive: true);
 
     private void CreateSilver()
     {
@@ -26,7 +23,7 @@ public class SilverConnectionTests : IDisposable
         connection.Open();
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE probe AS SELECT 42 AS answer";
-        command.ExecuteNonQuery();
+        _ = command.ExecuteNonQuery();
     }
 
     private static long QueryProbe(DuckDBConnection connection)
@@ -42,8 +39,8 @@ public class SilverConnectionTests : IDisposable
     {
         FileNotFoundException exception =
             Assert.Throws<FileNotFoundException>(() => SilverConnection.OpenReadOnly(silverPath));
-        Assert.Contains("kbo rebuild", exception.Message);
-        Assert.Contains(silverPath, exception.Message);
+        Assert.Contains("kbo rebuild", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(silverPath, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -65,6 +62,6 @@ public class SilverConnectionTests : IDisposable
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE illegal (id INTEGER)";
 
-        Assert.ThrowsAny<DbException>(() => command.ExecuteNonQuery());
+        _ = Assert.ThrowsAny<DbException>(() => command.ExecuteNonQuery());
     }
 }

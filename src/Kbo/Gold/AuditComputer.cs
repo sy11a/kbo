@@ -21,8 +21,8 @@ public static class AuditComputer
         string machine = registry.Machine;
         IReadOnlySet<string> seenTranscripts = new BronzeStore(eventsRepo).SeenTranscripts();
 
-        List<string> agentsWithoutSessionAudit = new();
-        List<MissingSessionsFinding> missingSessions = new();
+        List<string> agentsWithoutSessionAudit = [];
+        List<MissingSessionsFinding> missingSessions = [];
         foreach (RetentionManifest manifest in manifests)
         {
             if (manifest.SessionFiles is null && manifest.SessionDatabase is null)
@@ -31,12 +31,12 @@ public static class AuditComputer
                 continue;
             }
 
-            List<(string Stem, DateTime Modified)> missing = new();
+            List<(string Stem, DateTime Modified)> missing = [];
             if (manifest.SessionFiles is not null && Directory.Exists(manifest.SessionFiles.Root))
             {
                 foreach (string path in Directory
                     .EnumerateFiles(manifest.SessionFiles.Root, manifest.SessionFiles.Pattern, SearchOption.AllDirectories)
-                    .Order())
+                    .Order(StringComparer.Ordinal))
                 {
                     string stem = Path.GetFileNameWithoutExtension(path);
                     if (!seenTranscripts.Contains(stem))
@@ -77,7 +77,7 @@ public static class AuditComputer
 
     private static List<(string Id, DateTime Modified)> EnumerateDatabaseSessions(SqliteSessionSource source)
     {
-        List<(string, DateTime)> sessions = new();
+        List<(string, DateTime)> sessions = [];
         if (!File.Exists(source.DatabasePath))
         {
             return sessions;
@@ -97,7 +97,7 @@ public static class AuditComputer
 
     private static List<UnregisteredSourceFinding> QueryUnregisteredSources(string silverPath, KnowledgeRegistry registry)
     {
-        List<UnregisteredSourceFinding> findings = new();
+        List<UnregisteredSourceFinding> findings = [];
         if (!File.Exists(silverPath))
         {
             return findings;
@@ -115,7 +115,7 @@ public static class AuditComputer
             ORDER BY reads DESC, directory
             LIMIT {UnregisteredSourceCap}
             """;
-        using DuckDBDataReader reader = (DuckDBDataReader)command.ExecuteReader();
+        using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
             string directory = reader.GetString(0);

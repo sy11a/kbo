@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Kbo.Jobs;
 
 public sealed class BackupJob : IPulseJob
@@ -20,11 +22,10 @@ public sealed class BackupJob : IPulseJob
 
     public string Run()
     {
-        List<string> backupArguments = new()
-        {
-            "--repo", repository, "--password-file", passwordFile, "backup", "--quiet",
-        };
-        backupArguments.AddRange(paths);
+        List<string> backupArguments =
+        [
+            "--repo", repository, "--password-file", passwordFile, "backup", "--quiet", .. paths,
+        ];
         Restic(backupArguments);
 
         Restic(new List<string>
@@ -41,7 +42,7 @@ public sealed class BackupJob : IPulseJob
         ProcessResult result = processRunner.Run("restic", arguments);
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"restic exited with status {result.ExitCode}: {result.StandardError.Trim()}");
+            throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"restic exited with status {result.ExitCode}: {result.StandardError.Trim()}"));
         }
     }
 }

@@ -8,9 +8,9 @@ public enum JobCadence
 
 public interface IPulseJob
 {
-    string Name { get; }
-    JobCadence Cadence { get; }
+    public string Name { get; }
+    public JobCadence Cadence { get; }
 
     /// <summary>Runs the job; returns a one-line summary. Throwing means the job failed.</summary>
-    string Run();
+    public string Run();
 }

@@ -21,7 +21,7 @@ public class DailyDigestRendererTests
             SkillsUsed: [new DayCount("tdd", 4), new DayCount("brainstorming", 1)],
             SessionDetail:
             [
-                new DaySession("18:13", "claude-code", "/home/u/RepoA", 8, 4, 1, 0, true, 0, 260000),
+                new DaySession("18:13", "claude-code", "/home/u/RepoA", 8, 4, 1, 0, TouchedKb: true, 0, 260000),
             ]);
     }
 
@@ -30,19 +30,19 @@ public class DailyDigestRendererTests
     {
         string markdown = DailyDigestRenderer.RenderDay(Day("2026-08-13"));
 
-        Assert.Contains("# 2026-08-13", markdown);
-        Assert.Contains("[[index|", markdown);
-        Assert.Contains("claude-code", markdown);
-        Assert.Contains("/home/u/RepoA", markdown);
-        Assert.Contains("40%", markdown);              // KB-touch 2/5
-        Assert.Contains("missing thing", markdown);    // top zero-hit query
-        Assert.Contains("20%", markdown);              // miss rate 4/20
-        Assert.Contains("local", markdown);
-        Assert.Contains("Skills used", markdown);
-        Assert.Contains("tdd", markdown);
-        Assert.Contains("Per session", markdown);
-        Assert.Contains("18:13", markdown);
-        Assert.Contains("RepoA", markdown);        // repo shown as last path segment
+        Assert.Contains("# 2026-08-13", markdown, StringComparison.Ordinal);
+        Assert.Contains("[[index|", markdown, StringComparison.Ordinal);
+        Assert.Contains("claude-code", markdown, StringComparison.Ordinal);
+        Assert.Contains("/home/u/RepoA", markdown, StringComparison.Ordinal);
+        Assert.Contains("40%", markdown, StringComparison.Ordinal);              // KB-touch 2/5
+        Assert.Contains("missing thing", markdown, StringComparison.Ordinal);    // top zero-hit query
+        Assert.Contains("20%", markdown, StringComparison.Ordinal);              // miss rate 4/20
+        Assert.Contains("local", markdown, StringComparison.Ordinal);
+        Assert.Contains("Skills used", markdown, StringComparison.Ordinal);
+        Assert.Contains("tdd", markdown, StringComparison.Ordinal);
+        Assert.Contains("Per session", markdown, StringComparison.Ordinal);
+        Assert.Contains("18:13", markdown, StringComparison.Ordinal);
+        Assert.Contains("RepoA", markdown, StringComparison.Ordinal);        // repo shown as last path segment
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public class DailyDigestRendererTests
     {
         string markdown = DailyDigestRenderer.RenderIndex([Day("2026-08-13"), Day("2026-08-11")]);
 
-        Assert.Contains("[[2026-08-13]]", markdown);
-        Assert.Contains("[[2026-08-11]]", markdown);
+        Assert.Contains("[[2026-08-13]]", markdown, StringComparison.Ordinal);
+        Assert.Contains("[[2026-08-11]]", markdown, StringComparison.Ordinal);
         Assert.True(markdown.IndexOf("2026-08-13", StringComparison.Ordinal)
             < markdown.IndexOf("2026-08-11", StringComparison.Ordinal));
     }
@@ -63,7 +63,7 @@ public class DailyDigestRendererTests
 
         string markdown = DailyDigestRenderer.RenderDay(day);
 
-        Assert.DoesNotContain("a|b pattern", markdown);
-        Assert.Contains("a\\|b pattern", markdown);
+        Assert.DoesNotContain("a|b pattern", markdown, StringComparison.Ordinal);
+        Assert.Contains("a\\|b pattern", markdown, StringComparison.Ordinal);
     }
 }

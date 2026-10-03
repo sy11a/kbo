@@ -20,15 +20,9 @@ public class GitCommitJobTests : IDisposable
         File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "# v1\n");
     }
 
-    public void Dispose()
-    {
-        Directory.Delete(vaultRoot, recursive: true);
-    }
+    public void Dispose() => Directory.Delete(vaultRoot, recursive: true);
 
-    private GitCommitJob Job(string name = "vault-git")
-    {
-        return new GitCommitJob(name, vaultRoot, new ProcessRunner(), new FixedTimeProvider(Now));
-    }
+    private GitCommitJob Job(string name = "vault-git") => new(name, vaultRoot, new ProcessRunner(), new FixedTimeProvider(Now));
 
     private string Git(params string[] arguments)
     {
@@ -50,34 +44,34 @@ public class GitCommitJobTests : IDisposable
         string summary = Job().Run();
 
         Assert.True(Directory.Exists(Path.Combine(vaultRoot, ".git")));
-        Assert.Contains("committed", summary);
-        Assert.Contains("kbo auto-commit 2026-08-12", Git("log", "-1", "--format=%s"));
+        Assert.Contains("committed", summary, StringComparison.Ordinal);
+        Assert.Contains("kbo auto-commit 2026-08-12", Git("log", "-1", "--format=%s"), StringComparison.Ordinal);
         Assert.Equal("note.md", Git("show", "--name-only", "--format=", "HEAD"));
     }
 
     [Fact]
     public void NoChanges_CommitsNothing()
     {
-        Job().Run();
+        _ = Job().Run();
         string headBefore = Git("rev-parse", "HEAD");
 
         string summary = Job().Run();
 
-        Assert.Contains("no changes", summary);
+        Assert.Contains("no changes", summary, StringComparison.Ordinal);
         Assert.Equal(headBefore, Git("rev-parse", "HEAD"));
     }
 
     [Fact]
     public void ChangedNote_PointInTimeContentIsRetrievable()
     {
-        Job().Run();
+        _ = Job().Run();
         string firstCommit = Git("rev-parse", "HEAD");
         File.WriteAllText(Path.Combine(vaultRoot, "note.md"), "# v2 — edited\n");
 
-        Job().Run();
+        _ = Job().Run();
 
         Assert.Equal("# v1", Git("show", $"{firstCommit}:note.md"));
         Assert.Equal("# v2 — edited", Git("show", "HEAD:note.md"));
-        Assert.NotEqual(firstCommit, Git("rev-parse", "HEAD"));
+        Assert.NotEqual(firstCommit, Git("rev-parse", "HEAD"), StringComparer.Ordinal);
     }
 }

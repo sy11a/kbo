@@ -20,7 +20,7 @@ public class OpencodeMinerTests : IDisposable
     {
         workspace = Directory.CreateTempSubdirectory("kbo-oc-miner-tests").FullName;
         vaultRoot = Path.Combine(workspace, "Knowledge");
-        Directory.CreateDirectory(vaultRoot);
+        _ = Directory.CreateDirectory(vaultRoot);
         databasePath = Path.Combine(workspace, "opencode.db");
         registry = KnowledgeRegistry.Parse($"""
             machine: test-machine
@@ -52,7 +52,7 @@ public class OpencodeMinerTests : IDisposable
                 id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT NOT NULL,
                 time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL);
             """;
-        command.ExecuteNonQuery();
+        _ = command.ExecuteNonQuery();
 
         Insert(connection, "INSERT INTO session VALUES ('ses_a', @dir, 'build', @model, 1200, 300, 900000, @t0, @t0)",
             ("@dir", workspace),
@@ -124,9 +124,9 @@ public class OpencodeMinerTests : IDisposable
         command.CommandText = sql;
         foreach ((string name, object value) in parameters)
         {
-            command.Parameters.AddWithValue(name, value);
+            _ = command.Parameters.AddWithValue(name, value);
         }
-        command.ExecuteNonQuery();
+        _ = command.ExecuteNonQuery();
     }
 
     [Fact]
@@ -185,10 +185,7 @@ public class OpencodeMinerTests : IDisposable
     }
 
     [Fact]
-    public void Mine_UnrequestedSessions_AreNotMined()
-    {
-        Assert.Empty(OpencodeMiner.Mine(databasePath, Array.Empty<string>(), registry, new Random(42)));
-    }
+    public void Mine_UnrequestedSessions_AreNotMined() => Assert.Empty(OpencodeMiner.Mine(databasePath, Array.Empty<string>(), registry, new Random(42)));
 
     [Fact]
     public void EnumerateSessionIds_ListsAllSessions()
