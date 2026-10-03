@@ -1,6 +1,6 @@
 namespace Kbo.Registry;
 
-public static class RegistryLocator
+internal static class RegistryLocator
 {
     public const string EnvironmentVariable = KboEnvironment.RegistryVariable;
 

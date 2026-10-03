@@ -6,7 +6,7 @@ using Kbo.Silver;
 
 namespace Kbo.Gold;
 
-public static class AuditComputer
+internal static class AuditComputer
 {
     public const int TranscriptListCap = 50;
     public const int UnregisteredSourceCap = 20;

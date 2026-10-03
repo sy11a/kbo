@@ -7,7 +7,7 @@ namespace Kbo.Adapters.Opencode;
 /// (plugin + implicit loads) is plan step 2.3. The session store is a SQLite
 /// database, not per-session files; auth.json is deliberately excluded (secrets).
 /// </summary>
-public static class OpencodeRetention
+internal static class OpencodeRetention
 {
     public const string AgentName = "opencode";
 

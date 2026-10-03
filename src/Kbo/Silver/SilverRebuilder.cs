@@ -6,9 +6,9 @@ using Kbo.Schemas;
 
 namespace Kbo.Silver;
 
-public sealed record RebuildResult(long EventCount, long SessionCount, long SkippedLines);
+internal sealed record RebuildResult(long EventCount, long SessionCount, long SkippedLines);
 
-public static class SilverRebuilder
+internal static class SilverRebuilder
 {
     private const string CreateEventsTable = """
         CREATE TABLE events (

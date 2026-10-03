@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Kbo.Adapters.ClaudeCode;
 
-public sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
+internal sealed record GitContext(string? RepoRoot, string? Branch, string? Task)
 {
     private const string GitDirectoryName = ".git";
     private const string GitDirPointerPrefix = "gitdir:";

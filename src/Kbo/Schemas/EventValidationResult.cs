@@ -1,6 +1,6 @@
 namespace Kbo.Schemas;
 
-public sealed record EventValidationResult(bool IsValid, string? SchemaRef, IReadOnlyList<string> Errors)
+internal sealed record EventValidationResult(bool IsValid, string? SchemaRef, IReadOnlyList<string> Errors)
 {
     public static EventValidationResult Valid(string schemaRef) => new(IsValid: true, schemaRef, []);
 

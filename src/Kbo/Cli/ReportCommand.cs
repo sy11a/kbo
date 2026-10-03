@@ -5,7 +5,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class ReportCommand
+internal static class ReportCommand
 {
     private const string Usage = "usage: kbo report [--out <dir>]";
 

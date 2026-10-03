@@ -1,6 +1,6 @@
 namespace Kbo.Gold;
 
-public sealed record JobHealthTile(
+internal sealed record JobHealthTile(
     string Machine,
     string Agent,
     string Job,
@@ -8,42 +8,42 @@ public sealed record JobHealthTile(
     double DaysSilent,
     string Status);
 
-public sealed record LastSeenTile(
+internal sealed record LastSeenTile(
     string Machine,
     string Agent,
     DateTimeOffset LastEvent,
     double DaysSilent,
     string Status);
 
-public sealed record ServiceSessionsSummary(long Sessions, string Agents);
+internal sealed record ServiceSessionsSummary(long Sessions, string Agents);
 
-public sealed record FailedSearchRow(string Date, long Searches, long ZeroHits, double Rate);
+internal sealed record FailedSearchRow(string Date, long Searches, long ZeroHits, double Rate);
 
-public sealed record TokensRow(string Date, long InputTokens, long CacheReadTokens);
+internal sealed record TokensRow(string Date, long InputTokens, long CacheReadTokens);
 
-public sealed record ThemeReadsRow(string Theme, string Source, long Reads, long Notes);
+internal sealed record ThemeReadsRow(string Theme, string Source, long Reads, long Notes);
 
-public sealed record ReuseRow(string Path, long Sessions, long Reads);
+internal sealed record ReuseRow(string Path, long Sessions, long Reads);
 
-public sealed record ReuseSummary(long Notes, long SingleUse, double SingleUseRate);
+internal sealed record ReuseSummary(long Notes, long SingleUse, double SingleUseRate);
 
-public sealed record WriteReadRow(string Path, long LaterReads);
+internal sealed record WriteReadRow(string Path, long LaterReads);
 
-public sealed record WriteReadSummary(long Written, long Reused, double LoopRate);
+internal sealed record WriteReadSummary(long Written, long Reused, double LoopRate);
 
-public sealed record SddOrderingRow(string Week, string Repo, long CodeSessions, long SpecFirstSessions, double Rate);
+internal sealed record SddOrderingRow(string Week, string Repo, long CodeSessions, long SpecFirstSessions, double Rate);
 
-public sealed record SddOrderingSummary(long CodeSessions, long SpecFirstSessions, double Rate);
+internal sealed record SddOrderingSummary(long CodeSessions, long SpecFirstSessions, double Rate);
 
-public sealed record SddWritesRow(string Kind, long Writes);
+internal sealed record SddWritesRow(string Kind, long Writes);
 
-public sealed record SddSkillRateRow(string Repo, long Sessions, long SddSessions, double Rate);
+internal sealed record SddSkillRateRow(string Repo, long Sessions, long SddSessions, double Rate);
 
 /// <summary>SDD-practice panel (ADR-0040): spec-before-code ordering,
 /// writes by content kind (machine-managed excluded and disclosed —
 /// no-silent-caps), SDD-skill rate (empty + <paramref name="SkillConfigured"/>
 /// false when the registry has no sdd block).</summary>
-public sealed record SddPanelGold(
+internal sealed record SddPanelGold(
     IReadOnlyList<SddOrderingRow> Ordering,
     SddOrderingSummary OrderingSummary,
     IReadOnlyList<SddWritesRow> WritesByKind,
@@ -57,7 +57,7 @@ public sealed record SddPanelGold(
 /// (ok | sick | trend | acute | wait — "acute" is the only amber). <paramref name="Goal"/>
 /// is the pre-rendered goal line; corridors and thresholds live here, never in the
 /// renderer (zero computation, P2).</summary>
-public sealed record MirrorTile(
+internal sealed record MirrorTile(
     string Label,
     string Value,
     string Trend,
@@ -71,9 +71,9 @@ public sealed record MirrorTile(
     double? Mad = null,
     int HistoryWeeks = 0);
 
-public sealed record PracticeMirrorGold(IReadOnlyList<MirrorTile> Tiles);
+internal sealed record PracticeMirrorGold(IReadOnlyList<MirrorTile> Tiles);
 
-public sealed record RecentSessionRow(
+internal sealed record RecentSessionRow(
     string Date,
     string Time,
     string Agent,
@@ -86,7 +86,7 @@ public sealed record RecentSessionRow(
     long InputTokens,
     long CacheReadTokens);
 
-public sealed record DashboardGold(
+internal sealed record DashboardGold(
     DateTimeOffset GeneratedAt,
     string Machine,
     int DeadManThresholdDays,

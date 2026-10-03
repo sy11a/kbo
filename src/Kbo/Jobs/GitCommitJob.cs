@@ -9,7 +9,7 @@ namespace Kbo.Jobs;
 /// bronze-git (ADR-0018 — tamper-evident history for the append-only event
 /// store). No remote — durability is backup's job.
 /// </summary>
-public sealed class GitCommitJob : IPulseJob
+internal sealed class GitCommitJob : IPulseJob
 {
     private readonly string root;
     private readonly IProcessRunner processRunner;

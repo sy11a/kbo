@@ -13,7 +13,7 @@ namespace Kbo.Gold;
 /// zero computation (P2). Charts are the owner-editable charts/*.vl.json
 /// specs embedded at build; data is injected inline.
 /// </summary>
-public static class DashboardRenderer
+internal static class DashboardRenderer
 {
     private static readonly JsonSerializerOptions DataJsonOptions = new()
     {

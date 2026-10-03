@@ -3,7 +3,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class InitCommand
+internal static class InitCommand
 {
     private const string Usage = "usage: kbo init";
     private static readonly string[] PhaseZeroTimers = ["kb-archive.timer", "kb-backup.timer"];

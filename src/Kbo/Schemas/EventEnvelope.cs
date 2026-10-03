@@ -8,7 +8,7 @@ namespace Kbo.Schemas;
 /// The single constructor for envelope events (ADR-0001) — live capture and
 /// harvest both emit through here so the two origins cannot drift.
 /// </summary>
-public static class EventEnvelope
+internal static class EventEnvelope
 {
     public static JsonObject Create(
         string type,

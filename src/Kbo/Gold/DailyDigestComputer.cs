@@ -12,7 +12,7 @@ namespace Kbo.Gold;
 /// day with any session, read, or search within the window. Knowledge is
 /// classified registry-now (ADR-0021).
 /// </summary>
-public static class DailyDigestComputer
+internal static class DailyDigestComputer
 {
     public const int WindowDays = 90;
     public const int TopZeroHitQueryCap = 10;

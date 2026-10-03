@@ -6,7 +6,7 @@ namespace Kbo.Jobs;
 /// Wraps a kbo CLI command as a pulse job: nonzero exit becomes a job failure
 /// carrying the command's error output.
 /// </summary>
-public sealed class CommandJob : IPulseJob
+internal sealed class CommandJob : IPulseJob
 {
     private readonly Func<TextWriter, TextWriter, int> command;
 

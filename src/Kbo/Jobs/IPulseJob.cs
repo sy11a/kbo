@@ -1,12 +1,12 @@
 namespace Kbo.Jobs;
 
-public enum JobCadence
+internal enum JobCadence
 {
     Daily,
     Weekly,
 }
 
-public interface IPulseJob
+internal interface IPulseJob
 {
     public string Name { get; }
     public JobCadence Cadence { get; }

@@ -3,7 +3,7 @@ using Kbo.Silver;
 
 namespace Kbo.Cli;
 
-public static class RebuildCommand
+internal static class RebuildCommand
 {
     private const string Usage = "usage: kbo rebuild [--silver <file>] [--events-repo <dir>]";
 

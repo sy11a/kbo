@@ -16,7 +16,7 @@ namespace Kbo.Jobs;
 /// (the consumer ships before the first emit); a present-but-invalid
 /// artifact fails the run before anything is appended.
 /// </summary>
-public sealed class IngestGraphMetricsJob : IPulseJob
+internal sealed class IngestGraphMetricsJob : IPulseJob
 {
     private readonly KnowledgeRegistry registry;
     private readonly string eventsRepo;

@@ -4,7 +4,7 @@ namespace Kbo;
 /// Environment variables and default locations shared across kbo commands
 /// (ADR-0005 registry overlay, ADR-0006 events repo).
 /// </summary>
-public static class KboEnvironment
+internal static class KboEnvironment
 {
     public const string RegistryVariable = "KBO_REGISTRY";
     public const string TaskPatternVariable = "KBO_TASK_PATTERN";

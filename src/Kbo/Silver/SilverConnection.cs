@@ -7,7 +7,7 @@ namespace Kbo.Silver;
 /// dashboard compute, pulse's weekly report/audit) share the file instead of
 /// taking exclusive locks (ADR-0032). Writing goes through SilverRebuilder only.
 /// </summary>
-public static class SilverConnection
+internal static class SilverConnection
 {
     public static DuckDBConnection OpenReadOnly(string silverPath)
     {

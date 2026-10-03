@@ -8,7 +8,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class AuditCommand
+internal static class AuditCommand
 {
     private const string Usage = "usage: kbo audit [--out <dir>]";
 

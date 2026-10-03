@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kbo.Jobs;
 
-public sealed class ArchiveJob : IPulseJob
+internal sealed class ArchiveJob : IPulseJob
 {
     private readonly string archiveRoot;
     private readonly IReadOnlyList<RetentionManifest> manifests;

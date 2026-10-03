@@ -11,7 +11,7 @@ namespace Kbo.Cli;
 /// threshold? Installed by kbo init as a login-time service so the owner
 /// never has to remember the reboot check.
 /// </summary>
-public static class DoctorCommand
+internal static class DoctorCommand
 {
     private const string Usage = "usage: kbo doctor [--notify]";
     private const int CaptureDropThresholdDays = 3;

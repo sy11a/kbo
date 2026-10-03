@@ -6,7 +6,7 @@ namespace Kbo.Gold;
 /// <summary>
 /// GoldReport → Markdown. Renders what gold computed — zero computation (P2).
 /// </summary>
-public static class MarkdownRenderer
+internal static class MarkdownRenderer
 {
     public static string Render(GoldReport report, string vaultRoot)
     {

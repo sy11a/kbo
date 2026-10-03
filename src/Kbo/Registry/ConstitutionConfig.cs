@@ -6,7 +6,7 @@ namespace Kbo.Registry;
 /// registry has no constitution block — a public tool ships no default
 /// legislator location (ADR-0031 pattern).
 /// </summary>
-public sealed record ConstitutionConfig(string VersionFile, IReadOnlyList<string> ScanRoots)
+internal sealed record ConstitutionConfig(string VersionFile, IReadOnlyList<string> ScanRoots)
 {
     /// <summary>
     /// Directory basenames skipped by the fleet scan — e.g. an archived repo

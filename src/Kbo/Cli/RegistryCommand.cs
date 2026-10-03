@@ -2,7 +2,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class RegistryCommand
+internal static class RegistryCommand
 {
     private const string Usage = "usage: kbo registry <show | resolve <path>> [--registry <file>]";
 

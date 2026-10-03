@@ -7,7 +7,7 @@ namespace Kbo.Gold;
 /// DayDigest → Obsidian-friendly Markdown. One page per day plus an index,
 /// wikilinked. Renders what gold computed — zero computation (P2).
 /// </summary>
-public static class DailyDigestRenderer
+internal static class DailyDigestRenderer
 {
     public static string RenderIndex(IReadOnlyList<DayDigest> days)
     {

@@ -9,7 +9,7 @@ namespace Kbo.Adapters;
 /// transclusion embeds (<c>![[target]]</c>) count as references. Pure, no
 /// I/O — the live adapters feed it the file content they read after a write.
 /// </summary>
-public static partial class Wikilinks
+internal static partial class Wikilinks
 {
 
     public static int CountDistinct(string content)

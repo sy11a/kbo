@@ -1,8 +1,8 @@
 namespace Kbo.Gold;
 
-public sealed record DayCount(string Label, long Count);
+internal sealed record DayCount(string Label, long Count);
 
-public sealed record DaySession(
+internal sealed record DaySession(
     string Time,
     string Agent,
     string Repo,
@@ -19,7 +19,7 @@ public sealed record DaySession(
 /// classified registry-now (ADR-0021): subjects resolved through the current
 /// registry, not the capture-time kbroot stamp.
 /// </summary>
-public sealed record DayDigest(
+internal sealed record DayDigest(
     string Date,
     long Sessions,
     long SessionsTouchingKb,

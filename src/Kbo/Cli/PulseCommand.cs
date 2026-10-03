@@ -5,7 +5,7 @@ using Kbo.Registry;
 
 namespace Kbo.Cli;
 
-public static class PulseCommand
+internal static class PulseCommand
 {
     private const string Usage = "usage: kbo pulse";
 

@@ -8,7 +8,7 @@ namespace Kbo.Jobs;
 /// the PulseCommand registrations; PulseCommand resolves its cadences from
 /// here so the two cannot diverge.
 /// </summary>
-public static class JobDeadMan
+internal static class JobDeadMan
 {
     public const double GraceDays = 3;
     public const double DailyThresholdDays = GraceDays;

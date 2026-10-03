@@ -13,11 +13,11 @@ namespace Kbo.Adapters.Opencode;
 /// agent's "transcript file" unit (ADR-0014), so audit and harvest idempotency
 /// reuse the existing stamp machinery.
 /// </summary>
-public static class OpencodeAdapter
+internal static class OpencodeAdapter
 {
     private const long HashSizeCapBytes = 5 * 1024 * 1024;
 
-    public static class Payload
+    internal static class Payload
     {
         public const string HookEventName = "hook_event_name";
         public const string SessionId = "session_id";
@@ -33,7 +33,7 @@ public static class OpencodeAdapter
         public const string SessionStart = "session.start";
     }
 
-    public static class Tools
+    internal static class Tools
     {
         public const string Read = "read";
         public const string Grep = "grep";

@@ -6,7 +6,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Adapters.ClaudeCode;
 
-public static class TranscriptMiner
+internal static class TranscriptMiner
 {
     private sealed record MinedToolUse(string ToolName, JsonObject Input, string? ToolUseId, DateTimeOffset Time, string? Model, string? Cwd);
 

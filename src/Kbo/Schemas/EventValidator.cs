@@ -9,7 +9,7 @@ namespace Kbo.Schemas;
 /// <c>schemas/&lt;type&gt;/&lt;version&gt;.json</c>. The event's <c>schemaref</c>
 /// field selects the schema (ADR-0001/ADR-0002).
 /// </summary>
-public sealed class EventValidator
+internal sealed class EventValidator
 {
     private const string ResourcePrefix = "schemas/";
     private const string EnvelopePrefix = "envelope/";

@@ -7,7 +7,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Adapters.ClaudeCode;
 
-public static class ClaudeCodeAdapter
+internal static class ClaudeCodeAdapter
 {
     public const string AgentName = "claude-code";
     private const long HashSizeCapBytes = 5 * 1024 * 1024;

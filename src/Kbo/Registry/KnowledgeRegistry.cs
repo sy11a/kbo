@@ -4,7 +4,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Kbo.Registry;
 
-public sealed class KnowledgeRegistry
+internal sealed class KnowledgeRegistry
 {
     public string Machine { get; }
     public IReadOnlyList<KnowledgeSource> Sources { get; }

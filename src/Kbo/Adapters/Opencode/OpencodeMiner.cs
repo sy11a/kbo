@@ -13,7 +13,7 @@ namespace Kbo.Adapters.Opencode;
 /// The session row pre-aggregates usage; parts carry tool activity with
 /// authoritative hit counts in state.metadata.
 /// </summary>
-public static class OpencodeMiner
+internal static class OpencodeMiner
 {
     public static IReadOnlyList<string> EnumerateSessionIds(string databasePath)
     {

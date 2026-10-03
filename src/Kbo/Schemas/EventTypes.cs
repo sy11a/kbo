@@ -4,7 +4,7 @@ namespace Kbo.Schemas;
 /// Event type names from the taxonomy registry (docs/events.md) that the code
 /// currently emits; job.* joins when pulse ships.
 /// </summary>
-public static class EventTypes
+internal static class EventTypes
 {
     public const string KnowledgeRead = "knowledge.read";
     public const string KnowledgeSearched = "knowledge.searched";

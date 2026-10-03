@@ -6,7 +6,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Jobs;
 
-public static class PulseRunner
+internal static class PulseRunner
 {
     public const string AgentName = "kbo";
     public const double WeeklyDueDays = 6.5;

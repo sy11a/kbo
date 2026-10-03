@@ -5,7 +5,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Bronze;
 
-public sealed class BronzeStore
+internal sealed class BronzeStore
 {
     private const string BronzeDirectory = "bronze";
     private const string MonthFileExtension = ".ndjsonl";

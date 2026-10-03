@@ -4,7 +4,7 @@ using Kbo.Silver;
 
 namespace Kbo.Gold;
 
-public static class GoldComputer
+internal static class GoldComputer
 {
     public const int MinInventoryAgeDays = 30;
     public const int ReadWindowDays = 60;

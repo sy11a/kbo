@@ -12,7 +12,7 @@ namespace Kbo.Cli;
 /// resident daemon — the loop runs only while the command is in the foreground
 /// and stops on cancellation (Ctrl-C).
 /// </summary>
-public static class WatchCommand
+internal static class WatchCommand
 {
     public const int DefaultIntervalSeconds = 30;
     public const int MinIntervalSeconds = 5;

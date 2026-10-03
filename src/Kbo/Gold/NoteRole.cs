@@ -9,7 +9,7 @@ namespace Kbo.Gold;
 /// were never knowledge to prune. Path-segment-based; pure, no I/O.
 /// Mirror of ContentKind (ADR-0025 pattern).
 /// </summary>
-public static class NoteRole
+internal static class NoteRole
 {
     public const string Reference = "reference";
     public const string Lifecycle = "lifecycle";

@@ -8,7 +8,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Cli;
 
-public static class HarvestCommand
+internal static class HarvestCommand
 {
     private const string Usage = $"usage: kbo harvest <{ClaudeCodeAdapter.AgentName} [--transcripts <dir>] | {OpencodeRetention.AgentName} [--db <file>]> [--backfill-skills]";
 

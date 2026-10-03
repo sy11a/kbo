@@ -4,9 +4,9 @@ using Kbo.Registry;
 
 namespace Kbo.Gold;
 
-public sealed record FleetRepoTile(string Repo, string Version, string Status);
+internal sealed record FleetRepoTile(string Repo, string Version, string Status);
 
-public sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<FleetRepoTile> Repos, int Behind);
+internal sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<FleetRepoTile> Repos, int Behind);
 
 /// <summary>
 /// Legislated-repo fleet vs the current constitution version. There is no
@@ -16,7 +16,7 @@ public sealed record ConstitutionFleetGold(int CurrentVersion, IReadOnlyList<Fle
 /// version "?" and counts as behind: unknown classification fails toward the
 /// cheap error.
 /// </summary>
-public static class ConstitutionFleet
+internal static class ConstitutionFleet
 {
     public static ConstitutionFleetGold? Scan(ConstitutionConfig? config)
     {

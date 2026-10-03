@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Kbo.Jobs;
 
-public sealed class BackupJob : IPulseJob
+internal sealed class BackupJob : IPulseJob
 {
     private readonly string repository;
     private readonly string passwordFile;

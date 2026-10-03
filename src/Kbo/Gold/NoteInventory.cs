@@ -2,9 +2,9 @@ using Kbo.Registry;
 
 namespace Kbo.Gold;
 
-public sealed record InventoryNote(string Path, string SourceId, KnowledgeLayer Layer, DateTimeOffset Modified);
+internal sealed record InventoryNote(string Path, string SourceId, KnowledgeLayer Layer, DateTimeOffset Modified);
 
-public static class NoteInventory
+internal static class NoteInventory
 {
     public const string NotePattern = "*.md";
 

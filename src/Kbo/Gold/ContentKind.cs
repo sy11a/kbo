@@ -5,7 +5,7 @@ namespace Kbo.Gold;
 /// knowledge notes from source code and config that whole-repo registration
 /// also sweeps in (ADR-0025). Extension-based; pure, no I/O.
 /// </summary>
-public static class ContentKind
+internal static class ContentKind
 {
     public const string Knowledge = "knowledge";
     public const string Code = "code";

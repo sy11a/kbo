@@ -8,7 +8,7 @@ using Kbo.Silver;
 
 namespace Kbo.Gold;
 
-public static class DashboardComputer
+internal static class DashboardComputer
 {
     public const int DeadManThresholdDays = 3;
     public const int ThemeWindowDays = 60;

@@ -9,7 +9,7 @@ using Kbo.Schemas;
 
 namespace Kbo.Cli;
 
-public static class CaptureCommand
+internal static class CaptureCommand
 {
     private const string Usage = $"usage: kbo capture <{ClaudeCodeAdapter.AgentName} | {OpencodeRetention.AgentName}>  (hook JSON on stdin)";
 

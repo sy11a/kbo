@@ -1,15 +1,15 @@
 namespace Kbo.Gold;
 
-public sealed record MissingSessionsFinding(
+internal sealed record MissingSessionsFinding(
     string Agent,
     string Machine,
     int Count,
     DateTimeOffset MissingSince,
     IReadOnlyList<string> Transcripts);
 
-public sealed record UnregisteredSourceFinding(string Directory, long ReadCount);
+internal sealed record UnregisteredSourceFinding(string Directory, long ReadCount);
 
-public sealed record AuditReport(
+internal sealed record AuditReport(
     DateTimeOffset GeneratedAt,
     string Machine,
     IReadOnlyList<string> AgentsWithoutSessionAudit,
