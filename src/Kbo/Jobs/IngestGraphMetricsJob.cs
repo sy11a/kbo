@@ -92,56 +92,79 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
                 continue;
             }
 
-            JsonObject? parsed;
-            try
-            {
-                parsed = JsonNode.Parse(line) as JsonObject;
-            }
-            catch (System.Text.Json.JsonException exception)
-            {
-                throw new InvalidOperationException(
-                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})"), exception);
-            }
-
-            JsonObject payload = parsed
-                ?? throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not a JSON object"));
-
-            string? payloadSource = (string?)payload[EventDataFields.Source];
-            if (payloadSource != source.Id)
-            {
-                throw new InvalidOperationException(
-                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'"));
-            }
-
-            JsonObject envelope = EventEnvelope.Create(
-                EventTypes.GraphMetrics,
-                subject: source.Id,
-                kbroot: source.Id,
-                data: payload,
-                _registry.Machine,
-                PulseRunner.AgentName,
-                session: null,
-                repo: null,
-                task: null,
-                model: null,
-                _clock.GetUtcNow(),
-                _random);
-
-            EventValidationResult validation = validator.Validate(envelope.ToJsonString());
-            if (!validation.IsValid)
-            {
-                throw new InvalidOperationException(
-                    string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}"));
-            }
-
-            string dedupKey = (string?)payload[EventDataFields.Date] + "|" + payloadSource;
-            if (!seenKeys.Add(dedupKey))
-            {
-                skipped++;
-                continue;
-            }
-
-            pending.Add(envelope);
+            IngestArtifactLine(artifact, source, line, lineNumber, validator, seenKeys, pending, ref skipped);
         }
+    }
+
+    private void IngestArtifactLine(
+        string artifact,
+        KnowledgeSource source,
+        string line,
+        int lineNumber,
+        EventValidator validator,
+        HashSet<string> seenKeys,
+        List<JsonObject> pending,
+        ref int skipped)
+    {
+        JsonObject payload = ParseArtifactLine(artifact, line, lineNumber);
+        ValidatePayloadSource(artifact, source, payload, lineNumber);
+
+        JsonObject envelope = EventEnvelope.Create(
+            EventTypes.GraphMetrics,
+            subject: source.Id,
+            kbroot: source.Id,
+            data: payload,
+            _registry.Machine,
+            PulseRunner.AgentName,
+            session: null,
+            repo: null,
+            task: null,
+            model: null,
+            _clock.GetUtcNow(),
+            _random);
+
+        EventValidationResult validation = validator.Validate(envelope.ToJsonString());
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: schema violation: {string.Join("; ", validation.Errors)}"));
+        }
+
+        string dedupKey = (string?)payload[EventDataFields.Date] + "|" + (string?)payload[EventDataFields.Source];
+        if (!seenKeys.Add(dedupKey))
+        {
+            skipped++;
+            return;
+        }
+
+        pending.Add(envelope);
+    }
+
+    private static JsonObject ParseArtifactLine(string artifact, string line, int lineNumber)
+    {
+        JsonObject? parsed;
+        try
+        {
+            parsed = JsonNode.Parse(line) as JsonObject;
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            throw new InvalidOperationException(
+                string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not valid JSON ({exception.Message})"), exception);
+        }
+
+        return parsed
+            ?? throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: not a JSON object"));
+    }
+
+    private static void ValidatePayloadSource(string artifact, KnowledgeSource source, JsonObject payload, int lineNumber)
+    {
+        string? payloadSource = (string?)payload[EventDataFields.Source];
+        if (payloadSource == source.Id)
+        {
+            return;
+        }
+        throw new InvalidOperationException(
+            string.Create(CultureInfo.InvariantCulture, $"{artifact} line {lineNumber}: payload source '{payloadSource ?? "null"}' does not match the registry row '{source.Id}'"));
     }
 }

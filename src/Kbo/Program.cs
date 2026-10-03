@@ -1,4 +1,5 @@
 using Kbo.Cli;
+using Kbo.Jobs;
 
 namespace Kbo;
 
@@ -10,93 +11,60 @@ internal static class Program
 
         switch (args)
         {
-            case ["registry", ..]:
-                return RegistryCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["capture", ..]:
-                return CaptureCommand.Run(
-                    args[1..],
-                    Console.In,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["harvest", ..]:
-                return HarvestCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["rebuild", ..]:
-                return RebuildCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["report", ..]:
-                return ReportCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["audit", ..]:
-                return AuditCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["pulse", ..]:
-                return PulseCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home);
-            case ["init", ..]:
-                return InitCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home,
-                    new Kbo.Jobs.ProcessRunner());
-            case ["doctor", ..]:
-                return DoctorCommand.Run(
-                    args[1..],
-                    Console.Out,
-                    Console.Error,
-                    key => Environment.GetEnvironmentVariable(key),
-                    home,
-                    new Kbo.Jobs.ProcessRunner(),
-                    TimeProvider.System);
-            case ["watch", ..]:
-                {
-                    using CancellationTokenSource cancellation = new();
-                    Console.CancelKeyPress += (_, eventArgs) =>
-                    {
-                        eventArgs.Cancel = true;
-                        cancellation.Cancel();
-                    };
-                    return await WatchCommand.RunAsync(
-                        args[1..],
-                        Console.Out,
-                        Console.Error,
-                        key => Environment.GetEnvironmentVariable(key),
-                        home,
-                        cancellation.Token).ConfigureAwait(false);
-                }
+            case ["registry", ..]: return RunRegistry(args[1..], home);
+            case ["capture", ..]: return RunCapture(args[1..], home);
+            case ["harvest", ..]: return RunHarvest(args[1..], home);
+            case ["rebuild", ..]: return RunRebuild(args[1..], home);
+            case ["report", ..]: return RunReport(args[1..], home);
+            case ["audit", ..]: return RunAudit(args[1..], home);
+            case ["pulse", ..]: return RunPulse(args[1..], home);
+            case ["init", ..]: return RunInit(args[1..], home);
+            case ["doctor", ..]: return RunDoctor(args[1..], home);
+            case ["watch", ..]: return await RunWatchAsync(args[1..], home).ConfigureAwait(false);
             default:
                 {
                     await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...").ConfigureAwait(false);
                     return 1;
                 }
         }
+    }
+
+    private static int RunRegistry(string[] args, string home) =>
+        RegistryCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunCapture(string[] args, string home) =>
+        CaptureCommand.Run(args, Console.In, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunHarvest(string[] args, string home) =>
+        HarvestCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunRebuild(string[] args, string home) =>
+        RebuildCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunReport(string[] args, string home) =>
+        ReportCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunAudit(string[] args, string home) =>
+        AuditCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunPulse(string[] args, string home) =>
+        PulseCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+
+    private static int RunInit(string[] args, string home) =>
+        InitCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home, new ProcessRunner());
+
+    private static int RunDoctor(string[] args, string home) =>
+        DoctorCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home, new ProcessRunner(), TimeProvider.System);
+
+    private static async Task<int> RunWatchAsync(string[] args, string home)
+    {
+        using CancellationTokenSource cancellation = new();
+        Console.CancelKeyPress += (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        };
+        return await WatchCommand.RunAsync(
+            args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home, cancellation.Token).ConfigureAwait(false);
     }
 }

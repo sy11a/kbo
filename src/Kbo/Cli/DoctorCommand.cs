@@ -26,6 +26,34 @@ internal static class DoctorCommand
         IProcessRunner processRunner,
         TimeProvider clock)
     {
+        bool? notify = ParseArguments(args, error);
+        if (notify is null)
+        {
+            return 1;
+        }
+
+        List<string> problems = [];
+        CheckPulseTimer(processRunner, output, problems);
+
+        DateTimeOffset now = clock.GetUtcNow();
+        AnalyzeJobs(LoadLastCompleted(environment, homeDirectory), now, output, problems);
+        ReportCaptureDrops(homeDirectory, now, output, problems);
+
+        if (problems.Count is 0)
+        {
+            output.WriteLine("all jobs healthy");
+        }
+
+        if (notify.Value)
+        {
+            SendNotification(processRunner, problems);
+        }
+
+        return problems.Count is 0 ? 0 : 1;
+    }
+
+    private static bool? ParseArguments(string[] args, TextWriter error)
+    {
         bool notify = false;
         foreach (string argument in args)
         {
@@ -36,25 +64,38 @@ internal static class DoctorCommand
             else
             {
                 error.WriteLine(Usage);
-                return 1;
+                return null;
             }
         }
+        return notify;
+    }
 
-        List<string> problems = [];
-
+    private static void CheckPulseTimer(IProcessRunner processRunner, TextWriter output, List<string> problems)
+    {
         ProcessResult timerState = processRunner.Run("systemctl", _pulseTimerStatusArgs);
         string timerStatus = timerState.StandardOutput.Trim();
         output.WriteLine($"timer: {timerStatus}");
-        if (timerState.ExitCode is not 0)
+        if (timerState.ExitCode is 0)
         {
-            problems.Add($"kbo-pulse.timer is {timerStatus} — re-arm with 'kbo init'");
+            return;
         }
+        problems.Add($"kbo-pulse.timer is {timerStatus} — re-arm with 'kbo init'");
+    }
 
+    private static Dictionary<string, DateTimeOffset> LoadLastCompleted(
+        Func<string, string?> environment, string homeDirectory)
+    {
         string eventsRepo = environment(KboEnvironment.EventsRepoVariable)
             ?? KboEnvironment.DefaultEventsRepo(homeDirectory);
-        Dictionary<string, DateTimeOffset> lastCompleted = new BronzeStore(eventsRepo).LastCompletedJobs();
-        DateTimeOffset now = clock.GetUtcNow();
+        return new BronzeStore(eventsRepo).LastCompletedJobs();
+    }
 
+    private static void AnalyzeJobs(
+        Dictionary<string, DateTimeOffset> lastCompleted,
+        DateTimeOffset now,
+        TextWriter output,
+        List<string> problems)
+    {
         if (lastCompleted.Count is 0)
         {
             problems.Add("no job.completed events in bronze — has a pulse ever run?");
@@ -73,19 +114,6 @@ internal static class DoctorCommand
                 output.WriteLine($"{job}: ok ({daysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d ago)");
             }
         }
-        ReportCaptureDrops(homeDirectory, now, output, problems);
-
-        if (problems.Count is 0)
-        {
-            output.WriteLine("all jobs healthy");
-        }
-
-        if (notify)
-        {
-            SendNotification(processRunner, problems);
-        }
-
-        return problems.Count is 0 ? 0 : 1;
     }
 
     /// <summary>
