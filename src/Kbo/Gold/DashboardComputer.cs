@@ -62,7 +62,7 @@ internal static class DashboardComputer
         DateTime currentWeekStart = StartOfIsoWeek(nowUtc);
         List<DateTime> grid = [.. Enumerable.Range(1, MirrorSnapshotWeeks)
             .Select(weeksBack => currentWeekStart.AddDays(-7 * weeksBack))
-            .Order()];
+            .Order(),];
 
         double? CacheAt(DateTime start, DateTime end)
         {
@@ -123,14 +123,14 @@ internal static class DashboardComputer
                 """, ("start", start), ("end", end)))
             {
                 string subject = (string)row[0]!;
-                if (registry.Resolve(subject) is null || ContentKind.Of(subject) != ContentKind.Knowledge)
+                if (registry.Resolve(subject) is null || ContentKind.Of(subject) is not ContentKind.Knowledge)
                 {
                     continue;
                 }
                 firstWrite[subject] = (DateTime)row[1]!;
             }
 
-            if (firstWrite.Count == 0)
+            if (firstWrite.Count is 0)
             {
                 return null;
             }
@@ -165,7 +165,7 @@ internal static class DashboardComputer
                 """, ("start", start), ("end", end)))
             {
                 string subject = (string)row[0]!;
-                if (registry.Resolve(subject) is null || ContentKind.Of(subject) != ContentKind.Knowledge)
+                if (registry.Resolve(subject) is null || ContentKind.Of(subject) is not ContentKind.Knowledge)
                 {
                     continue;
                 }
@@ -201,7 +201,7 @@ internal static class DashboardComputer
                 WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $start AND time < $end
                 """, ("start", start), ("end", end)))
             {
-                if (ContentKind.Of((string)row[1]!) != ContentKind.Code)
+                if (ContentKind.Of((string)row[1]!) is not ContentKind.Code)
                 {
                     continue;
                 }
@@ -213,7 +213,7 @@ internal static class DashboardComputer
                 }
             }
 
-            if (firstCode.Count == 0)
+            if (firstCode.Count is 0)
             {
                 return null;
             }
@@ -237,7 +237,7 @@ internal static class DashboardComputer
             foreach (DateTime snapshotEnd in grid)
             {
                 double? value = valueAt(snapshotEnd.AddDays(-windowDays), snapshotEnd);
-                if (value.HasValue)
+                if (value is not null)
                 {
                     history.Add(value.Value);
                 }
@@ -266,39 +266,39 @@ internal static class DashboardComputer
         }
 
         return new PracticeMirrorGold(
-        [
-            Tile("Cache discipline · 14д", CacheAt, 14, goal: null, trust: true,
-                "контекст переиспользуется — норма", ""),
-            Tile("Burner sessions · 14д", BurnerAt, 14, goal: null, trust: true,
-                "одноразовых задач мало — норма", ""),
-            Tile("Write→read loop · 6 нед", LoopAt, 42,
-                new MirrorGoal(0.30, MirrorDirection.UpIsBetter), trust: false,
-                "записи окупаются — норма", "пиши короче, ссылочнее и в читаемый корень"),
-            Tile("Single-use notes · 6 нед", SingleUseAt, 42,
-                new MirrorGoal(0.55, MirrorDirection.DownIsBetter), trust: false,
-                "фонд здоров — норма", "кандидаты на weeding — очередь предложений"),
-            Tile("Failed-search · 14д", FailedAt, 14,
-                new MirrorGoal(0.15, MirrorDirection.DownIsBetter), trust: false,
-                "знание находится — норма", "линкуй заметки от слов, которыми ищешь"),
-            Tile("Spec-before-code · 6 нед", SddAt, 42,
-                new MirrorGoal(0.50, MirrorDirection.UpIsBetter), trust: false,
-                "спека идёт перед кодом — норма", "сначала код — включи спека-скиллы в практику"),
-        ]);
+            [
+                Tile("Cache discipline · 14д", (windowStart, windowEnd) => CacheAt(windowStart, windowEnd), 14, goal: null, trust: true,
+                    "контекст переиспользуется — норма", string.Empty),
+                Tile("Burner sessions · 14д", (windowStart, windowEnd) => BurnerAt(windowStart, windowEnd), 14, goal: null, trust: true,
+                    "одноразовых задач мало — норма", string.Empty),
+                Tile("Write→read loop · 6 нед", (windowStart, windowEnd) => LoopAt(windowStart, windowEnd), 42,
+                    new MirrorGoal(0.30, MirrorDirection.UpIsBetter), trust: false,
+                    "записи окупаются — норма", "пиши короче, ссылочнее и в читаемый корень"),
+                Tile("Single-use notes · 6 нед", (windowStart, windowEnd) => SingleUseAt(windowStart, windowEnd), 42,
+                    new MirrorGoal(0.55, MirrorDirection.DownIsBetter), trust: false,
+                    "фонд здоров — норма", "кандидаты на weeding — очередь предложений"),
+                Tile("Failed-search · 14д", (windowStart, windowEnd) => FailedAt(windowStart, windowEnd), 14,
+                    new MirrorGoal(0.15, MirrorDirection.DownIsBetter), trust: false,
+                    "знание находится — норма", "линкуй заметки от слов, которыми ищешь"),
+                Tile("Spec-before-code · 6 нед", (windowStart, windowEnd) => SddAt(windowStart, windowEnd), 42,
+                    new MirrorGoal(0.50, MirrorDirection.UpIsBetter), trust: false,
+                    "спека идёт перед кодом — норма", "сначала код — включи спека-скиллы в практику"),
+            ]);
 
         static string Pct(double v) => v.ToString("0%", CultureInfo.InvariantCulture);
 
         static string TrendLine(MirrorVerdict calibration)
         {
-            if (calibration.StatusClass == MirrorCalibration.ClassWait)
+            if (calibration.StatusClass is MirrorCalibration.ClassWait)
             {
                 return string.Create(CultureInfo.InvariantCulture, $"история {calibration.HistoryWeeks}/{MirrorCalibration.RequiredHistoryWeeks} нед");
             }
-            if (calibration.StatusClass == MirrorCalibration.ClassAcute)
+            if (calibration.StatusClass is MirrorCalibration.ClassAcute)
             {
-                return calibration.RobustZ.HasValue
+                return calibration.RobustZ is not null
                     ? string.Create(CultureInfo.InvariantCulture, $"острый выход: z = {calibration.RobustZ.Value:0.0}") : "вне насыщенной нормы";
             }
-            if (calibration.StatusClass == MirrorCalibration.ClassTrend && calibration.SlopePerWeek.HasValue)
+            if (calibration.StatusClass is MirrorCalibration.ClassTrend && calibration.SlopePerWeek is not null)
             {
                 double ppPerWeek = calibration.SlopePerWeek.Value * 100;
                 string sign = ppPerWeek > 0 ? "+" : "−";
@@ -323,13 +323,13 @@ internal static class DashboardComputer
 
         static string? GoalLine(MirrorVerdict calibration, MirrorGoal? goal, double current)
         {
-            if (goal is null || calibration.StatusClass == MirrorCalibration.ClassWait)
+            if (goal is null || calibration.StatusClass is MirrorCalibration.ClassWait)
             {
                 return null;
             }
-            string target = goal.Direction == MirrorDirection.UpIsBetter
+            string target = goal.Direction is MirrorDirection.UpIsBetter
                 ? string.Create(CultureInfo.InvariantCulture, $"цель ≥{goal.Value:0%}") : string.Create(CultureInfo.InvariantCulture, $"цель ≤{goal.Value:0%}");
-            double gapPp = goal.Direction == MirrorDirection.UpIsBetter
+            double gapPp = goal.Direction is MirrorDirection.UpIsBetter
                 ? (goal.Value - current) * 100
                 : (current - goal.Value) * 100;
             return gapPp <= 0
@@ -438,14 +438,14 @@ internal static class DashboardComputer
             .Take(RepoListCap)
             .Select(entry => new SddOrderingRow(
                 entry.Key.Week, entry.Key.Repo, entry.Value[0], entry.Value[1],
-                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))];
+                entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0])),];
         SddOrderingSummary orderingSummary = new(
             codeSessions, specFirst, codeSessions == 0 ? 0 : (double)specFirst / codeSessions);
 
         List<SddWritesRow> writesRows = [.. writesByKind
             .OrderByDescending(entry => entry.Value)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-            .Select(entry => new SddWritesRow(entry.Key, entry.Value))];
+            .Select(entry => new SddWritesRow(entry.Key, entry.Value)),];
 
         // Skill rate: configured skill names only (ADR-0031 pattern);
         // an unconfigured block is stated, never silently omitted.
@@ -496,7 +496,7 @@ internal static class DashboardComputer
                 .Take(RepoListCap)
                 .Select(entry => new SddSkillRateRow(
                     entry.Key, entry.Value[0], entry.Value[1],
-                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0]))];
+                    entry.Value[0] == 0 ? 0 : (double)entry.Value[1] / entry.Value[0])),];
         }
 
         return new SddPanelGold(orderingRows, orderingSummary, writesRows, machineManagedWrites, skillRows, skillConfigured);
@@ -540,7 +540,7 @@ internal static class DashboardComputer
             .OrderByDescending(entry => entry.Value)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal)
             .Take(TopListCap)
-            .Select(entry => new WriteReadRow(entry.Key, entry.Value))];
+            .Select(entry => new WriteReadRow(entry.Key, entry.Value)),];
         long writtenCount = firstWrite.Count;
         return (top, new WriteReadSummary(writtenCount, laterReads.Count, writtenCount == 0 ? 0 : (double)laterReads.Count / writtenCount));
     }
@@ -568,8 +568,8 @@ internal static class DashboardComputer
             .OrderByDescending(note => note.Sessions)
             .ThenByDescending(note => note.Reads)
             .ThenBy(note => note.Path, StringComparer.Ordinal)
-            .Take(TopListCap)];
-        return (top, new ReuseSummary(notes.Count, singleUse, notes.Count == 0 ? 0 : (double)singleUse / notes.Count));
+            .Take(TopListCap),];
+        return (top, new ReuseSummary(notes.Count, singleUse, notes.Count is 0 ? 0 : (double)singleUse / notes.Count));
     }
 
     private static List<DayCount> TopFailedSearches(DuckDBConnection connection, DateTimeOffset now)
@@ -724,7 +724,7 @@ internal static class DashboardComputer
         {
             return new ServiceSessionsSummary(AsLong(row[0]), (string)row[1]!);
         }
-        return new ServiceSessionsSummary(0, "");
+        return new ServiceSessionsSummary(0, string.Empty);
     }
 
     private static List<FailedSearchRow> FailedSearches(DuckDBConnection connection)
@@ -799,19 +799,19 @@ internal static class DashboardComputer
 
         List<ThemeReadsRow> rows = [.. reads.Keys.Union(notes.Keys)
             .Select(key => new ThemeReadsRow(
-                key.Theme.Length == 0 ? key.Source : $"{key.Source}/{key.Theme}",
+                key.Theme.Length is 0 ? key.Source : $"{key.Source}/{key.Theme}",
                 key.Source,
                 reads.GetValueOrDefault(key),
-                notes.GetValueOrDefault(key)))];
+                notes.GetValueOrDefault(key))),];
         return [.. rows.Where(row => row.Reads == 0)
-            .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal)];
+            .OrderByDescending(row => row.Notes).ThenBy(row => row.Theme, StringComparer.Ordinal),];
     }
 
     private static string ThemeOf(KnowledgeSource source, string path)
     {
         string relative = Path.GetRelativePath(source.Root, path);
         int separator = relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
-        return separator < 0 ? "" : relative[..separator];
+        return separator < 0 ? string.Empty : relative[..separator];
     }
 
     private static IEnumerable<object?[]> Query(DuckDBConnection connection, string sql, params (string Name, object Value)[] parameters)

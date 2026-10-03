@@ -18,17 +18,17 @@ namespace Kbo.Jobs;
 /// </summary>
 internal sealed class IngestGraphMetricsJob : IPulseJob
 {
-    private readonly KnowledgeRegistry registry;
-    private readonly string eventsRepo;
-    private readonly TimeProvider clock;
-    private readonly Random random;
+    private readonly KnowledgeRegistry _registry;
+    private readonly string _eventsRepo;
+    private readonly TimeProvider _clock;
+    private readonly Random _random;
 
     public IngestGraphMetricsJob(KnowledgeRegistry registry, string eventsRepo, TimeProvider clock, Random random)
     {
-        this.registry = registry;
-        this.eventsRepo = eventsRepo;
-        this.clock = clock;
-        this.random = random;
+        _registry = registry;
+        _eventsRepo = eventsRepo;
+        _clock = clock;
+        _random = random;
     }
 
     public string Name => "ingest-graph-metrics";
@@ -36,13 +36,13 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
 
     public string Run()
     {
-        List<KnowledgeSource> publishing = [.. registry.Sources.Where(source => source.MetricsArtifact is not null)];
-        if (publishing.Count == 0)
+        List<KnowledgeSource> publishing = [.. _registry.Sources.Where(source => source.MetricsArtifact is not null)];
+        if (publishing.Count is 0)
         {
             return "no source carries metricsArtifact — nothing to ingest";
         }
 
-        BronzeStore store = new(eventsRepo);
+        BronzeStore store = new(_eventsRepo);
         HashSet<string> seenKeys = [.. store.GraphMetricsKeys()];
         EventValidator validator = new();
 
@@ -118,14 +118,14 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
                 subject: source.Id,
                 kbroot: source.Id,
                 data: payload,
-                registry.Machine,
+                _registry.Machine,
                 PulseRunner.AgentName,
                 session: null,
                 repo: null,
                 task: null,
                 model: null,
-                clock.GetUtcNow(),
-                random);
+                _clock.GetUtcNow(),
+                _random);
 
             EventValidationResult validation = validator.Validate(envelope.ToJsonString());
             if (!validation.IsValid)

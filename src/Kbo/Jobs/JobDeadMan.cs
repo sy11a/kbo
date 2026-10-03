@@ -14,9 +14,9 @@ internal static class JobDeadMan
     public const double DailyThresholdDays = GraceDays;
     public const double WeeklyThresholdDays = PulseRunner.WeeklyDueDays + GraceDays;
 
-    private static readonly HashSet<string> WeeklyJobs = ["report", "audit"];
+    private static readonly HashSet<string> _weeklyJobs = ["report", "audit"];
 
-    public static JobCadence CadenceOf(string jobName) => WeeklyJobs.Contains(jobName) ? JobCadence.Weekly : JobCadence.Daily;
+    public static JobCadence CadenceOf(string jobName) => _weeklyJobs.Contains(jobName) ? JobCadence.Weekly : JobCadence.Daily;
 
-    public static double ThresholdDays(string jobName) => CadenceOf(jobName) == JobCadence.Weekly ? WeeklyThresholdDays : DailyThresholdDays;
+    public static double ThresholdDays(string jobName) => CadenceOf(jobName) is JobCadence.Weekly ? WeeklyThresholdDays : DailyThresholdDays;
 }

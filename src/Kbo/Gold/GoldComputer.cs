@@ -13,8 +13,8 @@ internal static class GoldComputer
     public const int HotNoteLimit = 20;
     public const int DormantAfterDays = 21;
 
-    private static readonly string[] NoteActions = ["archive", "merge", "re-link"];
-    private static readonly string[] SkillActions = ["retire", "fix trigger phrases"];
+    private static readonly string[] _noteActions = ["archive", "merge", "re-link"];
+    private static readonly string[] _skillActions = ["retire", "fix trigger phrases"];
 
     private sealed record ReadStats(long ReadsInWindow, long ReadsTotal, DateTimeOffset LastRead);
 
@@ -50,7 +50,7 @@ internal static class GoldComputer
 
             if (role == NoteRole.Reference && daysSinceModified >= MinInventoryAgeDays && readsInWindow == 0)
             {
-                string[] actions = note.Layer == KnowledgeLayer.Skills ? SkillActions : NoteActions;
+                string[] actions = note.Layer is KnowledgeLayer.Skills ? _skillActions : _noteActions;
                 deadNotes.Add(new DeadNote(note.Path, note.SourceId, LayerName(note.Layer), daysSinceModified, stats?.LastRead, actions));
             }
 
@@ -72,7 +72,7 @@ internal static class GoldComputer
                 inventoryByPath[entry.Key].SourceId,
                 entry.Value.ReadsInWindow,
                 entry.Value.ReadsTotal,
-                entry.Value.LastRead))];
+                entry.Value.LastRead)),];
 
         Dictionary<string, DateTimeOffset> activityBySource = QuerySourceActivity(silverPath, registry);
         DateTimeOffset dormantCutoff = now.AddDays(-DormantAfterDays);
@@ -83,7 +83,7 @@ internal static class GoldComputer
             .Select(id => new DormantSource(
                 id,
                 activityBySource.TryGetValue(id, out DateTimeOffset last) ? last : null,
-                deadNotes.Count(note => note.SourceId == id)))];
+                deadNotes.Count(note => note.SourceId == id))),];
 
         deadNotes = [.. deadNotes.Where(note => !dormantSourceIds.Contains(note.SourceId))];
 
@@ -115,10 +115,11 @@ internal static class GoldComputer
         Dictionary<string, DateTimeOffset> lastBySource = [];
         void Bump(string sourceId, DateTimeOffset time)
         {
-            if (!lastBySource.TryGetValue(sourceId, out DateTimeOffset existing) || time > existing)
+            if (lastBySource.TryGetValue(sourceId, out DateTimeOffset existing) && time <= existing)
             {
-                lastBySource[sourceId] = time;
+                return;
             }
+            lastBySource[sourceId] = time;
         }
 
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);

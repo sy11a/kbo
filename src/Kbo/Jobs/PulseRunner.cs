@@ -76,7 +76,7 @@ internal static class PulseRunner
     /// </summary>
     private static bool IsDue(JobCadence cadence, DateTimeOffset lastCompleted, DateTimeOffset now, TimeZoneInfo zone)
     {
-        if (cadence == JobCadence.Weekly)
+        if (cadence is JobCadence.Weekly)
         {
             return (now - lastCompleted).TotalDays >= WeeklyDueDays;
         }

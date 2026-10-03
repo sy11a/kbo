@@ -25,7 +25,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine("## Lifecycle artifacts — die on completion, excluded from the dead worklist");
         _ = markdown.AppendLine();
-        if (report.LifecycleCounts.Count == 0)
+        if (report.LifecycleCounts.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }
@@ -40,7 +40,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine("## Machine-managed files — tool-owned, excluded from the dead worklist");
         _ = markdown.AppendLine();
-        if (report.MachineManagedCounts.Count == 0)
+        if (report.MachineManagedCounts.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }
@@ -55,7 +55,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dormant sources — no activity in {report.DormantAfterDays}d, dead-note check suspended");
         _ = markdown.AppendLine();
-        if (report.DormantSources.Count == 0)
+        if (report.DormantSources.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }
@@ -74,7 +74,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Dead notes — in inventory ≥ {report.MinInventoryAgeDays}d, zero reads in {report.ReadWindowDays}d");
         _ = markdown.AppendLine();
-        if (report.DeadNotes.Count == 0)
+        if (report.DeadNotes.Count is 0)
         {
             _ = markdown.AppendLine("none 🎉");
         }
@@ -93,7 +93,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Hot notes — top reads in the last {report.ReadWindowDays}d");
         _ = markdown.AppendLine();
-        if (report.HotNotes.Count == 0)
+        if (report.HotNotes.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }
@@ -111,7 +111,7 @@ internal static class MarkdownRenderer
 
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"## Staleness — ≥ {report.StaleMinReads} reads in {report.ReadWindowDays}d, unmodified > {report.StaleUnmodifiedDays}d");
         _ = markdown.AppendLine();
-        if (report.StaleNotes.Count == 0)
+        if (report.StaleNotes.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }

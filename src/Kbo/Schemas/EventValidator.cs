@@ -14,18 +14,18 @@ internal sealed class EventValidator
     private const string ResourcePrefix = "schemas/";
     private const string EnvelopePrefix = "envelope/";
 
-    private readonly Dictionary<string, JsonSchema> schemasByRef;
-    private readonly EvaluationOptions evaluationOptions;
+    private readonly Dictionary<string, JsonSchema> _schemasByRef;
+    private readonly EvaluationOptions _evaluationOptions;
 
     public EventValidator()
     {
         BuildOptions buildOptions = new() { SchemaRegistry = new SchemaRegistry() };
-        schemasByRef = [];
+        _schemasByRef = [];
 
         Assembly assembly = typeof(EventValidator).Assembly;
         List<string> resourceNames = [.. assembly.GetManifestResourceNames()
             .Where(name => name.StartsWith(ResourcePrefix, StringComparison.Ordinal))
-            .OrderBy(name => name.StartsWith(ResourcePrefix + EnvelopePrefix, StringComparison.Ordinal) ? 0 : 1)];
+            .OrderBy(name => name.StartsWith(ResourcePrefix + EnvelopePrefix, StringComparison.Ordinal) ? 0 : 1),];
 
         foreach (string resourceName in resourceNames)
         {
@@ -38,18 +38,18 @@ internal sealed class EventValidator
             string schemaRef = resourceName[ResourcePrefix.Length..^".json".Length].Replace('\\', '/');
             if (!schemaRef.StartsWith(EnvelopePrefix, StringComparison.Ordinal))
             {
-                schemasByRef[schemaRef] = schema;
+                _schemasByRef[schemaRef] = schema;
             }
         }
 
-        evaluationOptions = new EvaluationOptions
+        _evaluationOptions = new EvaluationOptions
         {
             OutputFormat = OutputFormat.List,
             RequireFormatValidation = true,
         };
     }
 
-    public IReadOnlyCollection<string> KnownSchemaRefs => schemasByRef.Keys;
+    public IReadOnlyCollection<string> KnownSchemaRefs => _schemasByRef.Keys;
 
     public EventValidationResult Validate(string eventJsonLine)
     {
@@ -60,20 +60,20 @@ internal sealed class EventValidator
         }
 
         JsonElement root = eventDocument.RootElement;
-        if (root.ValueKind != JsonValueKind.Object
+        if (root.ValueKind is not JsonValueKind.Object
             || !root.TryGetProperty(EnvelopeFields.SchemaRef, out JsonElement schemaRefElement)
-            || schemaRefElement.ValueKind != JsonValueKind.String)
+            || schemaRefElement.ValueKind is not JsonValueKind.String)
         {
             return EventValidationResult.Invalid(schemaRef: null, "Event has no string 'schemaref' field; cannot select a schema.");
         }
 
         string schemaRef = schemaRefElement.GetString()!;
-        if (!schemasByRef.TryGetValue(schemaRef, out JsonSchema? schema))
+        if (!_schemasByRef.TryGetValue(schemaRef, out JsonSchema? schema))
         {
             return EventValidationResult.Invalid(schemaRef, $"Unknown schemaref '{schemaRef}': no schema file 'schemas/{schemaRef}.json' in the registry.");
         }
 
-        EvaluationResults evaluation = schema.Evaluate(root, evaluationOptions);
+        EvaluationResults evaluation = schema.Evaluate(root, _evaluationOptions);
         if (evaluation.IsValid)
         {
             return EventValidationResult.Valid(schemaRef);
@@ -81,7 +81,7 @@ internal sealed class EventValidator
 
         string[] errors = [.. (evaluation.Details ?? [])
             .Where(detail => detail.Errors is { Count: > 0 })
-            .SelectMany(detail => detail.Errors!.Select(error => $"{detail.InstanceLocation}: {error.Value}"))];
+            .SelectMany(detail => detail.Errors!.Select(error => $"{detail.InstanceLocation}: {error.Value}")),];
         return EventValidationResult.Invalid(schemaRef, errors.Length > 0 ? errors : ["Event does not conform to the schema."]);
     }
 

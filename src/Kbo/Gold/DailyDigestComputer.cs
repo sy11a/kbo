@@ -29,9 +29,12 @@ internal static class DailyDigestComputer
         Dictionary<string, long[]> countsBySession = SessionEventCounts(connection, cutoff);
 
         SortedDictionary<string, DayBuilder> days = new(StringComparer.Ordinal);
-        DayBuilder Day(string date) => days.TryGetValue(date, out DayBuilder? existing)
-            ? existing
-            : days[date] = new DayBuilder();
+        DayBuilder Day(string date)
+        {
+            return days.TryGetValue(date, out DayBuilder? existing)
+                ? existing
+                : days[date] = new DayBuilder();
+        }
 
         foreach (object?[] row in Query(connection, """
             SELECT session, agent, coalesce(repo, '(unknown)') AS repo, started_at,
@@ -222,7 +225,7 @@ internal static class DailyDigestComputer
             return [.. counts
                 .OrderByDescending(entry => entry.Value)
                 .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-                .Select(entry => new DayCount(entry.Key, entry.Value))];
+                .Select(entry => new DayCount(entry.Key, entry.Value)),];
         }
     }
 

@@ -15,7 +15,7 @@ namespace Kbo.Gold;
 /// </summary>
 internal static class DashboardRenderer
 {
-    private static readonly JsonSerializerOptions DataJsonOptions = new()
+    private static readonly JsonSerializerOptions _dataJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
@@ -126,17 +126,17 @@ internal static class DashboardRenderer
         _ = html.AppendLine(CultureInfo.InvariantCulture,
             $"<h2>Dead-man health — red past the job's cadence threshold (daily {gold.DeadManThresholdDays}d, weekly {gold.WeeklyDeadManThresholdDays}d)</h2>");
         AppendDescription(html, string.Create(CultureInfo.InvariantCulture, $"Здоровье фоновых задач: работа становится красной, если молчит дольше порога своей каденции — {gold.DeadManThresholdDays} дн. для ежедневных, {gold.WeeklyDeadManThresholdDays} дн. для еженедельных (report, audit). Если работа красная — смотрите журнал: journalctl --user -u kbo-pulse.service."));
-        if (gold.JobHealth.Count == 0)
+        if (gold.JobHealth.Count is 0)
         {
             AppendDescription(html, "Ни одной завершённой работы (job.completed) в бронзе пока нет.");
             return;
         }
-        int okCount = gold.JobHealth.Count(tile => tile.Status == "ok");
+        int okCount = gold.JobHealth.Count(tile => tile.Status is "ok");
         string tone = okCount == gold.JobHealth.Count ? "ok" : "red";
         JobHealthTile oldest = OldestJob(gold.JobHealth);
         _ = html.AppendLine(CultureInfo.InvariantCulture,
             $"""<p class="healthline {tone}">Dead-man: {okCount}/{gold.JobHealth.Count} ok · oldest {Html(oldest.Job)} {oldest.DaysSilent.ToString("0.#", CultureInfo.InvariantCulture)}d / limit {JobDeadMan.ThresholdDays(oldest.Job).ToString("0.#", CultureInfo.InvariantCulture)}d</p>""");
-        List<JobHealthTile> red = [.. gold.JobHealth.Where(tile => tile.Status != "ok")];
+        List<JobHealthTile> red = [.. gold.JobHealth.Where(tile => tile.Status is not "ok")];
         if (red.Count > 0)
         {
             _ = html.AppendLine("""<div class="tiles">""");
@@ -166,7 +166,7 @@ internal static class DashboardRenderer
     /// provenance detail, not a mirror question — one summary line when closed.</summary>
     private static void AppendLastSeen(StringBuilder html, IReadOnlyList<LastSeenTile> lastSeen)
     {
-        if (lastSeen.Count == 0)
+        if (lastSeen.Count is 0)
         {
             return;
         }
@@ -197,7 +197,7 @@ internal static class DashboardRenderer
 
     private static void AppendPracticeMirror(StringBuilder html, PracticeMirrorGold? mirror)
     {
-        if (mirror is null || mirror.Tiles.Count == 0)
+        if (mirror is null || mirror.Tiles.Count is 0)
         {
             return;
         }
@@ -215,14 +215,14 @@ internal static class DashboardRenderer
                 "wait" => "wait",
                 "sick" => "sick",
                 "trend" => "trend",
-                _ => "",
+                _ => string.Empty,
             };
-            string tileClass = statusClass.Length == 0 ? "tile" : $"tile {statusClass}";
+            string tileClass = statusClass.Length is 0 ? "tile" : $"tile {statusClass}";
             _ = html.AppendLine(CultureInfo.InvariantCulture, $"""
                 <div class="{tileClass}">
                   <div class="name">{Html(tile.State)} {Html(tile.Label)}</div>
                   <div class="meta">{Html(tile.Value)} · {Html(tile.Trend)}</div>
-                  <div class="meta">{Html(tile.Goal ?? "")}</div>
+                  <div class="meta">{Html(tile.Goal ?? string.Empty)}</div>
                   <div class="meta">{Html(tile.Hint)}</div>
                 </div>
                 """);
@@ -233,8 +233,8 @@ internal static class DashboardRenderer
 
     private static void AppendTile(StringBuilder html, string status, string name, string scope, string lastLine, double daysSilent)
     {
-        string symbol = status == "ok" ? "✓ ok" : "✗ SILENT";
-        string statusClass = status == "ok" ? "ok" : "red";
+        string symbol = status is "ok" ? "✓ ok" : "✗ SILENT";
+        string statusClass = status is "ok" ? "ok" : "red";
         _ = html.AppendLine(CultureInfo.InvariantCulture, $"""
             <div class="tile {statusClass}">
               <div class="name">{Html(name)}</div>
@@ -314,7 +314,7 @@ internal static class DashboardRenderer
             $"<h2>Recent sessions — last {DashboardComputer.RecentSessionCap}</h2>");
         AppendDescription(html,
             "Последние сессии агентов: время, агент, папка, число операций (чтения · поиски · навыки · записи), затронута ли база знаний, токены. Куда смотреть: сессия с множеством операций, но без отметки в колонке KB — работа шла мимо зарегистрированных знаний.");
-        if (sessions.Count == 0)
+        if (sessions.Count is 0)
         {
             AppendDescription(html, "Пока нет ни одной сессии.");
             return;
@@ -343,7 +343,7 @@ internal static class DashboardRenderer
             $"<h2>Write → read loop — last {DashboardComputer.ThemeWindowDays} days</h2>");
         string loopPercent = (loop.LoopRate * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
         AppendDescription(html, string.Create(CultureInfo.InvariantCulture, $"Замыкается ли петля знаний: из {loop.Written} заметок (.md), которые агенты СОЗДАЛИ или изменили за окно, {loop.Reused} ({loopPercent}) позже кто-то прочитал. Высокая доля — знания, произведённые в работе, реально переиспользуются; низкая — агенты пишут заметки, к которым потом не возвращаются."));
-        if (topWriteRead.Count == 0)
+        if (topWriteRead.Count is 0)
         {
             AppendDescription(html, "За окно не было написанных и затем прочитанных заметок.");
             return;
@@ -363,7 +363,7 @@ internal static class DashboardRenderer
             $"<h2>Most-reused knowledge notes — last {DashboardComputer.ThemeWindowDays} days</h2>");
         string singleUsePercent = (reuse.SingleUseRate * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
         AppendDescription(html, string.Create(CultureInfo.InvariantCulture, $"Заметки (.md), отсортированные по охвату — в скольких РАЗНЫХ сессиях их читали (это надёжнее, чем общее число чтений). Из {reuse.Notes} прочитанных заметок {reuse.SingleUse} ({singleUsePercent}) читались лишь в одной сессии — разовые. Верх списка — несущее ядро базы знаний; кандидаты на продвижение и связывание. Разовые — кандидаты на пересмотр."));
-        if (topReused.Count == 0)
+        if (topReused.Count is 0)
         {
             AppendDescription(html, "За окно не было чтений заметок.");
             return;
@@ -382,7 +382,7 @@ internal static class DashboardRenderer
     {
         _ = html.AppendLine(CultureInfo.InvariantCulture, $"<h2>{Html(heading)}</h2>");
         AppendDescription(html, ruDescription);
-        if (items.Count == 0)
+        if (items.Count is 0)
         {
             AppendDescription(html, emptyMessage);
             return;
@@ -401,7 +401,7 @@ internal static class DashboardRenderer
         _ = html.AppendLine(CultureInfo.InvariantCulture,
             $"<h2>Never-read themes — last {DashboardComputer.ThemeWindowDays} days</h2>");
         AppendDescription(html, string.Create(CultureInfo.InvariantCulture, $"Разделы базы знаний, которые ни разу не читались за последние {DashboardComputer.ThemeWindowDays} дней. Это кандидаты на пересмотр: устарели, плохо названы или просто забыты."));
-        if (unusedThemes.Count == 0)
+        if (unusedThemes.Count is 0)
         {
             AppendDescription(html, "Таких разделов нет — все разделы базы знаний читались в этом окне. ✓");
             return;
@@ -421,7 +421,7 @@ internal static class DashboardRenderer
         string? russianDescription = spec["usermeta"]?["kbo"]?["ru"]?.GetValue<string>();
         spec["data"] = new JsonObject
         {
-            ["values"] = JsonNode.Parse(JsonSerializer.Serialize(rows, DataJsonOptions)),
+            ["values"] = JsonNode.Parse(JsonSerializer.Serialize(rows, _dataJsonOptions)),
         };
 
         _ = html.AppendLine(CultureInfo.InvariantCulture, $$"""

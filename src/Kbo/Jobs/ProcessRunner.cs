@@ -10,6 +10,7 @@ internal sealed class ProcessRunner : IProcessRunner
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            UseShellExecute = false,
         };
         foreach (string argument in arguments)
         {

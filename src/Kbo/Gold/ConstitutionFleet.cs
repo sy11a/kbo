@@ -31,7 +31,7 @@ internal static class ConstitutionFleet
 
         string current = currentVersion.ToString(CultureInfo.InvariantCulture);
         List<FleetRepoTile> repos = [];
-        foreach (string root in config.ScanRoots.Where(Directory.Exists))
+        foreach (string root in config.ScanRoots.Where(root => Directory.Exists(root)))
         {
             foreach (string repo in Directory.EnumerateDirectories(root))
             {
@@ -49,7 +49,7 @@ internal static class ConstitutionFleet
             }
         }
         repos.Sort((a, b) => string.CompareOrdinal(a.Repo, b.Repo));
-        return new ConstitutionFleetGold(currentVersion, repos, repos.Count(repo => repo.Status == "red"));
+        return new ConstitutionFleetGold(currentVersion, repos, repos.Count(repo => repo.Status is "red"));
     }
 
     private static string ReadLegislatorVersion(string manifestPath)
@@ -57,7 +57,7 @@ internal static class ConstitutionFleet
         try
         {
             using JsonDocument document = JsonDocument.Parse(File.ReadAllText(manifestPath));
-            if (document.RootElement.ValueKind == JsonValueKind.Object
+            if (document.RootElement.ValueKind is JsonValueKind.Object
                 && document.RootElement.TryGetProperty("legislatorVersion", out JsonElement value)
                 && value.TryGetInt32(out int version))
             {

@@ -22,7 +22,7 @@ internal static class NoteInventory
                 {
                     continue;
                 }
-                notes.Add(new InventoryNote(path, source.Id, source.Layer, File.GetLastWriteTimeUtc(path)));
+                notes.Add(new InventoryNote(path, source.Id, source.Layer, new DateTimeOffset(File.GetLastWriteTimeUtc(path))));
             }
         }
         return notes;

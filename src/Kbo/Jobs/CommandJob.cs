@@ -8,13 +8,13 @@ namespace Kbo.Jobs;
 /// </summary>
 internal sealed class CommandJob : IPulseJob
 {
-    private readonly Func<TextWriter, TextWriter, int> command;
+    private readonly Func<TextWriter, TextWriter, int> _command;
 
     public CommandJob(string name, JobCadence cadence, Func<TextWriter, TextWriter, int> command)
     {
         Name = name;
         Cadence = cadence;
-        this.command = command;
+        _command = command;
     }
 
     public string Name { get; }
@@ -24,8 +24,8 @@ internal sealed class CommandJob : IPulseJob
     {
         using StringWriter output = new();
         using StringWriter error = new();
-        int exitCode = command(output, error);
-        if (exitCode != 0)
+        int exitCode = _command(output, error);
+        if (exitCode is not 0)
         {
             throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"exit {exitCode}: {error.ToString().Trim()}"));
         }

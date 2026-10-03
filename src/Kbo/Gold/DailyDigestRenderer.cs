@@ -45,7 +45,7 @@ internal static class DailyDigestRenderer
 
         _ = markdown.AppendLine("## Skills used");
         _ = markdown.AppendLine();
-        if (day.SkillsUsed.Count == 0)
+        if (day.SkillsUsed.Count is 0)
         {
             _ = markdown.AppendLine("_No skills invoked._");
             _ = markdown.AppendLine();
@@ -90,7 +90,7 @@ internal static class DailyDigestRenderer
 
     private static void AppendSessionTable(StringBuilder markdown, IReadOnlyList<DaySession> sessions)
     {
-        if (sessions.Count == 0)
+        if (sessions.Count is 0)
         {
             return;
         }
@@ -118,7 +118,7 @@ internal static class DailyDigestRenderer
     private static void AppendCounts(StringBuilder markdown, string heading, IReadOnlyList<DayCount> counts)
     {
         _ = markdown.AppendLine(CultureInfo.InvariantCulture, $"_{heading}_:");
-        if (counts.Count == 0)
+        if (counts.Count is 0)
         {
             _ = markdown.AppendLine();
             _ = markdown.AppendLine("- (none)");

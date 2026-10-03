@@ -4,17 +4,17 @@ namespace Kbo.Jobs;
 
 internal sealed class BackupJob : IPulseJob
 {
-    private readonly string repository;
-    private readonly string passwordFile;
-    private readonly IReadOnlyList<string> paths;
-    private readonly IProcessRunner processRunner;
+    private readonly string _repository;
+    private readonly string _passwordFile;
+    private readonly IReadOnlyList<string> _paths;
+    private readonly IProcessRunner _processRunner;
 
     public BackupJob(string repository, string passwordFile, IReadOnlyList<string> paths, IProcessRunner processRunner)
     {
-        this.repository = repository;
-        this.passwordFile = passwordFile;
-        this.paths = paths;
-        this.processRunner = processRunner;
+        _repository = repository;
+        _passwordFile = passwordFile;
+        _paths = paths;
+        _processRunner = processRunner;
     }
 
     public string Name => "backup";
@@ -24,25 +24,26 @@ internal sealed class BackupJob : IPulseJob
     {
         List<string> backupArguments =
         [
-            "--repo", repository, "--password-file", passwordFile, "backup", "--quiet", .. paths,
+            "--repo", _repository, "--password-file", _passwordFile, "backup", "--quiet", .. _paths,
         ];
         Restic(backupArguments);
 
         Restic(new List<string>
         {
-            "--repo", repository, "--password-file", passwordFile, "forget", "--quiet",
+            "--repo", _repository, "--password-file", _passwordFile, "forget", "--quiet",
             "--keep-daily", "7", "--keep-weekly", "4", "--keep-monthly", "6", "--prune",
         });
 
-        return $"paths={paths.Count} repo={repository}";
+        return $"paths={_paths.Count} repo={_repository}";
     }
 
     private void Restic(IReadOnlyList<string> arguments)
     {
-        ProcessResult result = processRunner.Run("restic", arguments);
-        if (result.ExitCode != 0)
+        ProcessResult result = _processRunner.Run("restic", arguments);
+        if (result.ExitCode is 0)
         {
-            throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"restic exited with status {result.ExitCode}: {result.StandardError.Trim()}"));
+            return;
         }
+        throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"restic exited with status {result.ExitCode}: {result.StandardError.Trim()}"));
     }
 }

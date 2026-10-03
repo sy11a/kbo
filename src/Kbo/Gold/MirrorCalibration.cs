@@ -80,7 +80,7 @@ internal static class MirrorCalibration
         }
 
         bool corridorInsideGoal = goal is null
-            || (goal.Direction == MirrorDirection.UpIsBetter ? corridorLow >= goal.Value : corridorHigh <= goal.Value);
+            || (goal.Direction is MirrorDirection.UpIsBetter ? corridorLow >= goal.Value : corridorHigh <= goal.Value);
         return corridorInsideGoal
             ? new MirrorVerdict(StateStableGood, ClassOk, corridorLow, corridorHigh, median, mad, slope, robustZ, weeks)
             : new MirrorVerdict(StateStableSick, ClassSick, corridorLow, corridorHigh, median, mad, slope, robustZ, weeks);
@@ -103,7 +103,9 @@ internal static class MirrorCalibration
         return Percentile(deviations, 0.5);
     }
 
-    /// <summary>Ordinary least-squares slope of the weekly series, units per week.</summary>
+    /// <summary>
+    /// Ordinary least-squares slope of the weekly series, units per week.
+    /// </summary>
     public static double SlopePerWeek(IReadOnlyList<double> weekly)
     {
         int count = weekly.Count;

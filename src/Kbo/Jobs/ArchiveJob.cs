@@ -5,13 +5,13 @@ namespace Kbo.Jobs;
 
 internal sealed class ArchiveJob : IPulseJob
 {
-    private readonly string archiveRoot;
-    private readonly IReadOnlyList<RetentionManifest> manifests;
-    private readonly TimeProvider clock;
-    private readonly IProcessRunner processRunner;
+    private readonly string _archiveRoot;
+    private readonly IReadOnlyList<RetentionManifest> _manifests;
+    private readonly TimeProvider _clock;
+    private readonly IProcessRunner _processRunner;
 
-    private int copied;
-    private int skipped;
+    private int _copied;
+    private int _skipped;
 
     public ArchiveJob(
         string archiveRoot,
@@ -19,10 +19,10 @@ internal sealed class ArchiveJob : IPulseJob
         TimeProvider clock,
         IProcessRunner processRunner)
     {
-        this.archiveRoot = archiveRoot;
-        this.manifests = manifests;
-        this.clock = clock;
-        this.processRunner = processRunner;
+        _archiveRoot = archiveRoot;
+        _manifests = manifests;
+        _clock = clock;
+        _processRunner = processRunner;
     }
 
     public string Name => "archive";
@@ -30,30 +30,36 @@ internal sealed class ArchiveJob : IPulseJob
 
     public string Run()
     {
-        copied = 0;
-        skipped = 0;
-        _ = Directory.CreateDirectory(archiveRoot);
+        _copied = 0;
+        _skipped = 0;
+        _ = Directory.CreateDirectory(_archiveRoot);
 
-        foreach (RetentionManifest manifest in manifests)
+        foreach (RetentionManifest manifest in _manifests)
         {
             foreach (ArchiveEntry entry in manifest.Entries)
             {
                 switch (entry)
                 {
                     case FileTreeEntry tree:
-                        ArchiveTree(tree);
-                        break;
+                        {
+                            ArchiveTree(tree);
+                            break;
+                        }
                     case SingleFileEntry file:
-                        ArchiveFile(file.Path, Path.Combine(archiveRoot, file.Destination + ".zst"));
-                        break;
+                        {
+                            ArchiveFile(file.Path, Path.Combine(_archiveRoot, file.Destination + ".zst"));
+                            break;
+                        }
                     case SqliteEntry sqlite:
-                        ArchiveSqlite(sqlite);
-                        break;
+                        {
+                            ArchiveSqlite(sqlite);
+                            break;
+                        }
                 }
             }
         }
 
-        return string.Create(CultureInfo.InvariantCulture, $"copied={copied} skipped={skipped} root={archiveRoot}");
+        return string.Create(CultureInfo.InvariantCulture, $"copied={_copied} skipped={_skipped} root={_archiveRoot}");
     }
 
     private void ArchiveTree(FileTreeEntry tree)
@@ -65,7 +71,7 @@ internal sealed class ArchiveJob : IPulseJob
         foreach (string source in Directory.EnumerateFiles(tree.Root, tree.Pattern, SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             string relative = Path.GetRelativePath(tree.Root, source);
-            ArchiveFile(source, Path.Combine(archiveRoot, tree.DestinationPrefix, relative + ".zst"));
+            ArchiveFile(source, Path.Combine(_archiveRoot, tree.DestinationPrefix, relative + ".zst"));
         }
     }
 
@@ -77,17 +83,17 @@ internal sealed class ArchiveJob : IPulseJob
         }
         if (File.Exists(destination) && File.GetLastWriteTimeUtc(source) <= File.GetLastWriteTimeUtc(destination))
         {
-            skipped++;
+            _skipped++;
             return;
         }
 
         _ = Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        ProcessResult result = processRunner.Run("zstd", new[] { "-q", "-f", "-o", destination, "--", source });
-        if (result.ExitCode != 0)
+        ProcessResult result = _processRunner.Run("zstd", new[] { "-q", "-f", "-o", destination, "--", source });
+        if (result.ExitCode is not 0)
         {
             throw new InvalidOperationException($"zstd failed for {source}: {result.StandardError}");
         }
-        copied++;
+        _copied++;
     }
 
     private void ArchiveSqlite(SqliteEntry sqlite)
@@ -97,7 +103,7 @@ internal sealed class ArchiveJob : IPulseJob
             return;
         }
 
-        string latest = Path.Combine(archiveRoot, sqlite.DestinationPrefix, sqlite.LatestFileName + ".zst");
+        string latest = Path.Combine(_archiveRoot, sqlite.DestinationPrefix, sqlite.LatestFileName + ".zst");
         if (!File.Exists(latest) || File.GetLastWriteTimeUtc(sqlite.DatabasePath) > File.GetLastWriteTimeUtc(latest))
         {
             string temporaryCopy = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".db");
@@ -113,12 +119,12 @@ internal sealed class ArchiveJob : IPulseJob
                 SqliteConnection.ClearAllPools();
 
                 _ = Directory.CreateDirectory(Path.GetDirectoryName(latest)!);
-                ProcessResult result = processRunner.Run("zstd", new[] { "-q", "-f", "-o", latest, "--", temporaryCopy });
-                if (result.ExitCode != 0)
+                ProcessResult result = _processRunner.Run("zstd", new[] { "-q", "-f", "-o", latest, "--", temporaryCopy });
+                if (result.ExitCode is not 0)
                 {
                     throw new InvalidOperationException($"zstd failed for {sqlite.DatabasePath}: {result.StandardError}");
                 }
-                copied++;
+                _copied++;
             }
             finally
             {
@@ -127,23 +133,23 @@ internal sealed class ArchiveJob : IPulseJob
         }
         else
         {
-            skipped++;
+            _skipped++;
         }
 
-        DateTimeOffset now = clock.GetUtcNow();
+        DateTimeOffset now = _clock.GetUtcNow();
         int isoYear = ISOWeek.GetYear(now.UtcDateTime);
         int isoWeek = ISOWeek.GetWeekOfYear(now.UtcDateTime);
         string weeklyName = string.Create(
             CultureInfo.InvariantCulture, $"{sqlite.WeeklySnapshotPrefix}{isoYear}-W{isoWeek:D2}.db.zst");
-        string weekly = Path.Combine(archiveRoot, sqlite.DestinationPrefix, weeklyName);
+        string weekly = Path.Combine(_archiveRoot, sqlite.DestinationPrefix, weeklyName);
         if (!File.Exists(weekly))
         {
             File.Copy(latest, weekly);
-            copied++;
+            _copied++;
         }
         else
         {
-            skipped++;
+            _skipped++;
         }
     }
 }

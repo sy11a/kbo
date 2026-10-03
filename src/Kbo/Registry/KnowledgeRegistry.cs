@@ -88,7 +88,7 @@ internal sealed class KnowledgeRegistry
         {
             errors.Add("'machine' is missing");
         }
-        if (document?.Sources is null || document.Sources.Count == 0)
+        if (document?.Sources is null || document.Sources.Count is 0)
         {
             errors.Add("'sources' is missing or empty");
         }
@@ -212,7 +212,7 @@ internal sealed class KnowledgeRegistry
             }
             skills.Add(skill.Trim());
         }
-        if (skills.Count == 0)
+        if (skills.Count is 0)
         {
             errors.Add("sdd: 'skills' is missing or empty — remove the block or list at least one skill name");
             return null;
@@ -237,7 +237,7 @@ internal sealed class KnowledgeRegistry
             errors.Add($"constitution: versionFile '{entry.VersionFile}' is not an absolute path");
             valid = false;
         }
-        if (entry.ScanRoots is null || entry.ScanRoots.Count == 0)
+        if (entry.ScanRoots is null || entry.ScanRoots.Count is 0)
         {
             errors.Add("constitution: 'scanRoots' is missing or empty");
             valid = false;
@@ -289,7 +289,7 @@ internal sealed class KnowledgeRegistry
         List<KnowledgeSource> sources, HashSet<string> seenIds)
     {
         string[] segments = root.Split('/');
-        if (segments.Any(segment => segment.Contains('*', StringComparison.Ordinal) && segment != "*"))
+        if (segments.Any(segment => segment.Contains('*', StringComparison.Ordinal) && segment is not "*"))
         {
             return $"source '{id}': root '{root}' — only a whole '*' segment is supported (e.g. /home/u/Repository/*/docs)";
         }
@@ -300,7 +300,7 @@ internal sealed class KnowledgeRegistry
             List<(string, List<string>)> next = [];
             foreach ((string path, List<string> matched) in candidates)
             {
-                if (segment == "*")
+                if (segment is "*")
                 {
                     foreach (string directory in Directory.Exists(path)
                         ? Directory.EnumerateDirectories(path).Order(StringComparer.Ordinal)
@@ -319,7 +319,7 @@ internal sealed class KnowledgeRegistry
 
         foreach ((string path, List<string> matched) in candidates.Where(candidate => Directory.Exists(candidate.Path)))
         {
-            if (matched.Exists(exclude.Contains))
+            if (matched.Exists(matchedItem => exclude.Contains(matchedItem)))
             {
                 continue;
             }
