@@ -147,27 +147,29 @@ internal static class ClaudeCodeAdapter
 
         string memoryIndex = Path.Combine(
             homeDirectory, ".claude", "projects", cwd.Replace('/', '-'), "memory", "MEMORY.md");
-        if (File.Exists(memoryIndex))
+        if (!File.Exists(memoryIndex))
         {
-            yield return (memoryIndex, HookPayload.ContextKinds.Memory);
+            yield break;
         }
+        yield return (memoryIndex, HookPayload.ContextKinds.Memory);
     }
 
     private static int? BestEffortHits(JsonNode? toolResponse)
     {
-        if (toolResponse is JsonObject response)
+        if (toolResponse is not JsonObject response)
         {
-            foreach (string key in new[] { "numFiles", "numLines", "numMatches", "count" })
+            return null;
+        }
+        foreach (string key in new[] { "numFiles", "numLines", "numMatches", "count" })
+        {
+            if (response[key] is JsonValue value && value.TryGetValue(out int hits))
             {
-                if (response[key] is JsonValue value && value.TryGetValue(out int hits))
-                {
-                    return hits;
-                }
+                return hits;
             }
-            if (response["filenames"] is JsonArray filenames)
-            {
-                return filenames.Count;
-            }
+        }
+        if (response["filenames"] is JsonArray filenames)
+        {
+            return filenames.Count;
         }
         return null;
     }

@@ -15,6 +15,7 @@ internal static class DoctorCommand
 {
     private const string Usage = "usage: kbo doctor [--notify]";
     private const int CaptureDropThresholdDays = 3;
+    private static readonly string[] _pulseTimerStatusArgs = ["--user", "is-active", "kbo-pulse.timer"];
 
     public static int Run(
         string[] args,
@@ -28,7 +29,7 @@ internal static class DoctorCommand
         bool notify = false;
         foreach (string argument in args)
         {
-            if (argument == "--notify")
+            if (argument is "--notify")
             {
                 notify = true;
             }
@@ -41,10 +42,10 @@ internal static class DoctorCommand
 
         List<string> problems = [];
 
-        ProcessResult timerState = processRunner.Run("systemctl", new[] { "--user", "is-active", "kbo-pulse.timer" });
+        ProcessResult timerState = processRunner.Run("systemctl", _pulseTimerStatusArgs);
         string timerStatus = timerState.StandardOutput.Trim();
         output.WriteLine($"timer: {timerStatus}");
-        if (timerState.ExitCode != 0)
+        if (timerState.ExitCode is not 0)
         {
             problems.Add($"kbo-pulse.timer is {timerStatus} — re-arm with 'kbo init'");
         }
@@ -54,7 +55,7 @@ internal static class DoctorCommand
         Dictionary<string, DateTimeOffset> lastCompleted = new BronzeStore(eventsRepo).LastCompletedJobs();
         DateTimeOffset now = clock.GetUtcNow();
 
-        if (lastCompleted.Count == 0)
+        if (lastCompleted.Count is 0)
         {
             problems.Add("no job.completed events in bronze — has a pulse ever run?");
         }
@@ -74,7 +75,7 @@ internal static class DoctorCommand
         }
         ReportCaptureDrops(homeDirectory, now, output, problems);
 
-        if (problems.Count == 0)
+        if (problems.Count is 0)
         {
             output.WriteLine("all jobs healthy");
         }
@@ -84,7 +85,7 @@ internal static class DoctorCommand
             SendNotification(processRunner, problems);
         }
 
-        return problems.Count == 0 ? 0 : 1;
+        return problems.Count is 0 ? 0 : 1;
     }
 
     /// <summary>
@@ -103,7 +104,7 @@ internal static class DoctorCommand
         }
 
         string[] drops = [.. File.ReadAllLines(captureLog).Where(line => line.Trim().Length > 0)];
-        if (drops.Length == 0)
+        if (drops.Length is 0)
         {
             return;
         }
@@ -115,10 +116,11 @@ internal static class DoctorCommand
         string line = $"capture errors: {drops.Length} (last {when})";
         output.WriteLine(line);
 
-        if (lastDrop is { } recent && (now - recent).TotalDays <= CaptureDropThresholdDays)
+        if (lastDrop is not { } recent || (now - recent).TotalDays > CaptureDropThresholdDays)
         {
-            problems.Add(line + " — recent capture drops; check the registry/hook");
+            return;
         }
+        problems.Add(line + " — recent capture drops; check the registry/hook");
     }
 
     private static DateTimeOffset? ParseTimestamp(string logLine)
@@ -133,7 +135,7 @@ internal static class DoctorCommand
     private static void SendNotification(IProcessRunner processRunner, List<string> problems)
     {
         List<string> arguments;
-        if (problems.Count == 0)
+        if (problems.Count is 0)
         {
             arguments =
             [

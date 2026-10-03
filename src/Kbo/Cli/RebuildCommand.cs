@@ -21,14 +21,20 @@ internal static class RebuildCommand
             switch (args[index])
             {
                 case "--silver" when index + 1 < args.Length:
-                    explicitSilver = args[++index];
-                    break;
+                    {
+                        explicitSilver = args[++index];
+                        break;
+                    }
                 case "--events-repo" when index + 1 < args.Length:
-                    explicitEventsRepo = args[++index];
-                    break;
+                    {
+                        explicitEventsRepo = args[++index];
+                        break;
+                    }
                 default:
-                    error.WriteLine(Usage);
-                    return 1;
+                    {
+                        error.WriteLine(Usage);
+                        return 1;
+                    }
             }
         }
 

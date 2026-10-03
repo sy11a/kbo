@@ -17,7 +17,7 @@ internal static class RegistryCommand
         string? explicitRegistryPath = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--registry")
+            if (args[index] is "--registry")
             {
                 if (index + 1 >= args.Length)
                 {

@@ -16,7 +16,7 @@ internal static class PulseCommand
         Func<string, string?> environment,
         string homeDirectory)
     {
-        if (args.Length != 0)
+        if (args.Length is not 0)
         {
             error.WriteLine(Usage);
             return 1;
@@ -43,8 +43,8 @@ internal static class PulseCommand
             ?? Path.Combine(homeDirectory, "Backups", "kb-restic");
         string resticPasswordFile = Path.Combine(homeDirectory, ".config", "kb-observability", "restic-password");
 
-        List<string> backupPaths = [archiveRoot,];
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
+        List<string> backupPaths = [archiveRoot];
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is not null)
         {
             backupPaths.Add(vault.Root);
@@ -90,6 +90,6 @@ internal static class PulseCommand
                 [], jobOutput, jobError, environment, homeDirectory)));
 
         int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, Random.Shared, output);
-        return failures == 0 ? 0 : 1;
+        return failures is 0 ? 0 : 1;
     }
 }

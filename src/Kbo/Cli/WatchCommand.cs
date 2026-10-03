@@ -19,7 +19,7 @@ internal static class WatchCommand
 
     private const string Usage = "usage: kbo watch [--interval <seconds>]";
 
-    private static readonly JsonSerializerOptions GoldJsonOptions = new()
+    private static readonly JsonSerializerOptions _goldJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
@@ -42,7 +42,7 @@ internal static class WatchCommand
         await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"kbo watch — refreshing the dashboard every {intervalSeconds}s; press Ctrl-C to stop"));
 
         int firstTick = RunOnce(output, error, environment, homeDirectory, intervalSeconds);
-        if (firstTick != 0)
+        if (firstTick is not 0)
         {
             return firstTick;
         }
@@ -69,7 +69,7 @@ internal static class WatchCommand
         errorMessage = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--interval" && index + 1 < args.Length)
+            if (args[index] is "--interval" && index + 1 < args.Length)
             {
                 string raw = args[++index];
                 if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
@@ -97,7 +97,7 @@ internal static class WatchCommand
         int intervalSeconds)
     {
         int rebuild = RebuildCommand.Run([], output, error, environment, homeDirectory);
-        if (rebuild != 0)
+        if (rebuild is not 0)
         {
             return rebuild;
         }
@@ -115,7 +115,7 @@ internal static class WatchCommand
             return 1;
         }
 
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is null)
         {
             error.WriteLine("registry has no global-layer source (the vault); cannot locate _generated/");
@@ -141,13 +141,13 @@ internal static class WatchCommand
         _ = Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.gold.json"),
-            JsonSerializer.Serialize(dashboard, GoldJsonOptions));
+            JsonSerializer.Serialize(dashboard, _goldJsonOptions));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.html"),
             DashboardRenderer.Render(dashboard, DashboardRenderer.LoadEmbeddedChartSpecs(), intervalSeconds));
 
         string stamp = TimeProvider.System.GetUtcNow().UtcDateTime.ToString("HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        int red = dashboard.JobHealth.Count(tile => tile.Status == "red");
+        int red = dashboard.JobHealth.Count(tile => tile.Status is "red");
         output.WriteLine(string.Create(CultureInfo.InvariantCulture, $"dashboard refreshed {stamp} — {red} red job tile(s)"));
         return 0;
     }

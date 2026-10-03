@@ -52,7 +52,7 @@ internal static class TranscriptMiner
                 foreach (JsonNode? contentBlock in resultContent)
                 {
                     if (contentBlock is JsonObject result
-                        && (string?)result["type"] == "tool_result"
+                        && (string?)result["type"] is "tool_result"
                         && (string?)result["tool_use_id"] is string toolUseId)
                     {
                         resultsByToolUseId[toolUseId] = toolUseResult;
@@ -60,7 +60,7 @@ internal static class TranscriptMiner
                 }
             }
 
-            if ((string?)record["type"] != "assistant" || record["message"] is not JsonObject message)
+            if ((string?)record["type"] is not "assistant" || record["message"] is not JsonObject message)
             {
                 continue;
             }
@@ -80,7 +80,7 @@ internal static class TranscriptMiner
             foreach (JsonNode? contentBlock in content)
             {
                 if (contentBlock is JsonObject toolUse
-                    && (string?)toolUse["type"] == "tool_use"
+                    && (string?)toolUse["type"] is "tool_use"
                     && (string?)toolUse["name"] is string toolName
                     && toolUse["input"] is JsonObject input
                     && recordTime is not null)
@@ -91,7 +91,7 @@ internal static class TranscriptMiner
             }
         }
 
-        if (sessionId is null && sessionTime is null && toolUses.Count == 0)
+        if (sessionId is null && sessionTime is null && toolUses.Count is 0)
         {
             return [];
         }
@@ -285,7 +285,7 @@ internal static class TranscriptMiner
 
     private static JsonObject? SumUsage(Dictionary<string, JsonObject> usageByRequest)
     {
-        if (usageByRequest.Count == 0)
+        if (usageByRequest.Count is 0)
         {
             return null;
         }

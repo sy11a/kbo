@@ -1,5 +1,7 @@
 using Kbo.Cli;
 
+namespace Kbo;
+
 internal static class Program
 {
     private static async Task<int> Main(string[] args)
@@ -13,7 +15,7 @@ internal static class Program
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["capture", ..]:
                 return CaptureCommand.Run(
@@ -21,49 +23,49 @@ internal static class Program
                     Console.In,
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["harvest", ..]:
                 return HarvestCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["rebuild", ..]:
                 return RebuildCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["report", ..]:
                 return ReportCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["audit", ..]:
                 return AuditCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["pulse", ..]:
                 return PulseCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home);
             case ["init", ..]:
                 return InitCommand.Run(
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home,
                     new Kbo.Jobs.ProcessRunner());
             case ["doctor", ..]:
@@ -71,7 +73,7 @@ internal static class Program
                     args[1..],
                     Console.Out,
                     Console.Error,
-                    Environment.GetEnvironmentVariable,
+                    key => Environment.GetEnvironmentVariable(key),
                     home,
                     new Kbo.Jobs.ProcessRunner(),
                     TimeProvider.System);
@@ -87,13 +89,15 @@ internal static class Program
                         args[1..],
                         Console.Out,
                         Console.Error,
-                        Environment.GetEnvironmentVariable,
+                        key => Environment.GetEnvironmentVariable(key),
                         home,
                         cancellation.Token);
                 }
             default:
-                await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...");
-                return 1;
+                {
+                    await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...");
+                    return 1;
+                }
         }
     }
 }

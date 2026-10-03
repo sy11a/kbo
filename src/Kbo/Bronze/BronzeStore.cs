@@ -11,9 +11,9 @@ internal sealed class BronzeStore
     private const string MonthFileExtension = ".ndjsonl";
     private const string LockDirectory = ".locks";
 
-    private readonly string repositoryRoot;
+    private readonly string _repositoryRoot;
 
-    public BronzeStore(string repositoryRoot) => this.repositoryRoot = repositoryRoot;
+    public BronzeStore(string repositoryRoot) => this._repositoryRoot = repositoryRoot;
 
     public void Append(IEnumerable<JsonObject> events)
     {
@@ -25,11 +25,11 @@ internal sealed class BronzeStore
             string agent = RequiredField(envelopeEvent, EnvelopeFields.Agent);
             string month = RequiredField(envelopeEvent, EnvelopeFields.Time)[..7];
 
-            string directory = Path.Combine(repositoryRoot, BronzeDirectory, machine, agent);
+            string directory = Path.Combine(_repositoryRoot, BronzeDirectory, machine, agent);
             _ = Directory.CreateDirectory(directory);
             string monthFile = Path.Combine(directory, month + MonthFileExtension);
 
-            string lockDirectory = Path.Combine(repositoryRoot, LockDirectory);
+            string lockDirectory = Path.Combine(_repositoryRoot, LockDirectory);
             _ = Directory.CreateDirectory(lockDirectory);
             string lockFile = Path.Combine(lockDirectory, $"{machine}-{agent}-{month}.lock");
 
@@ -180,7 +180,7 @@ internal sealed class BronzeStore
     // truncated tail line, and one bad line must not poison a whole scan.
     private IEnumerable<JsonObject> ReadEvents()
     {
-        string bronzeRoot = Path.Combine(repositoryRoot, BronzeDirectory);
+        string bronzeRoot = Path.Combine(_repositoryRoot, BronzeDirectory);
         if (!Directory.Exists(bronzeRoot))
         {
             yield break;
@@ -217,36 +217,38 @@ internal sealed class BronzeStore
     private void EnsureRepository()
     {
         EnsureLockFilesIgnored();
-        if (Directory.Exists(Path.Combine(repositoryRoot, ".git")))
+        if (Directory.Exists(Path.Combine(_repositoryRoot, ".git")))
         {
             return;
         }
 
-        _ = Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(_repositoryRoot);
         ProcessStartInfo startInfo = new("git", "init --quiet")
         {
-            WorkingDirectory = repositoryRoot,
+            WorkingDirectory = _repositoryRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            UseShellExecute = false,
         };
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("failed to start 'git init'");
         process.WaitForExit();
-        if (process.ExitCode != 0)
+        if (process.ExitCode is 0)
         {
-            throw new InvalidOperationException($"'git init' failed in {repositoryRoot}: {process.StandardError.ReadToEnd()}");
+            return;
         }
+        throw new InvalidOperationException($"'git init' failed in {_repositoryRoot}: {process.StandardError.ReadToEnd()}");
     }
 
     private void EnsureLockFilesIgnored()
     {
-        string gitignore = Path.Combine(repositoryRoot, ".gitignore");
+        string gitignore = Path.Combine(_repositoryRoot, ".gitignore");
         if (File.Exists(gitignore) && File.ReadLines(gitignore).Contains("*.lock", StringComparer.Ordinal))
         {
             return;
         }
 
-        _ = Directory.CreateDirectory(repositoryRoot);
+        _ = Directory.CreateDirectory(_repositoryRoot);
         File.AppendAllText(gitignore, "*.lock\n");
     }
 }

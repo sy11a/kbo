@@ -150,13 +150,14 @@ internal static class OpencodeAdapter
         {
             yield return (globalAgents, "global-instructions");
         }
-        if (directory is not null)
+        if (directory is null)
         {
-            string projectAgents = Path.Combine(directory, "AGENTS.md");
-            if (File.Exists(projectAgents))
-            {
-                yield return (projectAgents, "project-instructions");
-            }
+            yield break;
+        }
+        string projectAgents = Path.Combine(directory, "AGENTS.md");
+        if (File.Exists(projectAgents))
+        {
+            yield return (projectAgents, "project-instructions");
         }
     }
 

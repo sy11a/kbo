@@ -12,7 +12,7 @@ internal static class AuditCommand
 {
     private const string Usage = "usage: kbo audit [--out <dir>]";
 
-    private static readonly JsonSerializerOptions GoldJsonOptions = new()
+    private static readonly JsonSerializerOptions _goldJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
@@ -28,7 +28,7 @@ internal static class AuditCommand
         string? explicitOut = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--out" && index + 1 < args.Length)
+            if (args[index] is "--out" && index + 1 < args.Length)
             {
                 explicitOut = args[++index];
             }
@@ -52,7 +52,7 @@ internal static class AuditCommand
             return 1;
         }
 
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is null)
         {
             error.WriteLine("registry has no global-layer source (the vault); cannot locate _generated/");
@@ -76,7 +76,7 @@ internal static class AuditCommand
         File.WriteAllText(Path.Combine(outputDirectory, "kbo-audit.md"), RenderMarkdown(report));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-audit.gold.json"),
-            JsonSerializer.Serialize(report, GoldJsonOptions));
+            JsonSerializer.Serialize(report, _goldJsonOptions));
 
         output.WriteLine(
             string.Create(CultureInfo.InvariantCulture, $"audit written to {outputDirectory}: {report.MissingSessions.Sum(f => f.Count)} missing session file(s), {report.UnregisteredSources.Count} unregistered source dir(s)"));
@@ -94,7 +94,7 @@ internal static class AuditCommand
 
         _ = markdown.AppendLine("## Missing sessions — on disk, never seen by bronze");
         _ = markdown.AppendLine();
-        if (report.MissingSessions.Count == 0)
+        if (report.MissingSessions.Count is 0)
         {
             _ = markdown.AppendLine("none 🎉 — capture is complete for all session-auditable agents");
         }
@@ -121,7 +121,7 @@ internal static class AuditCommand
 
         _ = markdown.AppendLine("## Unregistered knowledge sources? — `.md` reads under no registered root");
         _ = markdown.AppendLine();
-        if (report.UnregisteredSources.Count == 0)
+        if (report.UnregisteredSources.Count is 0)
         {
             _ = markdown.AppendLine("none");
         }

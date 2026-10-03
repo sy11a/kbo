@@ -19,7 +19,7 @@ internal static class HarvestCommand
         Func<string, string?> environment,
         string homeDirectory)
     {
-        if (args.Length == 0 || (args[0] != ClaudeCodeAdapter.AgentName && args[0] != OpencodeRetention.AgentName))
+        if (args.Length is 0 || (args[0] is not ClaudeCodeAdapter.AgentName && args[0] is not OpencodeRetention.AgentName))
         {
             error.WriteLine(Usage);
             return 1;
@@ -31,15 +31,15 @@ internal static class HarvestCommand
         bool backfillSkills = false;
         for (int index = 1; index < args.Length; index++)
         {
-            if (agent == ClaudeCodeAdapter.AgentName && args[index] == "--transcripts" && index + 1 < args.Length)
+            if (agent is ClaudeCodeAdapter.AgentName && args[index] is "--transcripts" && index + 1 < args.Length)
             {
                 transcriptsRoot = args[++index];
             }
-            else if (args[index] == "--backfill-skills")
+            else if (args[index] is "--backfill-skills")
             {
                 backfillSkills = true;
             }
-            else if (agent == OpencodeRetention.AgentName && args[index] == "--db" && index + 1 < args.Length)
+            else if (agent is OpencodeRetention.AgentName && args[index] is "--db" && index + 1 < args.Length)
             {
                 databasePath = args[++index];
             }
@@ -50,12 +50,12 @@ internal static class HarvestCommand
             }
         }
 
-        if (agent == ClaudeCodeAdapter.AgentName && !Directory.Exists(transcriptsRoot))
+        if (agent is ClaudeCodeAdapter.AgentName && !Directory.Exists(transcriptsRoot))
         {
             error.WriteLine($"transcripts directory not found: {transcriptsRoot}");
             return 1;
         }
-        if (agent == OpencodeRetention.AgentName && !File.Exists(databasePath))
+        if (agent is OpencodeRetention.AgentName && !File.Exists(databasePath))
         {
             error.WriteLine($"opencode database not found: {databasePath}");
             return 1;
@@ -82,10 +82,12 @@ internal static class HarvestCommand
             : store.HarvestedTranscripts();
         EventValidator validator = new();
 
-        List<JsonObject> FilterForBackfill(List<JsonObject> mined) =>
-            backfillSkills
+        List<JsonObject> FilterForBackfill(List<JsonObject> mined)
+        {
+            return backfillSkills
                 ? [.. mined.Where(minedEvent => (string?)minedEvent[EnvelopeFields.Type] == EventTypes.SkillInvoked)]
                 : mined;
+        }
 
         int harvestedCount = 0;
         int skippedCount = 0;
@@ -94,7 +96,7 @@ internal static class HarvestCommand
 
         void AppendValidated(string sourceLabel, List<JsonObject> events)
         {
-            if (events.Count == 0)
+            if (events.Count is 0)
             {
                 return;
             }
@@ -117,7 +119,7 @@ internal static class HarvestCommand
             eventCount += validEvents.Count;
         }
 
-        if (agent == ClaudeCodeAdapter.AgentName)
+        if (agent is ClaudeCodeAdapter.AgentName)
         {
             foreach (string transcriptPath in Directory
                 .EnumerateFiles(transcriptsRoot, "*.jsonl", SearchOption.AllDirectories)

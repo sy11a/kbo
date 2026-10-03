@@ -40,7 +40,7 @@ internal static class OpencodeMiner
         Random random)
     {
         List<JsonObject> events = [];
-        if (sessionIds.Count == 0 || !File.Exists(databasePath))
+        if (sessionIds.Count is 0 || !File.Exists(databasePath))
         {
             return events;
         }
@@ -121,7 +121,7 @@ internal static class OpencodeMiner
                 continue;
             }
             if (part is null
-                || (string?)part["type"] != "tool"
+                || (string?)part["type"] is not "tool"
                 || (string?)part["tool"] is not string tool
                 || part["state"] is not JsonObject state
                 || state["input"] is not JsonObject input

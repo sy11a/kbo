@@ -81,34 +81,42 @@ internal static class CaptureCommand
         switch (agent, hookEventName)
         {
             case (ClaudeCodeAdapter.AgentName, HookPayload.Events.PostToolUse):
-                JsonObject? mapped = ClaudeCodeAdapter.MapPostToolUse(payload, registry, TimeProvider.System, Random.Shared);
-                if (mapped is not null)
                 {
-                    events.Add(mapped);
+                    JsonObject? mapped = ClaudeCodeAdapter.MapPostToolUse(payload, registry, TimeProvider.System, Random.Shared);
+                    if (mapped is not null)
+                    {
+                        events.Add(mapped);
+                    }
+                    break;
                 }
-                break;
             case (ClaudeCodeAdapter.AgentName, HookPayload.Events.SessionStart):
-                events.AddRange(ClaudeCodeAdapter.MapSessionStart(payload, registry, TimeProvider.System, Random.Shared, homeDirectory));
-                break;
-            case (OpencodeRetention.AgentName, OpencodeAdapter.Payload.ToolExecuteAfter):
-                JsonObject? opencodeMapped = OpencodeAdapter.MapToolExecute(payload, registry, TimeProvider.System, Random.Shared);
-                if (opencodeMapped is not null)
                 {
-                    events.Add(opencodeMapped);
+                    events.AddRange(ClaudeCodeAdapter.MapSessionStart(payload, registry, TimeProvider.System, Random.Shared, homeDirectory));
+                    break;
                 }
-                break;
+            case (OpencodeRetention.AgentName, OpencodeAdapter.Payload.ToolExecuteAfter):
+                {
+                    JsonObject? opencodeMapped = OpencodeAdapter.MapToolExecute(payload, registry, TimeProvider.System, Random.Shared);
+                    if (opencodeMapped is not null)
+                    {
+                        events.Add(opencodeMapped);
+                    }
+                    break;
+                }
             case (OpencodeRetention.AgentName, OpencodeAdapter.Payload.SessionStart):
-                events.AddRange(OpencodeAdapter.MapSessionStart(
-                    payload, registry, TimeProvider.System, Random.Shared,
-                    Path.Combine(homeDirectory, ".config", "opencode")));
-                break;
+                {
+                    events.AddRange(OpencodeAdapter.MapSessionStart(
+                        payload, registry, TimeProvider.System, Random.Shared,
+                        Path.Combine(homeDirectory, ".config", "opencode")));
+                    break;
+                }
             default:
                 // An unsupported hook event for a known agent is a benign no-op,
                 // like an untracked tool — nothing to capture, nothing to log.
                 return;
         }
 
-        if (events.Count == 0)
+        if (events.Count is 0)
         {
             return;
         }
@@ -130,7 +138,7 @@ internal static class CaptureCommand
             }
         }
 
-        if (validEvents.Count == 0)
+        if (validEvents.Count is 0)
         {
             return;
         }

@@ -9,7 +9,7 @@ internal static class ReportCommand
 {
     private const string Usage = "usage: kbo report [--out <dir>]";
 
-    private static readonly JsonSerializerOptions GoldJsonOptions = new()
+    private static readonly JsonSerializerOptions _goldJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
@@ -25,7 +25,7 @@ internal static class ReportCommand
         string? explicitOut = null;
         for (int index = 0; index < args.Length; index++)
         {
-            if (args[index] == "--out" && index + 1 < args.Length)
+            if (args[index] is "--out" && index + 1 < args.Length)
             {
                 explicitOut = args[++index];
             }
@@ -49,7 +49,7 @@ internal static class ReportCommand
             return 1;
         }
 
-        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer == KnowledgeLayer.Global);
+        KnowledgeSource? vault = registry.Sources.FirstOrDefault(source => source.Layer is KnowledgeLayer.Global);
         if (vault is null)
         {
             error.WriteLine("registry has no global-layer source (the vault); cannot locate _generated/");
@@ -89,10 +89,10 @@ internal static class ReportCommand
             MarkdownRenderer.Render(report, vault.Root));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-report.gold.json"),
-            JsonSerializer.Serialize(report, GoldJsonOptions));
+            JsonSerializer.Serialize(report, _goldJsonOptions));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.gold.json"),
-            JsonSerializer.Serialize(dashboard, GoldJsonOptions));
+            JsonSerializer.Serialize(dashboard, _goldJsonOptions));
         File.WriteAllText(
             Path.Combine(outputDirectory, "kbo-dashboard.html"),
             DashboardRenderer.Render(dashboard, DashboardRenderer.LoadEmbeddedChartSpecs()));
@@ -103,7 +103,7 @@ internal static class ReportCommand
             ? string.Empty
             : string.Create(CultureInfo.InvariantCulture, $"; fleet: {fleet.Repos.Count} repo(s), {fleet.Behind} behind v{fleet.CurrentVersion}");
         output.WriteLine(
-            string.Create(CultureInfo.InvariantCulture, $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status == "red")} red{fleetSummary}; {digests.Count} day page(s)"));
+            string.Create(CultureInfo.InvariantCulture, $"report written to {outputDirectory}: {report.DeadNotes.Count} dead, {report.HotNotes.Count} hot, {report.StaleNotes.Count} stale, {report.LifecycleCounts.Values.Sum()} lifecycle and {report.MachineManagedCounts.Values.Sum()} machine-managed excluded, {report.DormantSources.Count} dormant source(s) (inventory {report.InventoryCounts.Values.Sum()}); dashboard: {dashboard.JobHealth.Count} job tile(s), {dashboard.JobHealth.Count(t => t.Status is "red")} red{fleetSummary}; {digests.Count} day page(s)"));
         return 0;
     }
 
