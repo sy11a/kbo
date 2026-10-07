@@ -1,19 +1,18 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Kbo.Bronze;
 
 /// <summary>
 /// Timestamp + randomness only — the ULID spec's optional monotonic
 /// same-millisecond suffix is deliberately not implemented. Event ordering in
 /// bronze is month-file + line append order, never a sort on <c>id</c>, so ids
-/// only need uniqueness.
+/// only need uniqueness. Randomness is supplied by an
+/// <see cref="IUlidEntropy"/> so production can use the OS CSPRNG and tests
+/// can stay deterministic.
 /// </summary>
 internal static class Ulid
 {
     private const string CrockfordAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-    [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "ULID randomness is for uniqueness, not secrecy; the injected Random keeps tests deterministic.")]
-    public static string New(DateTimeOffset time, Random random)
+    public static string New(DateTimeOffset time, IUlidEntropy entropy)
     {
         char[] encoded = new char[26];
 
@@ -25,7 +24,7 @@ internal static class Ulid
         }
 
         byte[] randomness = new byte[10];
-        random.NextBytes(randomness);
+        entropy.Fill(randomness);
         int bitBuffer = 0;
         int bitCount = 0;
         int position = 10;

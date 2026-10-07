@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -60,7 +61,7 @@ public sealed class ClaudeCodeSessionStartTests : IDisposable
             ["hook_event_name"] = "SessionStart",
             ["source"] = "startup",
         };
-        return ClaudeCodeAdapter.MapSessionStart(payload, _registry, _clock, new Random(42), _home);
+        return ClaudeCodeAdapter.MapSessionStart(payload, _registry, _clock, CryptographicUlidEntropy.Instance, _home);
     }
 
     [Fact]
@@ -96,7 +97,7 @@ public sealed class ClaudeCodeSessionStartTests : IDisposable
             ["source"] = "startup",
         };
 
-        List<JsonObject> events = ClaudeCodeAdapter.MapSessionStart(payload, noPatternRegistry, _clock, new Random(42), _home);
+        List<JsonObject> events = ClaudeCodeAdapter.MapSessionStart(payload, noPatternRegistry, _clock, CryptographicUlidEntropy.Instance, _home);
 
         JsonObject started = events[0];
         EventValidationResult result = new EventValidator().Validate(started.ToJsonString());

@@ -157,7 +157,7 @@ internal static class HarvestCommand
                 state.SkippedCount++;
                 continue;
             }
-            List<JsonObject> mined = TranscriptMiner.Mine(File.ReadLines(transcriptPath), transcriptId, registry, Random.Shared);
+            List<JsonObject> mined = TranscriptMiner.Mine(File.ReadLines(transcriptPath), transcriptId, registry, CryptographicUlidEntropy.Instance);
             AppendValidated(transcriptPath, FilterForBackfill(mined, parsed.BackfillSkills), state);
         }
     }
@@ -178,7 +178,7 @@ internal static class HarvestCommand
         }
         foreach (string sessionId in pendingSessions)
         {
-            AppendValidated(sessionId, FilterForBackfill(OpencodeMiner.Mine(parsed.DatabasePath, new[] { sessionId }, registry, Random.Shared), parsed.BackfillSkills), state);
+            AppendValidated(sessionId, FilterForBackfill(OpencodeMiner.Mine(parsed.DatabasePath, new[] { sessionId }, registry, CryptographicUlidEntropy.Instance), parsed.BackfillSkills), state);
         }
     }
 

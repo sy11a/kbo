@@ -16,7 +16,7 @@ internal static class PulseRunner
         string eventsRepo,
         string machine,
         TimeProvider clock,
-        Random random,
+        IUlidEntropy entropy,
         TextWriter output)
     {
         BronzeStore store = new(eventsRepo);
@@ -40,7 +40,7 @@ internal static class PulseRunner
                 stopwatch.Stop();
                 store.Append(new[]
                 {
-                    JobEvent("job.completed", job.Name, machine, clock, random, new JsonObject
+                    JobEvent("job.completed", job.Name, machine, clock, entropy, new JsonObject
                     {
                         [EventDataFields.Job] = job.Name,
                         [EventDataFields.DurationMs] = stopwatch.ElapsedMilliseconds,
@@ -55,7 +55,7 @@ internal static class PulseRunner
                 failures++;
                 store.Append(new[]
                 {
-                    JobEvent("job.failed", job.Name, machine, clock, random, new JsonObject
+                    JobEvent("job.failed", job.Name, machine, clock, entropy, new JsonObject
                     {
                         [EventDataFields.Job] = job.Name,
                         [EventDataFields.DurationMs] = null,
@@ -84,7 +84,7 @@ internal static class PulseRunner
     }
 
     private static JsonObject JobEvent(
-        string type, string jobName, string machine, TimeProvider clock, Random random, JsonObject data)
+        string type, string jobName, string machine, TimeProvider clock, IUlidEntropy entropy, JsonObject data)
     {
         return EventEnvelope.Create(
             type,
@@ -98,6 +98,6 @@ internal static class PulseRunner
             task: null,
             model: null,
             clock.GetUtcNow(),
-            random);
+            entropy);
     }
 }

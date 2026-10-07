@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Bronze;
 using Kbo.Gold;
 using Kbo.Registry;
 using Kbo.Schemas;
@@ -43,7 +44,7 @@ internal static class OpencodeAdapter
         public const string Skill = "skill";
     }
 
-    public static JsonObject? MapToolExecute(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    public static JsonObject? MapToolExecute(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? tool = (string?)payload[Payload.Tool];
         if (tool is null || payload[Payload.Args] is not JsonObject args)
@@ -54,14 +55,14 @@ internal static class OpencodeAdapter
         string? directory = (string?)payload[Payload.Directory];
         return tool switch
         {
-            Tools.Read => MapReadTool(payload, args, directory, registry, clock, random),
-            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, clock, random),
-            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, clock, random),
+            Tools.Read => MapReadTool(payload, args, directory, registry, clock, entropy),
+            Tools.Grep or Tools.Glob => MapSearchTool(payload, args, directory, registry, clock, entropy),
+            Tools.Write or Tools.Edit => MapWriteTool(payload, args, directory, registry, clock, entropy),
             _ => null,
         };
     }
 
-    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
         if (filePath is null)
@@ -72,10 +73,10 @@ internal static class OpencodeAdapter
         JsonObject data = new() { [EventDataFields.Path] = filePath };
         AddContentHash(data, filePath, kbroot);
         data[EventDataFields.Raw] = payload.DeepClone();
-        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random);
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), entropy);
     }
 
-    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? pattern = (string?)args[Payload.Pattern];
         if (pattern is null)
@@ -92,10 +93,10 @@ internal static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         string? kbroot = root is null ? null : registry.Resolve(root);
-        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), random);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, registry, clock.GetUtcNow(), entropy);
     }
 
-    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject args, string? directory, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)args[Payload.FilePath], directory);
         if (filePath is null)
@@ -109,14 +110,14 @@ internal static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         AddLinkcount(data, filePath, kbroot);
-        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), random, EventTypes.KnowledgeWrittenV2);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, registry, clock.GetUtcNow(), entropy, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(
         JsonObject payload,
         KnowledgeRegistry registry,
         TimeProvider clock,
-        Random random,
+        IUlidEntropy entropy,
         string opencodeConfigDirectory)
     {
         List<JsonObject> events = [];
@@ -130,7 +131,7 @@ internal static class OpencodeAdapter
             [EventDataFields.Raw] = payload.DeepClone(),
         };
         events.Add(Envelope(
-            EventTypes.SessionStarted, (string?)payload[Payload.SessionId], kbroot: null, sessionData, payload, registry, clock.GetUtcNow(), random));
+            EventTypes.SessionStarted, (string?)payload[Payload.SessionId], kbroot: null, sessionData, payload, registry, clock.GetUtcNow(), entropy));
 
         foreach ((string path, string kind) in ImplicitContextFiles(directory, opencodeConfigDirectory))
         {
@@ -140,7 +141,7 @@ internal static class OpencodeAdapter
             JsonObject raw = (JsonObject)payload.DeepClone();
             raw[EventDataFields.Kind] = kind;
             data[EventDataFields.Raw] = raw;
-            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, registry, clock.GetUtcNow(), random));
+            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, registry, clock.GetUtcNow(), entropy));
         }
 
         return events;
@@ -210,7 +211,7 @@ internal static class OpencodeAdapter
         JsonObject payload,
         KnowledgeRegistry registry,
         DateTimeOffset time,
-        Random random,
+        IUlidEntropy entropy,
         string? schemaRef = null)
     {
         GitContext git = GitContext.Discover((string?)payload[Payload.Directory], registry.TaskPattern);
@@ -233,7 +234,7 @@ internal static class OpencodeAdapter
             task: git.Task,
             model: null,
             time,
-            random,
+            entropy,
             schemaRef);
     }
 }

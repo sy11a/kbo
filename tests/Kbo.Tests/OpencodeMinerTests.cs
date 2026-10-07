@@ -1,7 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.Opencode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 using Microsoft.Data.Sqlite;
@@ -62,7 +62,7 @@ public sealed class OpencodeMinerTests : IDisposable
         connection.Open();
         CreateSchema(connection);
 
-        Insert(connection, "INSERT INTO session VALUES ('ses_a', @dir, 'build', @model, 1200, 300, 900000, @t0, @t0)",
+        Insert(connection, static command => command.CommandText = "INSERT INTO session VALUES ('ses_a', @dir, 'build', @model, 1200, 300, 900000, @t0, @t0)",
             ("@dir", _workspace),
             ("@model", """{"id":"glm-5.1","providerID":"zai"}"""),
             ("@t0", _baseMs));
@@ -93,9 +93,9 @@ public sealed class OpencodeMinerTests : IDisposable
             },
         };
         JsonObject textPart = new() { ["type"] = "text", ["text"] = "hello" };
-        Insert(connection, "INSERT INTO part VALUES ('prt_1','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 60_000), ("@data", readPart.ToJsonString()));
-        Insert(connection, "INSERT INTO part VALUES ('prt_2','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 120_000), ("@data", grepPart.ToJsonString()));
-        Insert(connection, "INSERT INTO part VALUES ('prt_3','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 130_000), ("@data", textPart.ToJsonString()));
+        Insert(connection, static command => command.CommandText = "INSERT INTO part VALUES ('prt_1','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 60_000), ("@data", readPart.ToJsonString()));
+        Insert(connection, static command => command.CommandText = "INSERT INTO part VALUES ('prt_2','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 120_000), ("@data", grepPart.ToJsonString()));
+        Insert(connection, static command => command.CommandText = "INSERT INTO part VALUES ('prt_3','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 130_000), ("@data", textPart.ToJsonString()));
 
         InsertSkillParts(connection);
     }
@@ -127,15 +127,14 @@ public sealed class OpencodeMinerTests : IDisposable
                 ["time"] = new JsonObject { ["start"] = _baseMs + 150_000 },
             },
         };
-        Insert(connection, "INSERT INTO part VALUES ('prt_4','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 140_000), ("@data", skillPart.ToJsonString()));
-        Insert(connection, "INSERT INTO part VALUES ('prt_5','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 150_000), ("@data", namelessSkillPart.ToJsonString()));
+        Insert(connection, static command => command.CommandText = "INSERT INTO part VALUES ('prt_4','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 140_000), ("@data", skillPart.ToJsonString()));
+        Insert(connection, static command => command.CommandText = "INSERT INTO part VALUES ('prt_5','msg_1','ses_a',@t,@t,@data)", ("@t", _baseMs + 150_000), ("@data", namelessSkillPart.ToJsonString()));
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Test fixture SQL written in this file.")]
-    private static void Insert(SqliteConnection connection, string sql, params (string Name, object Value)[] parameters)
+    private static void Insert(SqliteConnection connection, Action<SqliteCommand> setCommandText, params (string Name, object Value)[] parameters)
     {
         using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = sql;
+        setCommandText(command);
         foreach ((string name, object value) in parameters)
         {
             _ = command.Parameters.AddWithValue(name, value);
@@ -146,7 +145,7 @@ public sealed class OpencodeMinerTests : IDisposable
     [Fact]
     public void Mine_EmitsSessionStartedWithAggregatedUsageAndModelId()
     {
-        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, new Random(42));
+        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, CryptographicUlidEntropy.Instance);
 
         EventValidator validator = new();
         Assert.All(events, e => Assert.True(validator.Validate(e.ToJsonString()).IsValid,
@@ -168,7 +167,7 @@ public sealed class OpencodeMinerTests : IDisposable
     [Fact]
     public void Mine_EmitsToolEvents_WithAuthoritativeHitsAndPartTimes()
     {
-        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, new Random(42));
+        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, CryptographicUlidEntropy.Instance);
 
         Assert.Equal(_expectedToolEventTypes,
             events.Select(e => (string?)e["type"]).ToArray());
@@ -186,7 +185,7 @@ public sealed class OpencodeMinerTests : IDisposable
     [Fact]
     public void Mine_EmitsSkillInvoked_FromSkillTool_SkippingNamelessOnes()
     {
-        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, new Random(42));
+        List<JsonObject> events = OpencodeMiner.Mine(_databasePath, _sessionIds, _registry, CryptographicUlidEntropy.Instance);
 
         JsonObject skill = events.Single(e => (string?)e["type"] is "skill.invoked");
         Assert.Equal("grilling", (string?)skill["subject"]);
@@ -199,7 +198,7 @@ public sealed class OpencodeMinerTests : IDisposable
     }
 
     [Fact]
-    public void Mine_UnrequestedSessions_AreNotMined() => Assert.Empty(OpencodeMiner.Mine(_databasePath, Array.Empty<string>(), _registry, new Random(42)));
+    public void Mine_UnrequestedSessions_AreNotMined() => Assert.Empty(OpencodeMiner.Mine(_databasePath, Array.Empty<string>(), _registry, CryptographicUlidEntropy.Instance));
 
     [Fact]
     public void EnumerateSessionIds_ListsAllSessions()

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.Opencode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -56,7 +57,7 @@ public sealed class OpencodeAdapterTests : IDisposable
             ["tool"] = tool,
             ["args"] = args,
         };
-        return OpencodeAdapter.MapToolExecute(payload, _registry, _clock, new Random(42));
+        return OpencodeAdapter.MapToolExecute(payload, _registry, _clock, CryptographicUlidEntropy.Instance);
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public sealed class OpencodeAdapterTests : IDisposable
             ["session_id"] = "ses_test2",
             ["directory"] = _repoRoot,
         };
-        List<JsonObject> events = OpencodeAdapter.MapSessionStart(payload, _registry, _clock, new Random(42), globalConfig);
+        List<JsonObject> events = OpencodeAdapter.MapSessionStart(payload, _registry, _clock, CryptographicUlidEntropy.Instance, globalConfig);
 
         EventValidator validator = new();
         Assert.All(events, e => Assert.True(validator.Validate(e.ToJsonString()).IsValid));

@@ -23,6 +23,6 @@ internal static class OpencodeRetention
                 new FileTreeEntry(Path.Combine(dataDirectory, "tool-output"), "*", "opencode/tool-output"),
                 new FileTreeEntry(Path.Combine(dataDirectory, "snapshot"), "*", "opencode/snapshot"),
             },
-            SessionDatabase: new SqliteSessionSource(databasePath, "SELECT id, time_updated FROM session"));
+            SessionDatabase: new SqliteSessionSource(databasePath, static command => command.CommandText = "SELECT id, time_updated FROM session"));
     }
 }

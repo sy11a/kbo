@@ -22,13 +22,13 @@ internal static class EventEnvelope
         string? task,
         string? model,
         DateTimeOffset time,
-        Random random,
+        IUlidEntropy entropy,
         string? schemaRef = null)
     {
         return new JsonObject
         {
             [EnvelopeFields.SpecVersion] = EnvelopeFields.SpecVersionValue,
-            [EnvelopeFields.Id] = Ulid.New(time, random),
+            [EnvelopeFields.Id] = Ulid.New(time, entropy),
             [EnvelopeFields.Source] = $"//{machine}/{agent}",
             [EnvelopeFields.Type] = type,
             [EnvelopeFields.Time] = time.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),

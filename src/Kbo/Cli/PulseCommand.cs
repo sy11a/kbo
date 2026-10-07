@@ -1,5 +1,6 @@
 using Kbo.Adapters.ClaudeCode;
 using Kbo.Adapters.Opencode;
+using Kbo.Bronze;
 using Kbo.Jobs;
 using Kbo.Registry;
 
@@ -49,7 +50,7 @@ internal static class PulseCommand
             environment,
             homeDirectory);
 
-        int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, Random.Shared, output);
+        int failures = PulseRunner.Run(jobs, eventsRepo, registry.Machine, TimeProvider.System, CryptographicUlidEntropy.Instance, output);
         return failures is 0 ? 0 : 1;
     }
 
@@ -108,7 +109,7 @@ internal static class PulseCommand
             new CommandJob("rebuild", JobCadence.Daily,
                 (jobOutput, jobError) => RebuildCommand.Run(
                     [], jobOutput, jobError, environment, homeDirectory)),
-            new IngestGraphMetricsJob(registry, eventsRepo, TimeProvider.System, Random.Shared),
+            new IngestGraphMetricsJob(registry, eventsRepo, TimeProvider.System, CryptographicUlidEntropy.Instance),
             new ArchiveJob(
                 archiveRoot,
                 new[] { ClaudeCodeRetention.Manifest(homeDirectory), OpencodeRetention.Manifest(homeDirectory) },

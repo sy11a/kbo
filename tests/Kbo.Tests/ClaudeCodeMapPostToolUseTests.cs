@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -53,7 +54,7 @@ public sealed class ClaudeCodeMapPostToolUseTests : IDisposable
             ["tool_input"] = toolInput,
             ["tool_response"] = toolResponse ?? new JsonObject(),
         };
-        return ClaudeCodeAdapter.MapPostToolUse(payload, _registry, _clock, new Random(42));
+        return ClaudeCodeAdapter.MapPostToolUse(payload, _registry, _clock, CryptographicUlidEntropy.Instance);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Kbo.Adapters.ClaudeCode;
 using Kbo.Adapters.Opencode;
 using Kbo.Bronze;
@@ -21,7 +21,6 @@ internal static class CaptureCommand
     /// and returns 0 — observation must never perturb the observed session.
     /// Only genuine CLI misuse (unknown agent/args) returns non-zero.
     /// </summary>
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Capture is a hook that must never fail the observed session; any failure is logged and swallowed by contract (ADR-0029).")]
     public static int Run(
         string[] args,
         TextReader input,
@@ -40,11 +39,37 @@ internal static class CaptureCommand
         {
             Capture(agent, input, environment, homeDirectory);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or JsonException
+            or RegistryFormatException
+            or InvalidOperationException
+            or FormatException
+            or ArgumentException
+            or RegexMatchTimeoutException)
         {
             LogDrop(homeDirectory, agent, exception.Message);
         }
         return 0;
+    }
+
+    /// <summary>
+    /// Last-chance handler for any exception type not covered by <see cref="Run"/>'s
+    /// filter. Registered against <see cref="AppDomain.CurrentDomain"/> in
+    /// <see cref="Program.RunCapture"/> so even a throw from an unfiltered code
+    /// path (or the BCL itself) still ends in a logged drop and exit 0
+    /// (ADR-0029). The handler logs the drop and ends the process with
+    /// exit code 0, so an exception type outside <see cref="Run"/>'s filter still
+    /// honours ADR-0029.
+    /// </summary>
+    internal static UnhandledExceptionEventHandler CreateUnhandledExceptionHandler(string homeDirectory, string agent)
+    {
+        return (_, eventArgs) =>
+        {
+            string? message = (eventArgs.ExceptionObject as Exception)?.Message ?? eventArgs.ExceptionObject.GetType().FullName;
+            LogDrop(homeDirectory, agent, message ?? string.Empty);
+            Environment.Exit(0);
+        };
     }
 
     private static void Capture(string agent, TextReader input, Func<string, string?> environment, string homeDirectory)
@@ -123,7 +148,7 @@ internal static class CaptureCommand
         {
             case (ClaudeCodeAdapter.AgentName, HookPayload.Events.PostToolUse):
                 {
-                    JsonObject? mapped = ClaudeCodeAdapter.MapPostToolUse(payload, registry, TimeProvider.System, Random.Shared);
+                    JsonObject? mapped = ClaudeCodeAdapter.MapPostToolUse(payload, registry, TimeProvider.System, CryptographicUlidEntropy.Instance);
                     if (mapped is not null)
                     {
                         events.Add(mapped);
@@ -132,12 +157,12 @@ internal static class CaptureCommand
                 }
             case (ClaudeCodeAdapter.AgentName, HookPayload.Events.SessionStart):
                 {
-                    events.AddRange(ClaudeCodeAdapter.MapSessionStart(payload, registry, TimeProvider.System, Random.Shared, homeDirectory));
+                    events.AddRange(ClaudeCodeAdapter.MapSessionStart(payload, registry, TimeProvider.System, CryptographicUlidEntropy.Instance, homeDirectory));
                     break;
                 }
             case (OpencodeRetention.AgentName, OpencodeAdapter.Payload.ToolExecuteAfter):
                 {
-                    JsonObject? opencodeMapped = OpencodeAdapter.MapToolExecute(payload, registry, TimeProvider.System, Random.Shared);
+                    JsonObject? opencodeMapped = OpencodeAdapter.MapToolExecute(payload, registry, TimeProvider.System, CryptographicUlidEntropy.Instance);
                     if (opencodeMapped is not null)
                     {
                         events.Add(opencodeMapped);
@@ -147,7 +172,7 @@ internal static class CaptureCommand
             case (OpencodeRetention.AgentName, OpencodeAdapter.Payload.SessionStart):
                 {
                     events.AddRange(OpencodeAdapter.MapSessionStart(
-                        payload, registry, TimeProvider.System, Random.Shared,
+                        payload, registry, TimeProvider.System, CryptographicUlidEntropy.Instance,
                         Path.Combine(homeDirectory, ".config", "opencode")));
                     break;
                 }
@@ -186,7 +211,6 @@ internal static class CaptureCommand
         new BronzeStore(eventsRepo).Append(validEvents);
     }
 
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "The drop log is best-effort; recording a drop must never disrupt the observed session (ADR-0029).")]
     private static void LogDrop(string homeDirectory, string agent, string reason)
     {
         try
@@ -201,7 +225,7 @@ internal static class CaptureCommand
                 reason.Replace('\n', ' ').Replace('\t', ' '));
             File.AppendAllText(logPath, line);
         }
-        catch
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // The error log is itself best-effort — never let recording a drop
             // become the thing that disrupts the session.

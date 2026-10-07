@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 using Microsoft.Data.Sqlite;
@@ -37,7 +38,7 @@ internal static class OpencodeMiner
         string databasePath,
         IReadOnlyCollection<string> sessionIds,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         List<JsonObject> events = [];
         if (sessionIds.Count is 0 || !File.Exists(databasePath))
@@ -87,9 +88,9 @@ internal static class OpencodeMiner
             };
             events.Add(EventEnvelope.Create(
                 EventTypes.SessionStarted, sessionId, kbroot: null, sessionData,
-                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, started, random));
+                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, started, entropy));
 
-            events.AddRange(MineParts(connection, sessionId, directory, repo, model, registry, random));
+            events.AddRange(MineParts(connection, sessionId, directory, repo, model, registry, entropy));
         }
 
         return events;
@@ -102,7 +103,7 @@ internal static class OpencodeMiner
         string? repo,
         string? model,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         List<JsonObject> events = [];
         using SqliteCommand partCommand = connection.CreateCommand();
@@ -157,7 +158,7 @@ internal static class OpencodeMiner
             mapped.Data[EventDataFields.Transcript] = sessionId;
             events.Add(EventEnvelope.Create(
                 mapped.Type, mapped.Subject, mapped.Kbroot, mapped.Data,
-                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, time, random, mapped.SchemaRef));
+                registry.Machine, OpencodeRetention.AgentName, sessionId, repo, task: null, model, time, entropy, mapped.SchemaRef));
         }
         return events;
     }

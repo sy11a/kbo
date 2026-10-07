@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Kbo.Adapters.ClaudeCode;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -110,7 +111,7 @@ public sealed class TranscriptMinerTests : IDisposable
                 new JsonObject { ["input_tokens"] = 50, ["cache_read_input_tokens"] = 500, ["output_tokens"] = 5 }),
             AssistantToolUse("Bash", new JsonObject { ["command"] = "ls" }, "tu-4", "req-3"),
         ];
-        return TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
+        return TranscriptMiner.Mine(lines, "fallback-session", _registry, CryptographicUlidEntropy.Instance);
     }
 
     [Fact]
@@ -178,7 +179,7 @@ public sealed class TranscriptMinerTests : IDisposable
             AssistantToolUse("Skill", new JsonObject { ["skill"] = "tdd" }, "tu-s", "req-1"),
         ];
 
-        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
+        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, CryptographicUlidEntropy.Instance);
 
         JsonObject skill = Assert.Single(events, e => (string?)e["type"] is "skill.invoked");
         EventValidationResult result = new EventValidator().Validate(skill.ToJsonString());
@@ -203,7 +204,7 @@ public sealed class TranscriptMinerTests : IDisposable
             }, "tu-w", "req-1"),
         ];
 
-        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, new Random(42));
+        List<JsonObject> events = TranscriptMiner.Mine(lines, "fallback-session", _registry, CryptographicUlidEntropy.Instance);
 
         JsonObject written = Assert.Single(events, e => (string?)e["type"] is "knowledge.written");
         EventValidationResult result = new EventValidator().Validate(written.ToJsonString());
@@ -220,5 +221,5 @@ public sealed class TranscriptMinerTests : IDisposable
     }
 
     [Fact]
-    public void Mine_EmptyTranscript_YieldsNoEvents() => Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", _registry, new Random(42)));
+    public void Mine_EmptyTranscript_YieldsNoEvents() => Assert.Empty(TranscriptMiner.Mine(new List<string>(), "fallback", _registry, CryptographicUlidEntropy.Instance));
 }

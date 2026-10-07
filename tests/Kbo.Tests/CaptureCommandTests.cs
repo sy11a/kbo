@@ -151,6 +151,37 @@ public sealed class CaptureCommandTests : IDisposable
     }
 
     [Fact]
+    public void MalformedRegistry_IsLoggedAndDoesNotFailSession()
+    {
+        string malformedRegistryPath = Path.Combine(_workspace, "malformed-registry.yaml");
+        File.WriteAllText(malformedRegistryPath, "sources: [this is not: valid: yaml");
+        string? Environment(string name)
+        {
+            return name switch
+            {
+                "KBO_REGISTRY" => malformedRegistryPath,
+                "KBO_EVENTS_REPO" => _eventsRepo,
+                _ => null,
+            };
+        }
+        JsonObject payload = new()
+        {
+            ["session_id"] = "sess-cli-malformed-registry",
+            ["cwd"] = _workspace,
+            ["hook_event_name"] = "PostToolUse",
+            ["tool_name"] = "Read",
+            ["tool_input"] = new JsonObject { ["file_path"] = Path.Combine(_vaultRoot, "note.md") },
+        };
+        using StringReader input = new(payload.ToJsonString());
+        int exitCode = CaptureCommand.Run(["claude-code"], input, _error, variable => Environment(variable), _workspace);
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(_eventsRepo, "bronze")));
+        Assert.True(File.Exists(CaptureLog));
+        Assert.Contains("claude-code", File.ReadAllText(CaptureLog), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UnknownAgent_FailsWithUsage()
     {
         using StringReader input = new("{}");

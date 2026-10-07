@@ -56,3 +56,11 @@ fresh one is actionable.
   rotation is a future nicety if the file ever grows large.
 - Bronze immutability and sufficiency (P3) are untouched: this changes only whether
   an event is written and whether a drop is recorded, never past lines.
+
+## Amendment (BL-500, 2026-10-07)
+
+The decision is unchanged; its mechanism is. `CaptureCommand.Run` no longer catches `Exception`: it catches the
+types capture can raise (I/O, access, JSON, registry format, invalid operation, format, argument, regex timeout) and
+logs each as a drop. Any other type reaches a last-chance `AppDomain.UnhandledException` handler, registered only by
+the process entry (`Program.RunCapture`), which logs the drop and ends the process with exit code 0, so the contract
+holds for every exception. The drop log itself swallows only I/O and access failures.
