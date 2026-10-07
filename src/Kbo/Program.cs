@@ -32,8 +32,15 @@ internal static class Program
     private static int RunRegistry(string[] args, string home) =>
         RegistryCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
 
-    private static int RunCapture(string[] args, string home) =>
-        CaptureCommand.Run(args, Console.In, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+    private static int RunCapture(string[] args, string home)
+    {
+        // Last-chance handler for exception types Run's filter doesn't cover.
+        // Tests call CaptureCommand.Run in-process and would see this global handler,
+        // so the handler is only wired here, the process entry (ADR-0029).
+        string agent = args.Length > 0 ? args[0] : string.Empty;
+        AppDomain.CurrentDomain.UnhandledException += CaptureCommand.CreateUnhandledExceptionHandler(home, agent);
+        return CaptureCommand.Run(args, Console.In, Console.Error, key => Environment.GetEnvironmentVariable(key), home);
+    }
 
     private static int RunHarvest(string[] args, string home) =>
         HarvestCommand.Run(args, Console.Out, Console.Error, key => Environment.GetEnvironmentVariable(key), home);

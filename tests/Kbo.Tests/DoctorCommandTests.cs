@@ -58,7 +58,7 @@ public sealed class DoctorCommandTests : IDisposable
                 "job.completed", job, kbroot: null,
                 new JsonObject { ["job"] = job, ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddDays(-daysAgo), new Random(1)),
+                _now.AddDays(-daysAgo), CryptographicUlidEntropy.Instance),
         });
     }
 

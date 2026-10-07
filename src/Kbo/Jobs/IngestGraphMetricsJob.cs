@@ -21,14 +21,14 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
     private readonly KnowledgeRegistry _registry;
     private readonly string _eventsRepo;
     private readonly TimeProvider _clock;
-    private readonly Random _random;
+    private readonly IUlidEntropy _entropy;
 
-    public IngestGraphMetricsJob(KnowledgeRegistry registry, string eventsRepo, TimeProvider clock, Random random)
+    public IngestGraphMetricsJob(KnowledgeRegistry registry, string eventsRepo, TimeProvider clock, IUlidEntropy entropy)
     {
         _registry = registry;
         _eventsRepo = eventsRepo;
         _clock = clock;
-        _random = random;
+        _entropy = entropy;
     }
 
     public string Name => "ingest-graph-metrics";
@@ -121,7 +121,7 @@ internal sealed class IngestGraphMetricsJob : IPulseJob
             task: null,
             model: null,
             _clock.GetUtcNow(),
-            _random);
+            _entropy);
 
         EventValidationResult validation = validator.Validate(envelope.ToJsonString());
         if (!validation.IsValid)

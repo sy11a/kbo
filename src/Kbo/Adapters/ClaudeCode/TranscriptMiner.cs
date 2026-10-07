@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Kbo.Bronze;
 using Kbo.Registry;
 using Kbo.Schemas;
 
@@ -26,7 +27,7 @@ internal static class TranscriptMiner
         IEnumerable<string> transcriptLines,
         string transcriptId,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         MineContext context = new();
         foreach (string line in transcriptLines)
@@ -43,7 +44,7 @@ internal static class TranscriptMiner
         string? repo = GitContext.Discover(context.Cwd, registry.TaskPattern).RepoRoot ?? context.Cwd;
         string? task = GitContext.TaskFromBranch(context.Branch, registry.TaskPattern);
 
-        List<JsonObject> events = BuildMinedEvents(context, session, repo, task, registry, random);
+        List<JsonObject> events = BuildMinedEvents(context, session, repo, task, registry, entropy);
         StampTranscriptId(events, transcriptId);
         return events;
     }
@@ -125,16 +126,16 @@ internal static class TranscriptMiner
         }
     }
 
-    private static List<JsonObject> BuildMinedEvents(MineContext context, string session, string? repo, string? task, KnowledgeRegistry registry, Random random)
+    private static List<JsonObject> BuildMinedEvents(MineContext context, string session, string? repo, string? task, KnowledgeRegistry registry, IUlidEntropy entropy)
     {
         List<JsonObject> events =
         [
-            SessionStartedEvent(session, context.SessionTime, context.Cwd, context.Branch, context.FirstModel, context.UsageByRequest, repo, task, registry, random),
+            SessionStartedEvent(session, context.SessionTime, context.Cwd, context.Branch, context.FirstModel, context.UsageByRequest, repo, task, registry, entropy),
         ];
 
         foreach (MinedToolUse toolUse in context.ToolUses)
         {
-            JsonObject? mapped = MapToolUse(toolUse, session, repo, task, registry, context.ResultsByToolUseId, random);
+            JsonObject? mapped = MapToolUse(toolUse, session, repo, task, registry, context.ResultsByToolUseId, entropy);
             if (mapped is not null)
             {
                 events.Add(mapped);
@@ -162,7 +163,7 @@ internal static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         JsonObject data = new()
         {
@@ -189,7 +190,7 @@ internal static class TranscriptMiner
             task,
             model,
             sessionTime ?? DateTimeOffset.UnixEpoch,
-            random);
+            entropy);
     }
 
     private static JsonObject? MapToolUse(
@@ -199,7 +200,7 @@ internal static class TranscriptMiner
         string? task,
         KnowledgeRegistry registry,
         Dictionary<string, JsonNode> resultsByToolUseId,
-        Random random)
+        IUlidEntropy entropy)
     {
         JsonObject raw = new()
         {
@@ -211,10 +212,10 @@ internal static class TranscriptMiner
 
         return toolUse.ToolName switch
         {
-            HookPayload.Tools.Read => MapReadToolUse(toolUse, raw, session, repo, task, registry, random),
-            HookPayload.Tools.Grep or HookPayload.Tools.Glob => MapSearchToolUse(toolUse, raw, session, repo, task, registry, resultsByToolUseId, random),
-            HookPayload.Tools.Skill => MapSkillToolUse(toolUse, raw, session, repo, task, registry, random),
-            HookPayload.Tools.Write or HookPayload.Tools.Edit or HookPayload.Tools.NotebookEdit => MapWriteToolUse(toolUse, raw, session, repo, task, registry, random),
+            HookPayload.Tools.Read => MapReadToolUse(toolUse, raw, session, repo, task, registry, entropy),
+            HookPayload.Tools.Grep or HookPayload.Tools.Glob => MapSearchToolUse(toolUse, raw, session, repo, task, registry, resultsByToolUseId, entropy),
+            HookPayload.Tools.Skill => MapSkillToolUse(toolUse, raw, session, repo, task, registry, entropy),
+            HookPayload.Tools.Write or HookPayload.Tools.Edit or HookPayload.Tools.NotebookEdit => MapWriteToolUse(toolUse, raw, session, repo, task, registry, entropy),
             _ => null,
         };
     }
@@ -226,7 +227,7 @@ internal static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath((string?)toolUse.Input[HookPayload.FilePath], toolUse.Cwd);
         if (filePath is null)
@@ -240,7 +241,7 @@ internal static class TranscriptMiner
             [EventDataFields.Raw] = raw,
             [EventDataFields.Origin] = EventDataFields.OriginHarvest,
         };
-        return Envelope(EventTypes.KnowledgeRead, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random);
+        return Envelope(EventTypes.KnowledgeRead, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, entropy);
     }
 
     private static JsonObject? MapSearchToolUse(
@@ -251,7 +252,7 @@ internal static class TranscriptMiner
         string? task,
         KnowledgeRegistry registry,
         Dictionary<string, JsonNode> resultsByToolUseId,
-        Random random)
+        IUlidEntropy entropy)
     {
         string? pattern = (string?)toolUse.Input[HookPayload.Pattern];
         if (pattern is null)
@@ -272,7 +273,7 @@ internal static class TranscriptMiner
             [EventDataFields.Origin] = EventDataFields.OriginHarvest,
         };
         string? kbroot = root is null ? null : registry.Resolve(root);
-        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, toolUse, session, repo, task, registry, random);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, toolUse, session, repo, task, registry, entropy);
     }
 
     private static JsonObject? MapSkillToolUse(
@@ -282,7 +283,7 @@ internal static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         string? skill = (string?)toolUse.Input[HookPayload.Skill];
         if (skill is null)
@@ -295,7 +296,7 @@ internal static class TranscriptMiner
             [EventDataFields.Raw] = raw,
             [EventDataFields.Origin] = EventDataFields.OriginHarvest,
         };
-        return Envelope(EventTypes.SkillInvoked, skill, kbroot: null, data, toolUse, session, repo, task, registry, random);
+        return Envelope(EventTypes.SkillInvoked, skill, kbroot: null, data, toolUse, session, repo, task, registry, entropy);
     }
 
     private static JsonObject? MapWriteToolUse(
@@ -305,7 +306,7 @@ internal static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random)
+        IUlidEntropy entropy)
     {
         string? filePath = ClaudeCodeAdapter.AbsolutePath(
             (string?)toolUse.Input[HookPayload.FilePath] ?? (string?)toolUse.Input[HookPayload.NotebookPath], toolUse.Cwd);
@@ -325,7 +326,7 @@ internal static class TranscriptMiner
             [EventDataFields.Raw] = raw,
             [EventDataFields.Origin] = EventDataFields.OriginHarvest,
         };
-        return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, random, EventTypes.KnowledgeWrittenV2);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, registry.Resolve(filePath), data, toolUse, session, repo, task, registry, entropy, EventTypes.KnowledgeWrittenV2);
     }
 
     private static JsonObject Envelope(
@@ -338,12 +339,12 @@ internal static class TranscriptMiner
         string? repo,
         string? task,
         KnowledgeRegistry registry,
-        Random random,
+        IUlidEntropy entropy,
         string? schemaRef = null)
     {
         return EventEnvelope.Create(
             type, subject, kbroot, data, registry.Machine, ClaudeCodeAdapter.AgentName,
-            session, repo, task, toolUse.Model, toolUse.Time, random, schemaRef);
+            session, repo, task, toolUse.Model, toolUse.Time, entropy, schemaRef);
     }
 
     private static JsonObject? SumUsage(Dictionary<string, JsonObject> usageByRequest)

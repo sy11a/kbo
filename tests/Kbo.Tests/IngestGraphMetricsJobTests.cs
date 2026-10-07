@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Kbo.Bronze;
 using Kbo.Jobs;
 using Kbo.Registry;
 using Kbo.Schemas;
@@ -41,7 +42,7 @@ public sealed class IngestGraphMetricsJobTests : IDisposable
             """);
     }
 
-    private IngestGraphMetricsJob Job(KnowledgeRegistry registry) => new(registry, _eventsRepo, new FixedTimeProvider(_now), new Random(42));
+    private IngestGraphMetricsJob Job(KnowledgeRegistry registry) => new(registry, _eventsRepo, new FixedTimeProvider(_now), CryptographicUlidEntropy.Instance);
 
     private static string SnapshotLine(
         string date = "2026-08-28",
@@ -187,7 +188,7 @@ public sealed class IngestGraphMetricsJobTests : IDisposable
         using StringWriter output = new();
         int failures = PulseRunner.Run(
             new[] { Job(RegistryWithPointer()) }, _eventsRepo, "test-machine",
-            new FixedTimeProvider(_now), new Random(42), output);
+            new FixedTimeProvider(_now), CryptographicUlidEntropy.Instance, output);
 
         Assert.Equal(0, failures);
         Assert.Contains("ingest-graph-metrics: completed", output.ToString(), StringComparison.Ordinal);

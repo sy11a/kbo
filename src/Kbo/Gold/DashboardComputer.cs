@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data;
@@ -193,7 +192,7 @@ internal static class DashboardComputer
 
     private static double? CacheAt(DuckDBConnection connection, DateTime start, DateTime end)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT coalesce(sum(cache_read_tokens), 0),
                    coalesce(sum(input_tokens), 0)
             FROM sessions
@@ -210,7 +209,7 @@ internal static class DashboardComputer
 
     private static double? BurnerAt(DuckDBConnection connection, DateTime start, DateTime end)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT count(*),
                    count_if(input_tokens > cache_read_tokens AND input_tokens > 100000)
             FROM sessions
@@ -226,7 +225,7 @@ internal static class DashboardComputer
 
     private static double? FailedAt(DuckDBConnection connection, DateTime start, DateTime end)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT count(TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT)),
                    count_if(TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0)
             FROM practice_events
@@ -242,7 +241,7 @@ internal static class DashboardComputer
     private static double? LoopAt(DuckDBConnection connection, KnowledgeRegistry registry, DateTime start, DateTime end)
     {
         Dictionary<string, DateTime> firstWrite = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, min(time) AS first_write
             FROM practice_events
             WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $start AND time < $end
@@ -264,7 +263,7 @@ internal static class DashboardComputer
 
         int written = firstWrite.Count;
         int reused = 0;
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, time
             FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $start AND time < $end
@@ -284,7 +283,7 @@ internal static class DashboardComputer
     {
         long notes = 0;
         long singleUse = 0;
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, count(DISTINCT session) AS sessions
             FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $start AND time < $end
@@ -308,7 +307,7 @@ internal static class DashboardComputer
     private static double? SddAt(DuckDBConnection connection, DateTime start, DateTime end)
     {
         Dictionary<string, DateTime> firstSpec = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, min(time) AS first_spec
             FROM practice_events
             WHERE session IS NOT NULL AND subject IS NOT NULL
@@ -322,7 +321,7 @@ internal static class DashboardComputer
         }
 
         Dictionary<string, DateTime> firstCode = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, subject, time
             FROM practice_events
             WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $start AND time < $end
@@ -436,7 +435,7 @@ internal static class DashboardComputer
     private static Dictionary<string, string> LoadSddSessionRepoMap(DuckDBConnection connection)
     {
         Dictionary<string, string> repoBySession = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, coalesce(repo, '(unknown)') AS repo
             FROM sessions
             WHERE session IS NOT NULL
@@ -452,7 +451,7 @@ internal static class DashboardComputer
     private static Dictionary<string, DateTime> LoadSddFirstSpecBySession(DuckDBConnection connection, DateTime cutoff)
     {
         Dictionary<string, DateTime> firstSpec = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, min(time) AS first_spec
             FROM practice_events
             WHERE session IS NOT NULL AND subject IS NOT NULL
@@ -472,7 +471,7 @@ internal static class DashboardComputer
         Dictionary<string, DateTime> firstCodeWrite = [];
         long machineManagedWrites = 0;
         Dictionary<string, long> writesByKind = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, subject, time
             FROM practice_events
             WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $cutoff
@@ -568,7 +567,7 @@ internal static class DashboardComputer
         HashSet<string> skills = new(registry.Sdd.Skills, StringComparer.Ordinal);
         Dictionary<string, long> sessionsTotal = [];
         Dictionary<string, long> sessionsWithSddSkill = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, json_extract_string(data, '$.skill') AS skill
             FROM practice_events
             WHERE type = 'skill.invoked' AND session IS NOT NULL
@@ -582,7 +581,7 @@ internal static class DashboardComputer
                 _ = sessionsWithSddSkill.TryAdd(session, 0);
             }
         }
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT DISTINCT session FROM practice_events
             WHERE session IS NOT NULL AND time >= $cutoff
             """, ("cutoff", cutoff)))
@@ -617,7 +616,7 @@ internal static class DashboardComputer
         DateTime cutoff = now.AddDays(-ThemeWindowDays).UtcDateTime;
 
         Dictionary<string, DateTime> firstWrite = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, min(time) AS first_write
             FROM practice_events
             WHERE type = 'knowledge.written' AND subject IS NOT NULL AND time >= $cutoff
@@ -633,7 +632,7 @@ internal static class DashboardComputer
         }
 
         Dictionary<string, long> laterReads = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, time
             FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
@@ -658,7 +657,7 @@ internal static class DashboardComputer
     private static (List<ReuseRow> Top, ReuseSummary Summary) NoteReuse(DuckDBConnection connection, KnowledgeRegistry registry, DateTimeOffset now)
     {
         List<ReuseRow> notes = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, count(*) AS reads, count(DISTINCT session) AS sessions
             FROM practice_events
             WHERE type = 'knowledge.read' AND subject IS NOT NULL AND time >= $cutoff
@@ -685,7 +684,7 @@ internal static class DashboardComputer
     private static List<DayCount> TopFailedSearches(DuckDBConnection connection, DateTimeOffset now)
     {
         List<DayCount> rows = [];
-        foreach (object?[] row in Query(connection, $"""
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, count(*)
             FROM practice_events
             WHERE type = 'knowledge.searched' AND time >= $cutoff
@@ -693,8 +692,8 @@ internal static class DashboardComputer
               AND TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0
             GROUP BY subject
             ORDER BY count(*) DESC, subject
-            LIMIT {TopListCap}
-            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime)))
+            LIMIT $cap
+            """, ("cutoff", now.AddDays(-ThemeWindowDays).UtcDateTime), ("cap", TopListCap)))
         {
             rows.Add(new DayCount((string)row[0]!, AsLong(row[1])));
         }
@@ -705,7 +704,7 @@ internal static class DashboardComputer
     {
         HashSet<string> registeredIds = [.. registry.Sources.Select(source => source.Id)];
         HashSet<string> touchedSessions = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT DISTINCT session, subject, kbroot
             FROM events_preferred
             WHERE session IS NOT NULL AND (subject IS NOT NULL OR kbroot IS NOT NULL)
@@ -729,7 +728,7 @@ internal static class DashboardComputer
     private static List<RecentSessionRow> RecentSessions(DuckDBConnection connection, HashSet<string> touchedSessions)
     {
         Dictionary<string, long[]> countsBySession = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, type, count(*)
             FROM events_preferred
             WHERE session IS NOT NULL
@@ -754,13 +753,13 @@ internal static class DashboardComputer
         }
 
         List<RecentSessionRow> rows = [];
-        foreach (object?[] row in Query(connection, $"""
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, agent, coalesce(repo, '(unknown)') AS repo, started_at,
                    coalesce(input_tokens, 0), coalesce(cache_read_tokens, 0)
             FROM sessions
             ORDER BY started_at DESC
-            LIMIT {RecentSessionCap}
-            """))
+            LIMIT $cap
+            """, ("cap", RecentSessionCap)))
         {
             string session = (string)row[0]!;
             DateTime started = (DateTime)row[3]!;
@@ -778,7 +777,7 @@ internal static class DashboardComputer
     private static List<JobHealthTile> JobHealth(DuckDBConnection connection, DateTimeOffset now)
     {
         List<JobHealthTile> tiles = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT machine, agent, subject, max(time)
             FROM events
             WHERE type = 'job.completed' AND subject IS NOT NULL
@@ -800,7 +799,7 @@ internal static class DashboardComputer
     private static List<LastSeenTile> LastSeen(DuckDBConnection connection, DateTimeOffset now)
     {
         List<LastSeenTile> tiles = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT machine, agent, max(time)
             FROM events
             GROUP BY machine, agent
@@ -823,7 +822,7 @@ internal static class DashboardComputer
     /// </summary>
     private static ServiceSessionsSummary ServiceSessions(DuckDBConnection connection, DateTimeOffset now)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT count(DISTINCT session),
                    coalesce(string_agg(DISTINCT json_extract_string(data, '$.raw.agent_mode'), ', '), '')
             FROM events_preferred
@@ -840,7 +839,7 @@ internal static class DashboardComputer
     private static List<FailedSearchRow> FailedSearches(DuckDBConnection connection)
     {
         List<FailedSearchRow> rows = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    count(*) AS searches,
                    count(*) FILTER (WHERE TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) = 0) AS zero_hits
@@ -861,7 +860,7 @@ internal static class DashboardComputer
     private static List<TokensRow> Tokens(DuckDBConnection connection)
     {
         List<TokensRow> rows = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT strftime(date_trunc('day', started_at), '%Y-%m-%d') AS day,
                    coalesce(sum(input_tokens), 0),
                    coalesce(sum(cache_read_tokens), 0)
@@ -881,7 +880,7 @@ internal static class DashboardComputer
         Dictionary<string, KnowledgeSource> sourcesById = registry.Sources.ToDictionary(source => source.Id, StringComparer.Ordinal);
 
         Dictionary<(string Source, string Theme), long> reads = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT subject, count(*)
             FROM practice_events
             WHERE type IN ('knowledge.read', 'context.loaded')
@@ -924,11 +923,10 @@ internal static class DashboardComputer
         return separator < 0 ? string.Empty : relative[..separator];
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "All SQL is a constant authored in this file; values are bound via DuckDBParameter, never concatenated.")]
-    private static IEnumerable<object?[]> Query(DuckDBConnection connection, string sql, params (string Name, object Value)[] parameters)
+    private static IEnumerable<object?[]> Query(DuckDBConnection connection, Action<DuckDBCommand> setCommandText, params (string Name, object Value)[] parameters)
     {
         using DuckDBCommand command = connection.CreateCommand();
-        command.CommandText = sql;
+        setCommandText(command);
         foreach ((string name, object value) in parameters)
         {
             _ = command.Parameters.Add(new DuckDBParameter(name, value));

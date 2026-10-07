@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DuckDB.NET.Data;
 using Kbo.Bronze;
 using Kbo.Jobs;
@@ -76,7 +75,6 @@ internal static class AuditComputer
             QueryUnregisteredSources(silverPath, registry));
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "SQL is the IdQuery from the operator's trusted knowledge registry; no user input is concatenated.")]
     private static List<(string Id, DateTime Modified)> EnumerateDatabaseSessions(SqliteSessionSource source)
     {
         List<(string, DateTime)> sessions = [];
@@ -88,7 +86,7 @@ internal static class AuditComputer
         using Microsoft.Data.Sqlite.SqliteConnection connection = new($"Data Source={source.DatabasePath};Mode=ReadOnly;Pooling=false");
         connection.Open();
         using Microsoft.Data.Sqlite.SqliteCommand command = connection.CreateCommand();
-        command.CommandText = source.IdQuery;
+        source.SetIdQuery(command);
         using Microsoft.Data.Sqlite.SqliteDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
@@ -97,7 +95,6 @@ internal static class AuditComputer
         return sessions;
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Constant query; the only interpolation is the const UnregisteredSourceCap, no external input.")]
     private static List<UnregisteredSourceFinding> QueryUnregisteredSources(string silverPath, KnowledgeRegistry registry)
     {
         List<UnregisteredSourceFinding> findings = [];
@@ -108,7 +105,7 @@ internal static class AuditComputer
 
         using DuckDBConnection connection = SilverConnection.OpenReadOnly(silverPath);
         using DuckDBCommand command = connection.CreateCommand();
-        command.CommandText = $"""
+        command.CommandText = """
             SELECT regexp_replace(subject, '/[^/]+$', '') AS directory, count(*) AS reads
             FROM events_preferred
             WHERE type = 'knowledge.read'
@@ -116,8 +113,9 @@ internal static class AuditComputer
               AND subject LIKE '%.md'
             GROUP BY directory
             ORDER BY reads DESC, directory
-            LIMIT {UnregisteredSourceCap}
+            LIMIT $cap
             """;
+        _ = command.Parameters.Add(new DuckDBParameter("cap", UnregisteredSourceCap));
         using DuckDBDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {

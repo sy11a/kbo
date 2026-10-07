@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Kbo.Schemas;
@@ -51,7 +51,6 @@ internal sealed class BronzeStore
     // No cross-process signal exists to wait on for the lock file, hence bounded
     // sleep-backoff; exhaustion surfaces as IOException and the capture fail-safe
     // records the drop (ADR-0029, ADR-0030).
-    [SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Backoff jitter is contention-spreading, not a security primitive.")]
     internal static void RetryTransientIO(Action appendAction)
     {
         const int maxAttempts = 10;
@@ -66,7 +65,7 @@ internal sealed class BronzeStore
             {
                 // Jittered backoff: contending appenders sleeping a fixed interval
                 // would wake and collide in lockstep until the budget is exhausted.
-                Thread.Sleep(Random.Shared.Next(5, 20 * attempt));
+                Thread.Sleep(RandomNumberGenerator.GetInt32(5, 20 * attempt));
             }
         }
     }

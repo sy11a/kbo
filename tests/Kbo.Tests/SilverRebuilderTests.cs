@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Nodes;
 using DuckDB.NET.Data;
 using Kbo.Bronze;
@@ -82,11 +81,10 @@ public sealed class SilverRebuilderTests : IDisposable
         return connection;
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Test fixture SQL written in this file.")]
-    private static long Scalar(DuckDBConnection connection, string sql)
+    private static long Scalar(DuckDBConnection connection, Action<DuckDBCommand> setCommandText)
     {
         using DuckDBCommand command = connection.CreateCommand();
-        command.CommandText = sql;
+        setCommandText(command);
         object? value = command.ExecuteScalar();
         if (value is System.Numerics.BigInteger bigInteger)
         {
@@ -102,10 +100,10 @@ public sealed class SilverRebuilderTests : IDisposable
         _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
-        Assert.Equal(8, Scalar(connection, "SELECT count(*) FROM events"));
-        Assert.Equal(2, Scalar(connection, "SELECT count(*) FROM events WHERE kbroot = 'vault' AND type = 'knowledge.read'"));
-        Assert.Equal(5, Scalar(connection, "SELECT count(*) FROM events WHERE origin = 'hook'"));
-        Assert.Equal(2, Scalar(connection, "SELECT count(DISTINCT transcript) FROM events WHERE transcript IS NOT NULL"));
+        Assert.Equal(8, Scalar(connection, static command => command.CommandText = "SELECT count(*) FROM events"));
+        Assert.Equal(2, Scalar(connection, static command => command.CommandText = "SELECT count(*) FROM events WHERE kbroot = 'vault' AND type = 'knowledge.read'"));
+        Assert.Equal(5, Scalar(connection, static command => command.CommandText = "SELECT count(*) FROM events WHERE origin = 'hook'"));
+        Assert.Equal(2, Scalar(connection, static command => command.CommandText = "SELECT count(DISTINCT transcript) FROM events WHERE transcript IS NOT NULL"));
     }
 
     [Fact]
@@ -116,13 +114,13 @@ public sealed class SilverRebuilderTests : IDisposable
 
         using DuckDBConnection connection = Open();
         Assert.Equal(0, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'hook' AND type <> 'context.loaded'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'hook' AND type <> 'context.loaded'"));
         Assert.Equal(1, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND type = 'context.loaded'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND type = 'context.loaded'"));
         Assert.Equal(2, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE session = 'sess-hook-only'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE session = 'sess-hook-only'"));
         Assert.Equal(3, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'harvest'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'harvest'"));
     }
 
     [Fact]
@@ -138,9 +136,9 @@ public sealed class SilverRebuilderTests : IDisposable
 
         using DuckDBConnection connection = Open();
         Assert.Equal(1, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE subject = '/kb/tail.md' AND origin = 'hook'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE subject = '/kb/tail.md' AND origin = 'hook'"));
         Assert.Equal(0, Scalar(connection,
-            "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'hook' AND type = 'knowledge.read' AND time <= TIMESTAMP '2026-07-01 11:00:00'"));
+            static command => command.CommandText = "SELECT count(*) FROM events_preferred WHERE session = 'sess-mixed' AND origin = 'hook' AND type = 'knowledge.read' AND time <= TIMESTAMP '2026-07-01 11:00:00'"));
     }
 
     [Fact]
@@ -150,10 +148,10 @@ public sealed class SilverRebuilderTests : IDisposable
         _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
         using DuckDBConnection connection = Open();
-        Assert.Equal(2, Scalar(connection, "SELECT count(*) FROM sessions"));
-        Assert.Equal(150, Scalar(connection, "SELECT input_tokens FROM sessions WHERE session = 'sess-mixed'"));
-        Assert.Equal(1500, Scalar(connection, "SELECT cache_read_tokens FROM sessions WHERE session = 'sess-mixed'"));
-        Assert.Equal(2, Scalar(connection, "SELECT transcript_count FROM sessions WHERE session = 'sess-mixed'"));
+        Assert.Equal(2, Scalar(connection, static command => command.CommandText = "SELECT count(*) FROM sessions"));
+        Assert.Equal(150, Scalar(connection, static command => command.CommandText = "SELECT input_tokens FROM sessions WHERE session = 'sess-mixed'"));
+        Assert.Equal(1500, Scalar(connection, static command => command.CommandText = "SELECT cache_read_tokens FROM sessions WHERE session = 'sess-mixed'"));
+        Assert.Equal(2, Scalar(connection, static command => command.CommandText = "SELECT transcript_count FROM sessions WHERE session = 'sess-mixed'"));
 
         using DuckDBCommand command = connection.CreateCommand();
         command.CommandText = "SELECT model, strftime(started_at, '%Y-%m-%dT%H:%M:%SZ') FROM sessions WHERE session = 'sess-mixed'";
@@ -204,7 +202,7 @@ public sealed class SilverRebuilderTests : IDisposable
         });
         _ = SilverRebuilder.Rebuild(_eventsRepo, _silverPath);
 
-        Assert.Equal(8, Scalar(reader, "SELECT count(*) FROM events"));
+        Assert.Equal(8, Scalar(reader, static command => command.CommandText = "SELECT count(*) FROM events"));
 
         // DuckDB.NET caches native database handles per-process by data-source
         // path (ConnectionManager.ConnectionCache); while `reader` is open, any
@@ -214,7 +212,7 @@ public sealed class SilverRebuilderTests : IDisposable
         // genuinely reopens from disk and observes the new file.
         reader.Dispose();
         using DuckDBConnection fresh = Open();
-        Assert.Equal(9, Scalar(fresh, "SELECT count(*) FROM events"));
+        Assert.Equal(9, Scalar(fresh, static command => command.CommandText = "SELECT count(*) FROM events"));
     }
 
     [Fact]

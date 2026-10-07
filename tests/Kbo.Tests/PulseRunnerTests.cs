@@ -47,7 +47,7 @@ public sealed class PulseRunnerTests : IDisposable
         Directory.Delete(_workspace, recursive: true);
     }
 
-    private int RunPulse(params IPulseJob[] jobs) => PulseRunner.Run(jobs, _eventsRepo, "test-machine", new FixedTimeProvider(_now), new Random(42), _output);
+    private int RunPulse(params IPulseJob[] jobs) => PulseRunner.Run(jobs, _eventsRepo, "test-machine", new FixedTimeProvider(_now), CryptographicUlidEntropy.Instance, _output);
 
     private List<JsonObject> BronzeEvents()
     {
@@ -112,7 +112,7 @@ public sealed class PulseRunnerTests : IDisposable
                 "job.completed", "harvest", kbroot: null,
                 new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddHours(-3), new Random(1)),
+                _now.AddHours(-3), CryptographicUlidEntropy.Instance),
         });
         FakeJob harvest = new("harvest", JobCadence.Daily);
 
@@ -131,7 +131,7 @@ public sealed class PulseRunnerTests : IDisposable
                 "job.completed", "harvest", kbroot: null,
                 new JsonObject { ["job"] = "harvest", ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddHours(-20), new Random(1)),
+                _now.AddHours(-20), CryptographicUlidEntropy.Instance),
         });
         FakeJob harvest = new("harvest", JobCadence.Daily);
 
@@ -149,7 +149,7 @@ public sealed class PulseRunnerTests : IDisposable
                 "job.failed", "backup", kbroot: null,
                 new JsonObject { ["job"] = "backup", ["duration_ms"] = null, ["error"] = "locked" },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddHours(-1), new Random(1)),
+                _now.AddHours(-1), CryptographicUlidEntropy.Instance),
         });
         FakeJob backup = new("backup", JobCadence.Daily);
 
@@ -167,7 +167,7 @@ public sealed class PulseRunnerTests : IDisposable
                 "job.completed", "report", kbroot: null,
                 new JsonObject { ["job"] = "report", ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddDays(-2), new Random(1)),
+                _now.AddDays(-2), CryptographicUlidEntropy.Instance),
         });
         FakeJob report = new("report", JobCadence.Weekly);
 
@@ -186,7 +186,7 @@ public sealed class PulseRunnerTests : IDisposable
                 "job.completed", "report", kbroot: null,
                 new JsonObject { ["job"] = "report", ["duration_ms"] = 5 },
                 "test-machine", "kbo", session: null, repo: null, task: null, model: null,
-                _now.AddDays(-8), new Random(1)),
+                _now.AddDays(-8), CryptographicUlidEntropy.Instance),
         });
         FakeJob report = new("report", JobCadence.Weekly);
         FakeJob fresh = new("never-ran", JobCadence.Weekly);

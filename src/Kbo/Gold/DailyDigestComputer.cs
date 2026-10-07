@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using DuckDB.NET.Data;
@@ -51,7 +50,7 @@ internal static class DailyDigestComputer
         HashSet<string> touchedSessions,
         Dictionary<string, long[]> countsBySession)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, agent, coalesce(repo, '(unknown)') AS repo, started_at,
                    coalesce(input_tokens, 0), coalesce(cache_read_tokens, 0)
             FROM sessions
@@ -90,7 +89,7 @@ internal static class DailyDigestComputer
         KnowledgeRegistry registry,
         Dictionary<string, KnowledgeSource> sourcesById)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day, subject, count(*)
             FROM events_preferred
             WHERE type IN ('knowledge.read', 'context.loaded') AND subject IS NOT NULL AND time >= $cutoff
@@ -115,7 +114,7 @@ internal static class DailyDigestComputer
         DateTime cutoff,
         SortedDictionary<string, DayBuilder> days)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    subject,
                    TRY_CAST(json_extract_string(data, '$.hits') AS BIGINT) AS hits
@@ -145,7 +144,7 @@ internal static class DailyDigestComputer
         DateTime cutoff,
         SortedDictionary<string, DayBuilder> days)
     {
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT strftime(date_trunc('day', time), '%Y-%m-%d') AS day,
                    json_extract_string(data, '$.skill') AS skill, count(*)
             FROM events_preferred
@@ -170,7 +169,7 @@ internal static class DailyDigestComputer
     private static Dictionary<string, long[]> SessionEventCounts(DuckDBConnection connection, DateTime cutoff)
     {
         Dictionary<string, long[]> counts = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT session, type, count(*)
             FROM events_preferred
             WHERE session IS NOT NULL AND time >= $cutoff
@@ -199,7 +198,7 @@ internal static class DailyDigestComputer
     private static HashSet<string> TouchedSessions(DuckDBConnection connection, KnowledgeRegistry registry, HashSet<string> registeredIds)
     {
         HashSet<string> touched = [];
-        foreach (object?[] row in Query(connection, """
+        foreach (object?[] row in Query(connection, static command => command.CommandText = """
             SELECT DISTINCT session, subject, kbroot
             FROM events_preferred
             WHERE session IS NOT NULL AND (subject IS NOT NULL OR kbroot IS NOT NULL)
@@ -267,11 +266,10 @@ internal static class DailyDigestComputer
         }
     }
 
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "All SQL is a constant authored in this file; values are bound via DuckDBParameter, never concatenated.")]
-    private static IEnumerable<object?[]> Query(DuckDBConnection connection, string sql, params (string Name, object Value)[] parameters)
+    private static IEnumerable<object?[]> Query(DuckDBConnection connection, Action<DuckDBCommand> setCommandText, params (string Name, object Value)[] parameters)
     {
         using DuckDBCommand command = connection.CreateCommand();
-        command.CommandText = sql;
+        setCommandText(command);
         foreach ((string name, object value) in parameters)
         {
             _ = command.Parameters.Add(new DuckDBParameter(name, value));

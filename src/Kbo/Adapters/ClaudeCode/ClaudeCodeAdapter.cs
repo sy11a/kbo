@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using Kbo.Bronze;
 using Kbo.Gold;
 using Kbo.Registry;
 using Kbo.Schemas;
@@ -12,7 +13,7 @@ internal static class ClaudeCodeAdapter
     public const string AgentName = "claude-code";
     private const long HashSizeCapBytes = 5 * 1024 * 1024;
 
-    public static JsonObject? MapPostToolUse(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    public static JsonObject? MapPostToolUse(JsonObject payload, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? toolName = (string?)payload[HookPayload.ToolName];
         if (toolName is null || payload[HookPayload.ToolInput] is not JsonObject toolInput)
@@ -24,14 +25,14 @@ internal static class ClaudeCodeAdapter
         GitContext git = GitContext.Discover(cwd, registry.TaskPattern);
         return toolName switch
         {
-            HookPayload.Tools.Read => MapReadTool(payload, toolInput, cwd, git, registry, clock, random),
-            HookPayload.Tools.Grep or HookPayload.Tools.Glob => MapSearchTool(payload, toolInput, cwd, git, registry, clock, random),
-            HookPayload.Tools.Write or HookPayload.Tools.Edit or HookPayload.Tools.NotebookEdit => MapWriteTool(payload, toolInput, cwd, git, registry, clock, random),
+            HookPayload.Tools.Read => MapReadTool(payload, toolInput, cwd, git, registry, clock, entropy),
+            HookPayload.Tools.Grep or HookPayload.Tools.Glob => MapSearchTool(payload, toolInput, cwd, git, registry, clock, entropy),
+            HookPayload.Tools.Write or HookPayload.Tools.Edit or HookPayload.Tools.NotebookEdit => MapWriteTool(payload, toolInput, cwd, git, registry, clock, entropy),
             _ => null,
         };
     }
 
-    private static JsonObject? MapReadTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapReadTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? filePath = AbsolutePath((string?)toolInput[HookPayload.FilePath], cwd);
         if (filePath is null)
@@ -42,10 +43,10 @@ internal static class ClaudeCodeAdapter
         JsonObject data = new() { [EventDataFields.Path] = filePath };
         AddContentHash(data, filePath, kbroot);
         data[EventDataFields.Raw] = RawPayload(payload);
-        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, random);
+        return Envelope(EventTypes.KnowledgeRead, filePath, kbroot, data, payload, git, registry, clock, entropy);
     }
 
-    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapSearchTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? pattern = (string?)toolInput[HookPayload.Pattern];
         if (pattern is null)
@@ -61,10 +62,10 @@ internal static class ClaudeCodeAdapter
             [EventDataFields.Hits] = BestEffortHits(payload[HookPayload.ToolResponse]),
             [EventDataFields.Raw] = RawPayload(payload),
         };
-        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, random);
+        return Envelope(EventTypes.KnowledgeSearched, pattern, kbroot, data, payload, git, registry, clock, entropy);
     }
 
-    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, Random random)
+    private static JsonObject? MapWriteTool(JsonObject payload, JsonObject toolInput, string? cwd, GitContext git, KnowledgeRegistry registry, TimeProvider clock, IUlidEntropy entropy)
     {
         string? filePath = AbsolutePath(
             (string?)toolInput[HookPayload.FilePath] ?? (string?)toolInput[HookPayload.NotebookPath], cwd);
@@ -82,14 +83,14 @@ internal static class ClaudeCodeAdapter
             StripWrittenContent(rawToolInput);
         }
         data[EventDataFields.Raw] = raw;
-        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, random, EventTypes.KnowledgeWrittenV2);
+        return Envelope(EventTypes.KnowledgeWritten, filePath, kbroot, data, payload, git, registry, clock, entropy, EventTypes.KnowledgeWrittenV2);
     }
 
     public static List<JsonObject> MapSessionStart(
         JsonObject payload,
         KnowledgeRegistry registry,
         TimeProvider clock,
-        Random random,
+        IUlidEntropy entropy,
         string homeDirectory)
     {
         List<JsonObject> events = [];
@@ -103,7 +104,7 @@ internal static class ClaudeCodeAdapter
             [EventDataFields.Raw] = RawPayload(payload),
         };
         events.Add(Envelope(
-            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], kbroot: null, sessionData, payload, git, registry, clock, random));
+            EventTypes.SessionStarted, (string?)payload[HookPayload.SessionId], kbroot: null, sessionData, payload, git, registry, clock, entropy));
 
         foreach ((string path, string kind) in ImplicitContextFiles(cwd, homeDirectory))
         {
@@ -113,7 +114,7 @@ internal static class ClaudeCodeAdapter
             JsonObject raw = RawPayload(payload);
             raw[EventDataFields.Kind] = kind;
             data[EventDataFields.Raw] = raw;
-            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, git, registry, clock, random));
+            events.Add(Envelope(EventTypes.ContextLoaded, path, kbroot, data, payload, git, registry, clock, entropy));
         }
 
         return events;
@@ -256,7 +257,7 @@ internal static class ClaudeCodeAdapter
         GitContext git,
         KnowledgeRegistry registry,
         TimeProvider clock,
-        Random random,
+        IUlidEntropy entropy,
         string? schemaRef = null)
     {
         data[EventDataFields.Origin] = EventDataFields.OriginHook;
@@ -273,7 +274,7 @@ internal static class ClaudeCodeAdapter
             task: git.Task,
             model: null,
             time: clock.GetUtcNow(),
-            random: random,
+            entropy: entropy,
             schemaRef: schemaRef);
     }
 }
