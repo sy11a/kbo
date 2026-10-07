@@ -160,7 +160,7 @@ Add the new test:
 [Fact]
 public void Mine_EmitsSkillInvoked_FromSkillTool_SkippingNamelessOnes()
 {
-    List<JsonObject> events = OpencodeMiner.Mine(databasePath, new[] { "ses_a" }, registry, new Random(42));
+    List<JsonObject> events = OpencodeMiner.Mine(databasePath, new[] { "ses_a" }, registry, CryptographicUlidEntropy.Instance);
 
     JsonObject skill = events.Single(e => (string?)e["type"] == "skill.invoked");
     Assert.Equal("grilling", (string?)skill["subject"]);
@@ -403,7 +403,7 @@ List<JsonObject> FilterForBackfill(List<JsonObject> mined) =>
 Claude Code branch — replace the inline filter block:
 
 ```csharp
-List<JsonObject> mined = TranscriptMiner.Mine(File.ReadLines(transcriptPath), transcriptId, registry, Random.Shared);
+List<JsonObject> mined = TranscriptMiner.Mine(File.ReadLines(transcriptPath), transcriptId, registry, CryptographicUlidEntropy.Instance);
 AppendValidated(transcriptPath, FilterForBackfill(mined));
 ```
 
@@ -414,7 +414,7 @@ opencode branch — filter the same way:
 ```csharp
 foreach (string sessionId in pendingSessions)
 {
-    AppendValidated(sessionId, FilterForBackfill(OpencodeMiner.Mine(databasePath, new[] { sessionId }, registry, Random.Shared)));
+    AppendValidated(sessionId, FilterForBackfill(OpencodeMiner.Mine(databasePath, new[] { sessionId }, registry, CryptographicUlidEntropy.Instance)));
 }
 ```
 
