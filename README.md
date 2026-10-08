@@ -31,6 +31,12 @@ tagged as knowledge while a read of `src/Program.cs` is not.
 
 ## Install
 
+The build references the `Sy11a.Analyzers` policy package, which `nuget.config` restores from the private GitHub
+Packages feed `https://nuget.pkg.github.com/sy11a/index.json`. Restoring it needs a classic personal access token
+with `read:packages`, stored as credentials for the source key `github` in your user NuGet config (not in the
+repository), for example with `NuGetPackageSourceCredentials_github="Username=<you>;Password=<token>"`. CI uses
+`GITHUB_TOKEN` instead.
+
 ```bash
 dotnet build
 dotnet test
