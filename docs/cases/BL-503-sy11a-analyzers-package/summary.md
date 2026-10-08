@@ -25,6 +25,9 @@ policy: 0 findings today, any new finding fails the build.
   for both projects (the package applies its test-project config to `tests/Kbo.Tests` itself).
 - `ci.yml`: `permissions: contents: read, packages: read`; a step passes `GITHUB_TOKEN` as the `github` source's
   password. The package grants `sy11a/kbo` Read under "Manage Actions access".
+- `global.json` (new) pins the SDK to 10.0.106 (`latestPatch`), and CI's `setup-dotnet` reads it. Unpinned, CI took
+  SDK 10.0.401, whose code-style analyzers add rules the policy was not audited against: IDE0370 failed the first CI
+  run on an unnecessary `!` in `RegistryParseTests` (removed as well; the 10.0.106 SDK lacks the rule).
 - Locally a classic PAT with `read:packages` is stored for the source key `github` in the user NuGet config
   (README, Install).
 - kbo is public and the package private (operator, 2026-10-08: accepted): a fork cannot restore the package.
@@ -35,6 +38,7 @@ policy: 0 findings today, any new finding fails the build.
   `dotnet build` 0 warnings, 0 errors; `dotnet test` 341/341.
 - The policy is active: a throwaway file with a catch-all and a public type failed the build with CA1031, CA1515,
   CA1822, RCS1075 and IDE0055 as errors (removed again).
-- MiniMax wrote the three build files, Opus reviewed them.
+- CI on the PR: restore from GitHub Packages, build, 341/341.
+- MiniMax wrote the build files, a Claude worker the test fix, Opus reviewed both.
 
 ✅ Converged 2026-10-08.
