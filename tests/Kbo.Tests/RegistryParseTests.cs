@@ -73,7 +73,7 @@ public class RegistryParseTests
             "machine: m\ntaskPattern: 'JIRA-\\d+'\nsources:\n  - {id: k, layer: global, root: /kb}");
 
         Assert.NotNull(registry.TaskPattern);
-        Assert.Equal("JIRA-42", registry.TaskPattern!.Match("feature/JIRA-42-report").Value);
+        Assert.Equal("JIRA-42", registry.TaskPattern.Match("feature/JIRA-42-report").Value);
     }
 
     [Fact]
