@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <!-- The Sy11a.Analyzers policy (BL-503): pinned exactly; restored from the "github" source in nuget.config. -->
-    <PackageReference Include="Sy11a.Analyzers" Version="[0.5.0]" PrivateAssets="all" />
+    <PackageReference Include="Sy11a.Analyzers" Version="[0.6.0]" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
