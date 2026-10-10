@@ -19,4 +19,4 @@ One line per top-level directory. Keep this table in sync with the actual tree (
 | `registry/` | Sanitized example of the per-machine knowledge registry; the real one is a machine-local overlay at `~/.config/kbo/registry.yaml` (ADR-0005) |
 | `schemas/` | Event schema registry: one JSON Schema per type version + `golden/` corpus; embedded into the `kbo` binary at build |
 | `src/` | Production code — the `Kbo` project builds the `kbo` CLI |
-| `tests/` | Test projects — `Kbo.Tests` (xunit) |
+| `tests/` | Test projects — `Kbo.Tests` (xUnit v3 on Microsoft.Testing.Platform) |

@@ -43,7 +43,7 @@ public class GoldenCorpusTests
         HashSet<string> coveredRefs =
         [
             .. GoldenEvents()
-                .Select(row => Path.GetFileNameWithoutExtension((string)row[0]))
+                .Select(row => Path.GetFileNameWithoutExtension(row.Data.Item1))
                 .Select(name => name[..name.LastIndexOf('.')] + "/" + name[(name.LastIndexOf('.') + 1)..]),
         ];
 
