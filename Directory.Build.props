@@ -5,8 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The Sy11a.Analyzers policy (BL-503): pinned exactly; restored from the "github" source in nuget.config. -->
-    <PackageReference Include="Sy11a.Analyzers" Version="[0.8.0]" PrivateAssets="all" />
+    <!-- The Sy11a.Analyzers policy (BL-503): version pinned exactly in Directory.Packages.props; restored from the "github" source in nuget.config. -->
+    <PackageReference Include="Sy11a.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
