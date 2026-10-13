@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Kbo.Adapters.ClaudeCode;
 using Kbo.Adapters.Opencode;
+using Kbo.Configuration;
 using Kbo.Gold;
 using Kbo.Registry;
 

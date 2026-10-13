@@ -1,4 +1,5 @@
 using System.Globalization;
+using Kbo.Configuration;
 using Kbo.Silver;
 
 namespace Kbo.Cli;

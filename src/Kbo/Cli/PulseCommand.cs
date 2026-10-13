@@ -1,6 +1,7 @@
 using Kbo.Adapters.ClaudeCode;
 using Kbo.Adapters.Opencode;
 using Kbo.Bronze;
+using Kbo.Configuration;
 using Kbo.Jobs;
 using Kbo.Registry;
 

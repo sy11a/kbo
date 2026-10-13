@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
-using Kbo.Bronze;
+using Kbo.Schemas;
 
-namespace Kbo.Schemas;
+namespace Kbo.Bronze;
 
 /// <summary>
 /// The single constructor for envelope events (ADR-0001) — live capture and

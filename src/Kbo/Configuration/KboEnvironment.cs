@@ -1,4 +1,4 @@
-namespace Kbo;
+namespace Kbo.Configuration;
 
 /// <summary>
 /// Environment variables and default locations shared across kbo commands
