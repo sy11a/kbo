@@ -8,25 +8,24 @@ internal static class Program
     private static async Task<int> Main(string[] args)
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return await CommandDispatcher.RunAsync(args, Commands(home), Console.Error).ConfigureAwait(false);
+    }
 
-        switch (args)
-        {
-            case ["registry", ..]: return RunRegistry(args[1..], home);
-            case ["capture", ..]: return RunCapture(args[1..], home);
-            case ["harvest", ..]: return RunHarvest(args[1..], home);
-            case ["rebuild", ..]: return RunRebuild(args[1..], home);
-            case ["report", ..]: return RunReport(args[1..], home);
-            case ["audit", ..]: return RunAudit(args[1..], home);
-            case ["pulse", ..]: return RunPulse(args[1..], home);
-            case ["init", ..]: return RunInit(args[1..], home);
-            case ["doctor", ..]: return RunDoctor(args[1..], home);
-            case ["watch", ..]: return await RunWatchAsync(args[1..], home).ConfigureAwait(false);
-            default:
-                {
-                    await Console.Error.WriteLineAsync("usage: kbo <registry | capture | harvest | rebuild | report | audit | pulse | init | doctor | watch> ...").ConfigureAwait(false);
-                    return 1;
-                }
-        }
+    private static IReadOnlyList<KeyValuePair<string, Func<string[], Task<int>>>> Commands(string home)
+    {
+        return
+        [
+            new("registry", args => Task.FromResult(RunRegistry(args, home))),
+            new("capture", args => Task.FromResult(RunCapture(args, home))),
+            new("harvest", args => Task.FromResult(RunHarvest(args, home))),
+            new("rebuild", args => Task.FromResult(RunRebuild(args, home))),
+            new("report", args => Task.FromResult(RunReport(args, home))),
+            new("audit", args => Task.FromResult(RunAudit(args, home))),
+            new("pulse", args => Task.FromResult(RunPulse(args, home))),
+            new("init", args => Task.FromResult(RunInit(args, home))),
+            new("doctor", args => Task.FromResult(RunDoctor(args, home))),
+            new("watch", async args => await RunWatchAsync(args, home).ConfigureAwait(false)),
+        ];
     }
 
     private static int RunRegistry(string[] args, string home) =>
