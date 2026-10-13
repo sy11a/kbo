@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Kbo.Configuration;
 using Kbo.Gold;
 using Kbo.Registry;
 

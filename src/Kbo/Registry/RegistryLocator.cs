@@ -1,3 +1,5 @@
+using Kbo.Configuration;
+
 namespace Kbo.Registry;
 
 internal static class RegistryLocator

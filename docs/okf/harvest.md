@@ -35,7 +35,7 @@ When a new event type is added after transcripts were already harvested (e.g. `s
 ## Implementation
 
 - `src/Kbo/Adapters/ClaudeCode/TranscriptMiner.cs` — one transcript → events
-- `src/Kbo/Schemas/EventEnvelope.cs` — shared envelope builder (hook + miner emit through one door)
+- `src/Kbo/Bronze/EventEnvelope.cs` — shared envelope builder (hook + miner emit through one door)
 - `src/Kbo/Bronze/BronzeStore.cs` — harvested-session scan
 - `src/Kbo/Cli/HarvestCommand.cs` — `kbo harvest claude-code [--transcripts <dir>]`
 

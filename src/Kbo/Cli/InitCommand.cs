@@ -1,3 +1,4 @@
+using Kbo.Configuration;
 using Kbo.Jobs;
 using Kbo.Registry;
 

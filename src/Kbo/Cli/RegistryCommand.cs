@@ -1,3 +1,4 @@
+using Kbo.Configuration;
 using Kbo.Registry;
 
 namespace Kbo.Cli;
