@@ -1,0 +1,100 @@
+# The architecture of kb-observability (sy11a_analyzers case 0003). Drafted by `sy11a-arch init` 0.13.1, then
+# structured. kbo captures agent knowledge-usage events into bronze, derives silver, computes gold once and renders
+# it. Layered from the bottom up:
+#   Schemas, Configuration (contracts and settings) < Bronze, Registry (the event store, the typed registry)
+#   < Silver, Jobs (the derived DuckDB layer, scheduled jobs and retention) < Gold (computed facts and renderers)
+#   < AdapterShared < the agent adapters (ClaudeCode, Opencode) < Cli (the commands) < Entry (Program, the
+#   composition root).
+# Two edges are recorded as debt: an adapter reaching into a sibling adapter, and the capture-side adapters using
+# the gold classifier ContentKind.
+version: 1
+style: medallion-pipeline-cli
+layers:
+  # Contracts and settings
+  Schemas:
+    namespaces: ["Kbo.Schemas"]
+  Configuration:
+    namespaces: ["Kbo.Configuration"]
+  # The append-only event store and the typed registry
+  Bronze:
+    namespaces: ["Kbo.Bronze"]
+  Registry:
+    namespaces: ["Kbo.Registry"]
+  # The derived layer and the job scheduler
+  Silver:
+    namespaces: ["Kbo.Silver"]
+  Jobs:
+    namespaces: ["Kbo.Jobs"]
+  # Facts computed exactly once, and their renderers
+  Gold:
+    namespaces: ["Kbo.Gold"]
+  # Capture: the agent adapters
+  AdapterShared:
+    namespaces: ["Kbo.Adapters"]
+  ClaudeCodeAdapter:
+    namespaces: ["Kbo.Adapters.ClaudeCode"]
+  OpencodeAdapter:
+    namespaces: ["Kbo.Adapters.Opencode"]
+  # The commands and the entry point
+  Cli:
+    namespaces: ["Kbo.Cli"]
+  Entry:
+    namespaces: ["Kbo"]
+  # Assembly attributes
+  Global:
+    namespaces: ["<global>"]
+rules:
+  - from: Schemas
+    to: ["@dotnet-host", "N:Json.Schema"]
+    principle: contracts
+  - from: Configuration
+    to: ["@dotnet-host"]
+    principle: contracts
+  - from: Bronze
+    to: ["@dotnet-host", Schemas]
+    principle: event-store
+  - from: Registry
+    to: ["@dotnet-host", "N:YamlDotNet.Core", "N:YamlDotNet.Serialization", "N:YamlDotNet.Serialization.NamingConventions", Configuration]
+    principle: typed-registry
+  - from: Silver
+    to: ["@dotnet-host", "N:DuckDB.NET.Data", Schemas]
+    principle: derived-from-bronze
+  - from: Jobs
+    to: ["@dotnet-host", "N:Microsoft.Data.Sqlite", Schemas, Bronze, Registry]
+    principle: scheduled-jobs
+  - from: Gold
+    to: ["@dotnet-host", "N:DuckDB.NET.Data", "N:Microsoft.Data.Sqlite", Schemas, Bronze, Registry, Silver, Jobs]
+    principle: computed-once
+  - from: AdapterShared
+    to: ["@dotnet-core"]
+    principle: adapter
+  - from: ClaudeCodeAdapter
+    to: ["@dotnet-host", Schemas, Bronze, Registry, Jobs, AdapterShared]
+    principle: adapter
+  - from: ClaudeCodeAdapter
+    to: [Gold]
+    principle: adapter
+    debt: true
+    reason: "ContentKind (Kbo.Gold) is used at capture time; ADR-0025 derives it at gold-compute time. The classifier belongs below the adapters."
+  - from: OpencodeAdapter
+    to: ["@dotnet-host", "N:Microsoft.Data.Sqlite", Schemas, Bronze, Registry, Jobs, AdapterShared]
+    principle: adapter
+  - from: OpencodeAdapter
+    to: [Gold]
+    principle: adapter
+    debt: true
+    reason: "ContentKind (Kbo.Gold) is used at capture time; ADR-0025 derives it at gold-compute time. The classifier belongs below the adapters."
+  - from: OpencodeAdapter
+    to: [ClaudeCodeAdapter]
+    principle: adapter
+    debt: true
+    reason: "Sibling adapter coupling: GitContext and ClaudeCodeAdapter.AbsolutePath are shared helpers that belong in Kbo.Adapters."
+  - from: Cli
+    to: ["@dotnet-host", Schemas, Configuration, Bronze, Registry, Silver, Jobs, Gold, ClaudeCodeAdapter, OpencodeAdapter]
+    principle: commands
+  - from: Entry
+    to: ["@dotnet-host", Jobs, Cli]
+    principle: composition-root
+  - from: Global
+    to: ["@dotnet-core"]
+    principle: assembly-attributes
