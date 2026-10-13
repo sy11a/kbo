@@ -57,7 +57,7 @@ internal static class CaptureCommand
     /// <summary>
     /// Last-chance handler for any exception type not covered by <see cref="Run"/>'s
     /// filter. Registered against <see cref="AppDomain.CurrentDomain"/> in
-    /// <see cref="Program.RunCapture"/> so even a throw from an unfiltered code
+    /// <c>Program.RunCapture</c> so even a throw from an unfiltered code
     /// path (or the BCL itself) still ends in a logged drop and exit 0
     /// (ADR-0029). The handler logs the drop and ends the process with
     /// exit code 0, so an exception type outside <see cref="Run"/>'s filter still
