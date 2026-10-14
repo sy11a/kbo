@@ -56,3 +56,4 @@ generated files.
 
 - Build: `dotnet build`
 - Test: `dotnet test`
+- Architecture: `dotnet tool run sy11a-arch check --affected kb-observability.slnx`
