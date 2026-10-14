@@ -16,6 +16,7 @@ that passed. Keep every gate in the table; put the reasoning around it.
 | build | `dotnet build` | the solution compiles |
 | test | `dotnet test` | the test suite is green |
 | arch | `dotnet tool run sy11a-arch check --affected kb-observability.slnx` | no unused or forbidden project references, no namespace cycles, no dead manifest names |
+| test-gate | `dotnet tool run sy11a-test check --affected --base origin/master kb-observability.slnx` | the affected xUnit v3 test projects build and pass under their tier's timeout, changed lines meet the coverage floor, and changed methods stay within the complexity and CRAP limits |
 
 Add a row per real gate as the repository gains one — build, test suite, an e2e
 run, a corpus check, a self-test. A row whose command contains a `|` breaks: bind
