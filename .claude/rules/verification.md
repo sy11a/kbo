@@ -15,6 +15,7 @@ that passed. Keep every gate in the table; put the reasoning around it.
 | sdd-lint | `legislator sdd-lint` | case, ADR, journal, changelog and OKF shape law |
 | build | `dotnet build` | the solution compiles |
 | test | `dotnet test` | the test suite is green |
+| arch | `dotnet tool run sy11a-arch check --affected kb-observability.slnx` | no unused or forbidden project references, no namespace cycles, no dead manifest names |
 
 Add a row per real gate as the repository gains one — build, test suite, an e2e
 run, a corpus check, a self-test. A row whose command contains a `|` breaks: bind
