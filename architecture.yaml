@@ -98,3 +98,7 @@ rules:
   - from: Global
     to: ["@dotnet-core"]
     principle: assembly-attributes
+metric_debt:
+  - project: "kbo"
+    symbol: "M:Kbo.Registry.KnowledgeRegistry.ParseConstitution(Kbo.Registry.KnowledgeRegistry.ConstitutionEntry,System.Collections.Generic.List{System.String})"
+    cyclomatic_complexity: 17
