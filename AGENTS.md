@@ -58,3 +58,24 @@ generated files.
 - Test: `dotnet test`
 - Architecture: `dotnet tool run sy11a-arch check --affected kb-observability.slnx`
 - Test gate: `dotnet tool run sy11a-test check --affected --base origin/master kb-observability.slnx`
+
+### Gate evidence for review
+
+The tool side of the dev-flow review evidence (dev-flow BL-522, ADR-0033), bound for this repository
+(sy11a/sy11a_analyzers#327). None of the three blocks a task by itself; review judges them.
+
+- **Deleted tests.** The test-gate row's report (`sy11a-test check --affected`) lists the test methods the
+  diff deleted or that lost `[Fact]`/`[Theory]`. That list goes into the review's gate tail. A deletion is
+  not an error.
+- **Mutation round.** After a green test gate, run
+  `dotnet tool run sy11a-test mutate --affected --base origin/master kb-observability.slnx`.
+  - The surviving mutants (file, line, original and replacement, mutator, covering tests) go to the
+    Claude-family test writer for one round: tests only, no production code.
+  - Then the test gate and `mutate --affected` run again over the same lines. What still survives is the
+    test-plan note's survivor record.
+  - Exit `2` means the round could not run. The note says so in one line and the task goes on.
+  - Exit `143` (a signal stopped it; sy11a.test 0.18.0 and later) is the same, except that the line says
+    "interrupted", and the survivors of the pairs that finished, in the JSON, still go into the record.
+- **Duplicate-detector evidence.** The duplicate gate is `sy11a-arch` SYA1201 (jscpd), part of the arch row.
+  Review records the clones it missed and the SYA1201 hits it judges false under "Duplicate-detector
+  evidence" in the review report.
