@@ -34,7 +34,7 @@ Map internal jargon to what it means in this codebase, so any session edits the 
 | ritual | Weekly owner review: health panel first, worklists, ≥1 data-driven KB fix, logged in the vault (`~/Knowledge/rituals/`) |
 | lens | A deferred analysis feature backfillable from archives (skills, web, reuse, misses) — added when a ritual wants it |
 | miss | Derived (never captured) signal that the agent dug for a fact the KB held or should hold; splits into *existed-not-found* vs *did-not-exist* |
-| golden corpus | Frozen sample events for every schema version ever shipped (`schemas/golden/`, synthetic only — G2-9); CI fails when any change breaks parsing/upcasting of one |
+| golden corpus | Frozen sample events for every schema version ever shipped (`schemas/golden/`, synthetic only — G2-9); the test suite fails when any change breaks parsing/upcasting of one |
 | schema registry | The `schemas/<type>/<version>.json` folder — one JSON Schema per event type version; the folder IS the registry, embedded into the `kbo` binary at build (ADR-0004) |
 | upcaster | Read-time lifter of old event versions to the current shape; breaking change = new version + upcaster |
 | theme | Dashboard grouping unit for knowledge usage: registered source id + first path segment under its root (`vault/rituals`); files directly in a root fall under the source id itself (ADR-0017) |

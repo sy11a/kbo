@@ -34,8 +34,7 @@ tagged as knowledge while a read of `src/Program.cs` is not.
 The build references the `Sy11a.Analyzers` policy package, which `nuget.config` restores from the private GitHub
 Packages feed `https://nuget.pkg.github.com/sy11a/index.json`. Restoring it needs a classic personal access token
 with `read:packages`, stored as credentials for the source key `github` in your user NuGet config (not in the
-repository), for example with `NuGetPackageSourceCredentials_github="Username=<you>;Password=<token>"`. CI uses
-`GITHUB_TOKEN` instead.
+repository), for example with `NuGetPackageSourceCredentials_github="Username=<you>;Password=<token>"`.
 
 ```bash
 dotnet build
@@ -105,7 +104,7 @@ alongside it.
 ## Design
 
 - **Principles**: bronze is immutable and sufficient; gold is computed once;
-  schema evolution is additive-only (golden corpus in CI); nothing
+  schema evolution is additive-only (golden corpus in the test gate); nothing
   agent/path-specific is hardcoded outside adapters and the registry.
 - **The NOT-list** (`docs/adr/0003-*`): no custom storage engine, web server,
   resident daemon, OTel collector, or real-time anything — deliberately a batch,

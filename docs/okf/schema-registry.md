@@ -45,4 +45,4 @@ The folder `schemas/` at the repo root IS the registry ([ADR-0002](../adr/0002-s
 
 - `cat schemas/knowledge.read/1.json` — the contract, human-readable JSON Schema
 - `cat schemas/golden/knowledge.read.1.ndjson` — what a valid event looks like
-- `dotnet test` — runs the corpus gate locally, same as CI
+- `dotnet test` — runs the corpus gate locally
