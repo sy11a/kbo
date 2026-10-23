@@ -40,7 +40,7 @@ These govern every change; a reviewer should be able to check a diff against the
   from bronze alone. Never mutate past bronze lines.
 - **Gold is computed exactly once** — renderers contain zero computation.
 - **Schema evolution is additive-only** — a new version plus a golden-corpus
-  entry in CI; breaking changes get a read-time upcaster.
+  entry in the test suite; breaking changes get a read-time upcaster.
 - **Nothing agent-specific or path-specific is hardcoded** outside the adapters
   and the typed registry.
 - **The NOT-list (ADR-0003) is a hard boundary** — no custom storage engine,
