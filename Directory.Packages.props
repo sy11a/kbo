@@ -12,7 +12,7 @@
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <!-- The Sy11a.Analyzers pin is exact (BL-503); the sy11a.lint version in .config/dotnet-tools.json moves with it in lockstep. -->
-    <PackageVersion Include="Sy11a.Analyzers" Version="[0.33.0]" />
+    <PackageVersion Include="Sy11a.Analyzers" Version="[0.34.1]" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
