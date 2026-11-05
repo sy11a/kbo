@@ -8,5 +8,5 @@ namespace Kbo.Bronze;
 /// </summary>
 internal interface IUlidEntropy
 {
-    public void Fill(Span<byte> buffer);
+    void Fill(Span<byte> buffer);
 }
