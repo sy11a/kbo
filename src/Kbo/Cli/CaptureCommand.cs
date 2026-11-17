@@ -55,13 +55,12 @@ internal static class CaptureCommand
     }
 
     /// <summary>
-    /// Last-chance handler for any exception type not covered by <see cref="Run"/>'s
-    /// filter. Registered against <see cref="AppDomain.CurrentDomain"/> in
-    /// <c>Program.RunCapture</c> so even a throw from an unfiltered code
-    /// path (or the BCL itself) still ends in a logged drop and exit 0
-    /// (ADR-0029). The handler logs the drop and ends the process with
-    /// exit code 0, so an exception type outside <see cref="Run"/>'s filter still
-    /// honours ADR-0029.
+    /// Last-chance handler for an exception type not covered by <see cref="Run"/>'s
+    /// filter that is thrown on another thread. Registered against
+    /// <see cref="AppDomain.CurrentDomain"/> in <c>Program.RunCapture</c>; it logs the
+    /// drop and ends the process with exit code 0 (ADR-0029). A throw on the command's
+    /// own thread reaches <c>Program.Main</c>'s catch instead, which calls
+    /// <see cref="DropUnexpected"/>.
     /// </summary>
     internal static UnhandledExceptionEventHandler CreateUnhandledExceptionHandler(string homeDirectory, string agent)
     {
@@ -71,6 +70,17 @@ internal static class CaptureCommand
             LogDrop(homeDirectory, agent, message ?? string.Empty);
             Environment.Exit(0);
         };
+    }
+
+    /// <summary>
+    /// Last-chance drop for an exception type not covered by <see cref="Run"/>'s filter
+    /// that reached the process entry (<c>Program.Main</c>) from the command's own thread:
+    /// the drop is logged and the exit code is 0 (ADR-0029).
+    /// </summary>
+    internal static int DropUnexpected(string homeDirectory, string agent, Exception exception)
+    {
+        LogDrop(homeDirectory, agent, exception.Message);
+        return 0;
     }
 
     private static void Capture(string agent, TextReader input, Func<string, string?> environment, string homeDirectory)

@@ -5,10 +5,31 @@ namespace Kbo;
 
 internal static class Program
 {
+    private const string CaptureCommandName = "capture";
+
     private static async Task<int> Main(string[] args)
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return await CommandDispatcher.RunAsync(args, Commands(home), Console.Error).ConfigureAwait(false);
+        try
+        {
+            return await CommandDispatcher.RunAsync(args, Commands(home), Console.Error).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // An exception from the command's own thread ends here. Capture keeps its fail-safe contract
+            // (ADR-0029): the drop is logged and the exit code stays 0. Every other command reports it and
+            // exits 2. The capture AppDomain handler stays for an exception on another thread.
+            return args is [CaptureCommandName, string agent, ..]
+                ? CaptureCommand.DropUnexpected(home, agent, ex)
+                : ReportUnexpected(ex, Console.Error);
+        }
+    }
+
+    internal static int ReportUnexpected(Exception exception, TextWriter error)
+    {
+        error.WriteLine($"kbo: internal error: {exception.GetType().FullName}: {exception.Message}");
+        error.WriteLine(exception.ToString());
+        return 2;
     }
 
     private static IReadOnlyList<KeyValuePair<string, Func<string[], Task<int>>>> Commands(string home)
@@ -16,7 +37,7 @@ internal static class Program
         return
         [
             new("registry", args => Task.FromResult(RunRegistry(args, home))),
-            new("capture", args => Task.FromResult(RunCapture(args, home))),
+            new(CaptureCommandName, args => Task.FromResult(RunCapture(args, home))),
             new("harvest", args => Task.FromResult(RunHarvest(args, home))),
             new("rebuild", args => Task.FromResult(RunRebuild(args, home))),
             new("report", args => Task.FromResult(RunReport(args, home))),

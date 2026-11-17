@@ -241,7 +241,7 @@ internal static class ClaudeCodeAdapter
         {
             return null;
         }
-        if (Path.IsPathRooted(path))
+        if (Path.IsPathFullyQualified(path))
         {
             return Path.GetFullPath(path);
         }

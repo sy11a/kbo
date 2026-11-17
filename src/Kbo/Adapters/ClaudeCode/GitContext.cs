@@ -40,7 +40,7 @@ internal sealed record GitContext(string? RepoRoot, string? Branch, string? Task
                 if (pointer.StartsWith(GitDirPointerPrefix, StringComparison.Ordinal))
                 {
                     string gitDirectory = pointer[GitDirPointerPrefix.Length..].Trim();
-                    if (!Path.IsPathRooted(gitDirectory))
+                    if (!Path.IsPathFullyQualified(gitDirectory))
                     {
                         gitDirectory = Path.GetFullPath(Path.Combine(directory, gitDirectory));
                     }

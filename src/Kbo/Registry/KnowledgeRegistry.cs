@@ -194,7 +194,7 @@ internal sealed class KnowledgeRegistry
             errors.Add($"source '{entry.Id}': 'root' is missing");
             return false;
         }
-        if (!Path.IsPathRooted(entry.Root))
+        if (!Path.IsPathFullyQualified(entry.Root))
         {
             errors.Add($"source '{entry.Id}': root '{entry.Root}' is not an absolute path");
             return false;
@@ -220,7 +220,9 @@ internal sealed class KnowledgeRegistry
         bool excludePathsValid = true;
         foreach (string excludePath in entry.ExcludePaths ?? [])
         {
-            if (string.IsNullOrWhiteSpace(excludePath) || Path.IsPathRooted(excludePath)
+            // Any path root refuses the entry: a fully qualified path and, on Windows, a rooted one
+            // that is not ("\x", "C:x") alike.
+            if (string.IsNullOrWhiteSpace(excludePath) || Path.GetPathRoot(excludePath) is { Length: > 0 }
                 || excludePath.Contains('*', StringComparison.Ordinal))
             {
                 errors.Add($"source '{entry.Id}': excludePaths entry '{excludePath}' must be a relative path without '*'");
@@ -238,7 +240,7 @@ internal sealed class KnowledgeRegistry
         {
             return true;
         }
-        if (!Path.IsPathRooted(entry.MetricsArtifact))
+        if (!Path.IsPathFullyQualified(entry.MetricsArtifact))
         {
             errors.Add($"source '{entry.Id}': metricsArtifact '{entry.MetricsArtifact}' is not an absolute path");
             return false;
@@ -287,7 +289,7 @@ internal sealed class KnowledgeRegistry
             errors.Add("constitution: 'versionFile' is missing");
             valid = false;
         }
-        else if (!Path.IsPathRooted(entry.VersionFile))
+        else if (!Path.IsPathFullyQualified(entry.VersionFile))
         {
             errors.Add($"constitution: versionFile '{entry.VersionFile}' is not an absolute path");
             valid = false;
@@ -300,7 +302,7 @@ internal sealed class KnowledgeRegistry
         List<string> scanRoots = [];
         foreach (string root in entry.ScanRoots ?? [])
         {
-            if (string.IsNullOrWhiteSpace(root) || !Path.IsPathRooted(root))
+            if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root))
             {
                 errors.Add($"constitution: scanRoot '{root}' is not an absolute path");
                 valid = false;

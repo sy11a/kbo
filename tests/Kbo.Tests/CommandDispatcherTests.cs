@@ -37,16 +37,13 @@ public sealed class CommandDispatcherTests : IDisposable
         return table;
     }
 
-    private async Task<int> RunAsync(IReadOnlyList<KeyValuePair<string, Func<string[], Task<int>>>> table, params string[] args) =>
-        await CommandDispatcher.RunAsync(args, table, _error);
-
     [Theory]
     [InlineData("alpha", 10)]
     [InlineData("beta", 11)]
     [InlineData("gamma", 12)]
     public async Task RunAsync_KnownCommand_DispatchesToItsOwnHandlerWithTheRemainingArgsAsync(string name, int expectedExitCode)
     {
-        int exitCode = await RunAsync(Table("alpha", "beta", "gamma"), name, "--flag", "value");
+        int exitCode = await CommandDispatcher.RunAsync([name, "--flag", "value"], Table("alpha", "beta", "gamma"), _error);
 
         Assert.Equal(expectedExitCode, exitCode);
         (string calledName, string[] calledArgs) = Assert.Single(_calls);
@@ -58,7 +55,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_CommandWithoutFurtherArgs_PassesAnEmptyArrayAsync()
     {
-        int exitCode = await RunAsync(Table("alpha", "beta"), "beta");
+        int exitCode = await CommandDispatcher.RunAsync(["beta"], Table("alpha", "beta"), _error);
 
         Assert.Equal(11, exitCode);
         (string calledName, string[] calledArgs) = Assert.Single(_calls);
@@ -75,7 +72,7 @@ public sealed class CommandDispatcherTests : IDisposable
     {
         List<KeyValuePair<string, Func<string[], Task<int>>>> table = [new("only", Recording("only", handlerExitCode))];
 
-        int exitCode = await RunAsync(table, "only");
+        int exitCode = await CommandDispatcher.RunAsync(["only"], table, _error);
 
         Assert.Equal(handlerExitCode, exitCode);
         Assert.Empty(_error.ToString());
@@ -84,7 +81,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_NoArgs_WritesUsageAndFailsAsync()
     {
-        int exitCode = await RunAsync(Table("alpha", "beta"));
+        int exitCode = await CommandDispatcher.RunAsync([], Table("alpha", "beta"), _error);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("usage: kbo <alpha | beta> ..." + Environment.NewLine, _error.ToString());
@@ -94,7 +91,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_UnknownCommand_WritesUsageAndFailsAsync()
     {
-        int exitCode = await RunAsync(Table("alpha", "beta"), "delta", "alpha");
+        int exitCode = await CommandDispatcher.RunAsync(["delta", "alpha"], Table("alpha", "beta"), _error);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("usage: kbo <alpha | beta> ..." + Environment.NewLine, _error.ToString());
@@ -104,7 +101,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_DifferentlyCasedCommand_IsUnknownAsync()
     {
-        int exitCode = await RunAsync(Table("registry"), "Registry");
+        int exitCode = await CommandDispatcher.RunAsync(["Registry"], Table("registry"), _error);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("usage: kbo <registry> ..." + Environment.NewLine, _error.ToString());
@@ -114,7 +111,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_Usage_ListsTheTableNamesInTableOrderAsync()
     {
-        int exitCode = await RunAsync(Table("zeta", "alpha", "mu"), "unknown");
+        int exitCode = await CommandDispatcher.RunAsync(["unknown"], Table("zeta", "alpha", "mu"), _error);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("usage: kbo <zeta | alpha | mu> ..." + Environment.NewLine, _error.ToString());
@@ -123,7 +120,7 @@ public sealed class CommandDispatcherTests : IDisposable
     [Fact]
     public async Task RunAsync_ProgramCommandNames_WriteTheExactCliUsageAsync()
     {
-        int exitCode = await RunAsync(Table(_programCommandNames));
+        int exitCode = await CommandDispatcher.RunAsync([], Table(_programCommandNames), _error);
 
         Assert.Equal(1, exitCode);
         Assert.Equal(ProgramUsage + Environment.NewLine, _error.ToString());
@@ -143,7 +140,7 @@ public sealed class CommandDispatcherTests : IDisposable
             }),
         ];
 
-        int exitCode = await RunAsync(table, "watch");
+        int exitCode = await CommandDispatcher.RunAsync(["watch"], table, _error);
 
         Assert.Equal(7, exitCode);
         Assert.True(continuationRan);
