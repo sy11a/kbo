@@ -64,3 +64,9 @@ types capture can raise (I/O, access, JSON, registry format, invalid operation, 
 logs each as a drop. Any other type reaches a last-chance `AppDomain.UnhandledException` handler, registered only by
 the process entry (`Program.RunCapture`), which logs the drop and ends the process with exit code 0, so the contract
 holds for every exception. The drop log itself swallows only I/O and access failures.
+
+Note (VSTHRD202 at error, sy11a gate 0.41.0, kbo#85, 2026-11-18): the decision is unchanged. `Program.Main` now catches an
+unexpected exception from the command's own thread (every type but `OperationCanceledException`). For `capture` it
+calls `CaptureCommand.DropUnexpected`, which logs the drop and returns exit code 0. Every other command reports the
+exception to stderr and exits 2. The `AppDomain.UnhandledException` handler that `Program.RunCapture` registers stays,
+for an exception on another thread.
