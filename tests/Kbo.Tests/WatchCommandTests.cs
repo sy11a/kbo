@@ -54,19 +54,15 @@ public sealed class WatchCommandTests : IDisposable
         Directory.Delete(_workspace, recursive: true);
     }
 
-    private async Task<int> RunAsync(CancellationToken cancellationToken, params string[] args)
+    private string? Variable(string name)
     {
-        string? Environment(string name)
+        return name switch
         {
-            return name switch
-            {
-                "KBO_REGISTRY" => _registryPath,
-                "KBO_SILVER" => _silverPath,
-                "KBO_EVENTS_REPO" => _eventsRepo,
-                _ => null,
-            };
-        }
-        return await WatchCommand.RunAsync(args, _output, _error, variable => Environment(variable), _workspace, cancellationToken);
+            "KBO_REGISTRY" => _registryPath,
+            "KBO_SILVER" => _silverPath,
+            "KBO_EVENTS_REPO" => _eventsRepo,
+            _ => null,
+        };
     }
 
     private static CancellationToken Cancelled() => new(canceled: true);
@@ -74,7 +70,7 @@ public sealed class WatchCommandTests : IDisposable
     [Fact]
     public async Task Watch_CancelledToken_RendersDashboardOnce_WithAutoReloadAndStopsAsync()
     {
-        int exitCode = await RunAsync(Cancelled());
+        int exitCode = await WatchCommand.RunAsync([], _output, _error, variable => Variable(variable), _workspace, Cancelled());
 
         Assert.Equal(0, exitCode);
         string dashboard = Path.Combine(_vaultRoot, "_generated", "kbo-dashboard.html");
@@ -86,7 +82,7 @@ public sealed class WatchCommandTests : IDisposable
     [Fact]
     public async Task Watch_ExplicitInterval_DrivesTheRefreshContentAsync()
     {
-        int exitCode = await RunAsync(Cancelled(), "--interval", "10");
+        int exitCode = await WatchCommand.RunAsync(["--interval", "10"], _output, _error, variable => Variable(variable), _workspace, Cancelled());
 
         Assert.Equal(0, exitCode);
         string dashboard = await File.ReadAllTextAsync(Path.Combine(_vaultRoot, "_generated", "kbo-dashboard.html"), CancellationToken.None);
@@ -96,7 +92,7 @@ public sealed class WatchCommandTests : IDisposable
     [Fact]
     public async Task Watch_IntervalBelowMinimum_FailsBeforeRenderingAsync()
     {
-        int exitCode = await RunAsync(Cancelled(), "--interval", "1");
+        int exitCode = await WatchCommand.RunAsync(["--interval", "1"], _output, _error, variable => Variable(variable), _workspace, Cancelled());
 
         Assert.Equal(1, exitCode);
         Assert.Contains("interval", _error.ToString(), StringComparison.Ordinal);
@@ -106,7 +102,7 @@ public sealed class WatchCommandTests : IDisposable
     [Fact]
     public async Task Watch_UnknownArgument_ReturnsUsageAsync()
     {
-        int exitCode = await RunAsync(Cancelled(), "--bogus");
+        int exitCode = await WatchCommand.RunAsync(["--bogus"], _output, _error, variable => Variable(variable), _workspace, Cancelled());
 
         Assert.Equal(1, exitCode);
         Assert.Contains("usage: kbo watch", _error.ToString(), StringComparison.Ordinal);
